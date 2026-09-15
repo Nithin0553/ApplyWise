@@ -1,12 +1,12 @@
 # Initial Issue Creation Plan
 
-The Project Manager should ensure one GitHub issue exists for each initial workstream before coding starts:
+Initial six-person workstream issues are created for the first development tranche:
 
-- F02 Career Evidence Profile foundation + F13 snapshot-model contract — Nithin
-- F07 AI Statement Generation with Provenance contract/prototype — Niraali
-- F04 Job Description Analysis contract/prototype — Sampreet
-- F10 Resume Generation/Templates/Export contract + approved shared UI shell scope — Daniel
-- F08 Claim Verification contract/prototype + adversarial tests — Suraj
-- F01 Authentication/RBAC foundation — Prudhvi
+- Nithin (`@Nithin0553`): F02 Career Evidence Profile + early F13 snapshot contract.
+- Niraali (`@niraalibandi`): F07 AI Statement Generation with Provenance contract/prototype.
+- Sampreet (`@Sampreet26`): F04 Job Description Analysis contract/prototype.
+- Daniel (`@dhernandez23`): F10 Resume generation/templates/export contract + shared UI shell scope.
+- Suraj (`@surajloni`): F08 Claim Verification contract/prototype + adversarial tests.
+- Prudhvi (`@Pras04ad`): F01 Authentication and RBAC foundation.
 
-Each issue must contain acceptance criteria, dependency contracts, and required tests before the branch is created.
+Dependent feature issues should be created after these contracts stabilize, rather than assigning all F01-F16 simultaneously.
