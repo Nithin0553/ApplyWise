@@ -7,6 +7,6 @@ The first development tranche is intentionally limited to six parallel workstrea
 - Sampreet (`@Sampreet26`): F04 job-description analysis contract.
 - Daniel (`@dhernandez23`): F10 document-generation/export contract and shared UI shell work explicitly approved in issue scope.
 - Suraj (`@surajloni`): F08 claim-verification contract and adversarial tests.
-- Prudhvi (`@Prasad04ad`, username pending confirmation): F01 authentication/RBAC foundation.
+- Prudhvi (`@Pras04ad`): F01 authentication/RBAC foundation.
 
 No one should begin a dependent feature by copying another workstream's internal implementation. Use documented contracts or fixtures until the dependency merges.
