@@ -1,12 +1,33 @@
+# ApplyWise code ownership
+# Repository-wide fallback / release coordination
 * @Nithin0553
 
-# Add each teammate's GitHub username, then replace broad ownership with module ownership.
-# /apps/api/app/modules/auth/ @<owner>
-# /apps/api/app/modules/evidence/ @<owner>
-# /apps/api/app/modules/job_analysis/ @<owner>
-# /apps/api/app/modules/matching/ @<owner>
-# /apps/api/app/modules/generation/ @<owner>
-# /apps/api/app/modules/verification/ @<owner>
-# /apps/api/app/modules/documents/ @<owner>
-# /apps/api/app/modules/applications/ @<owner>
-# /apps/api/app/modules/sharing/ @<owner>
+# Initial feature lanes
+/apps/api/app/modules/evidence/ @Nithin0553
+/apps/api/app/modules/applications/ @Nithin0553
+/apps/web/src/features/evidence/ @Nithin0553
+/apps/web/src/features/applications/ @Nithin0553
+
+/apps/api/app/modules/generation/ @niraalibandi
+/apps/api/app/services/ai/ @niraalibandi
+/apps/web/src/features/tailoring/ @niraalibandi
+/apps/web/src/features/cover-letter/ @niraalibandi
+/apps/web/src/features/interview/ @niraalibandi
+
+/apps/api/app/modules/job_analysis/ @Sampreet26
+/apps/api/app/modules/matching/ @Sampreet26
+/apps/web/src/features/job-analysis/ @Sampreet26
+/apps/web/src/features/matching/ @Sampreet26
+
+/apps/api/app/modules/documents/ @dhernandez23
+/apps/web/src/features/resume/ @dhernandez23
+/apps/web/src/features/ats/ @dhernandez23
+
+/apps/api/app/modules/verification/ @surajloni
+/apps/web/src/features/verification/ @surajloni
+/apps/web/src/features/review/ @surajloni
+
+# F01 Authentication / configuration owner is intended to be Prudhvi Prasad Sikharam.
+# The supplied GitHub username @Prasad04ad did not resolve through the current
+# repository permission lookup, so it is intentionally not enforced here yet.
+# Until confirmed, the repository-wide @Nithin0553 fallback applies to auth/config paths.
