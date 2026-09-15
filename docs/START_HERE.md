@@ -1,11 +1,10 @@
 # Start Here
 
-Before coding:
+1. Read `README.md`.
+2. Read `docs/ARCHITECTURE.md` and `docs/TEAM_WORKFLOW.md`.
+3. Read `docs/TEAM_ALLOCATION.md` and `docs/WORKSTREAMS.md`.
+4. Confirm your GitHub username in `docs/TEAM_USERNAMES.md`.
+5. Follow `docs/ONBOARDING.md` before starting feature work.
+6. Work only through an issue-linked short-lived branch and pull request.
 
-1. Read `TEAM_ALLOCATION.md` for your lane.
-2. Read `TEAM_WORKFLOW.md` for Git rules.
-3. Read `ARCHITECTURE.md` for module boundaries and hard invariants.
-4. Read `ONBOARDING.md` and verify your local setup.
-5. Work only from a GitHub issue and short-lived branch.
-
-Do not begin dependent feature implementation by changing another developer's module. Agree on a contract or use fixtures/mocks until that dependency is merged.
+Current first-tranche owners: @Nithin0553, @niraalibandi, @Sampreet26, @dhernandez23, @surajloni, and @Pras04ad.
