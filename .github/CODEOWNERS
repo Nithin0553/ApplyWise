@@ -27,7 +27,10 @@
 /apps/web/src/features/verification/ @surajloni
 /apps/web/src/features/review/ @surajloni
 
-# F01 Authentication / configuration owner is intended to be Prudhvi Prasad Sikharam.
-# The supplied GitHub username @Prasad04ad did not resolve through the current
-# repository permission lookup, so it is intentionally not enforced here yet.
-# Until confirmed, the repository-wide @Nithin0553 fallback applies to auth/config paths.
+/apps/api/app/modules/auth/ @Pras04ad
+/apps/web/src/features/auth/ @Pras04ad
+
+# Configuration-related shared files require both configuration and project-manager review.
+/.env.example @Pras04ad @Nithin0553
+/docker-compose.yml @Pras04ad @Nithin0553
+/.github/workflows/ @Pras04ad @Nithin0553
