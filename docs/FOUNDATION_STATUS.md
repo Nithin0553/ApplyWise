@@ -15,19 +15,24 @@
 - Dependency/security baseline workflow.
 - PR template, issue templates, CODEOWNERS starter.
 - Architecture, team workflow, feature boundary, traceability, versioning, and ADR documents.
+- Source project artifacts preserved in `docs/source/` locally and prepared for repository preservation.
+- Initial six-person workstreams documented.
+- Team GitHub identities documented, including corrected Prudhvi username `@Pras04ad`.
 
 ## Intentionally not implemented
 No product feature F01-F16 is marked complete. Feature implementation starts after owners are assigned and detailed requirement/use-case IDs are available.
 
-Still to be selected or implemented by feature work:
+Still to be selected/implemented by feature work:
 - Authentication provider
-- Detailed schema and migrations
+- Detailed schema/migrations
 - AI provider
 - PDF/DOCX processing libraries
 - Resume rendering approach
 - Final design system
-- Production hosting and secrets
-- Exact teammate CODEOWNERS usernames
+- Production hosting/secrets
 
-## Repository
-The live repository is `Nithin0553/ApplyWise` and this foundation is version 0.1.0.
+## GitHub administration still required
+- Grant the five teammates write collaborator access.
+- Protect `main` with pull-request, review, CI, and force-push/deletion restrictions.
+- Confirm whether the repository should remain public.
+- Ensure formal PDF artifacts are preserved in the repository.
