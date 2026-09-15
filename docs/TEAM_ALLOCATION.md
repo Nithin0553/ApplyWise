@@ -15,9 +15,7 @@ This allocation is designed to let all six developers work in parallel while min
 | Sampreet Ajjanagouda Patil | `@Sampreet26` | Project Requirements Manager |
 | Daniel Hernandez | `@dhernandez23` | Project Design Manager |
 | Suraj Loni | `@surajloni` | Project Test Manager / Quality Assurance Manager |
-| Prudhvi Prasad Sikharam | `@Prasad04ad`* | Project Configuration Manager |
-
-\* `@Prasad04ad` should be re-confirmed before CODEOWNERS enforcement because the current GitHub connection did not resolve repository permission information for that username.
+| Prudhvi Prasad Sikharam | `@Pras04ad` | Project Configuration Manager |
 
 ## Initial parallel work allocation
 
