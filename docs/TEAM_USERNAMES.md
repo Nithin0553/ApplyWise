@@ -5,4 +5,4 @@
 - Sampreet Ajjanagouda Patil — `@Sampreet26`
 - Daniel Hernandez — `@dhernandez23`
 - Suraj Loni — `@surajloni`
-- Prudhvi Prasad Sikharam — `@Prasad04ad` (pending confirmation in GitHub permission lookup)
+- Prudhvi Prasad Sikharam — `@Pras04ad`
