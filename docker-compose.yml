@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-applywise}
+      POSTGRES_USER: ${POSTGRES_USER:-applywise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-applywise_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - applywise_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-applywise} -d ${POSTGRES_DB:-applywise}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  applywise_pgdata:

@@ -1,0 +1,12 @@
+* @Nithin0553
+
+# Add each teammate's GitHub username, then replace broad ownership with module ownership.
+# /apps/api/app/modules/auth/ @<owner>
+# /apps/api/app/modules/evidence/ @<owner>
+# /apps/api/app/modules/job_analysis/ @<owner>
+# /apps/api/app/modules/matching/ @<owner>
+# /apps/api/app/modules/generation/ @<owner>
+# /apps/api/app/modules/verification/ @<owner>
+# /apps/api/app/modules/documents/ @<owner>
+# /apps/api/app/modules/applications/ @<owner>
+# /apps/api/app/modules/sharing/ @<owner>

@@ -1,0 +1,33 @@
+name: Security Baseline
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 12 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Frontend audit
+        working-directory: apps/web
+        run: |
+          npm install
+          npm audit --audit-level=high
+        continue-on-error: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Backend audit
+        working-directory: apps/api
+        run: |
+          pip install pip-audit
+          pip-audit
+        continue-on-error: true

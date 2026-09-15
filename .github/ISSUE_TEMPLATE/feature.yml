@@ -1,0 +1,32 @@
+name: Feature work
+description: Plan implementation work tied to an ApplyWise feature
+title: "[F__] "
+labels: ["feature"]
+body:
+  - type: input
+    id: feature
+    attributes:
+      label: Feature ID
+      placeholder: F02
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and contracts
+  - type: textarea
+    id: tests
+    attributes:
+      label: Required tests

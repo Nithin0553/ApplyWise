@@ -1,0 +1,7 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #111827;
+  background: #f8fafc;
+}
+body { margin: 0; }
+.shell { max-width: 960px; margin: 0 auto; padding: 4rem 1.5rem; }
