@@ -12,6 +12,16 @@ Approval applies to the current content of an evidence record, not permanently t
 
 This rule prevents F05/F07/F08 consumers from treating materially edited evidence as though the user had already approved the new content. Existing statement provenance may still keep the evidence ID, but the evidence will no longer appear through the approved-evidence contract until the user reviews and approves it again.
 
-Downstream modules F05, F07, and F08 integrate through `ApprovedEvidenceProvider.list_approved(user_id=...)`. They must not query `evidence_records` directly. The returned contract contains only records whose owner matches the requested user and whose state is `APPROVED`.
+## Downstream grounding contract
 
-The HTTP authentication boundary is intentionally not implemented in F02. F01 owns authentication and role resolution; once F01 lands, an API/router layer can supply the authenticated user ID to `EvidenceService` without changing the F02 domain contract.
+Downstream modules F05, F07, and F08 must use the F02 service contract rather than querying `evidence_records` directly. `ApprovedEvidenceProvider.list_approved(user_id=...)` returns the complete approved evidence objects. `list_grounding_contexts(user_id=...)` returns a normalized `EvidenceGroundingContext` intended for matching, generation, and verification adapters.
+
+The grounding context deliberately preserves structured factual fields instead of collapsing them into free text. It includes title, organization, role, location, description, dates, `skill_name`, `proficiency`, and `credential`. F07 should therefore pass skill name, proficiency, and credential through when present rather than silently dropping them. `source` and `source_url` are retained as provenance metadata; a URL by itself is not a factual claim and should not be turned into resume content merely because it exists.
+
+Every grounding context comes only from evidence in the `APPROVED` state and retains its evidence ID and approval timestamp for provenance.
+
+## Ownership and enumeration safety
+
+F02 scopes single-record lookups by both `evidence_id` and `user_id`. A missing ID and an ID owned by another user both raise the same `EvidenceNotFoundError`. This is intentional: the future HTTP layer should map both cases to the same not-found response so callers cannot probe whether another user's private evidence ID exists.
+
+The HTTP authentication boundary itself is intentionally not implemented in F02. F01 owns authentication and role resolution; once F01 lands, an API/router layer can supply the authenticated user ID to `EvidenceService` without changing the F02 domain contract.
