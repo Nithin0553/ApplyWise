@@ -10,7 +10,7 @@ from app.db.base import Base
 from app.modules.evidence.models import EvidenceRecord, EvidenceStatus, EvidenceType
 from app.modules.evidence.schemas import EvidenceCreate, EvidenceUpdate
 from app.modules.evidence.service import (
-    EvidenceOwnershipError,
+    EvidenceNotFoundError,
     EvidenceService,
     InvalidEvidenceTransitionError,
 )
@@ -150,16 +150,44 @@ def test_list_approved_filters_state_and_owner(session: Session) -> None:
     assert all(item.status == EvidenceStatus.APPROVED for item in approved)
 
 
-def test_cross_user_access_is_rejected(session: Session) -> None:
+def test_grounding_context_preserves_structured_skill_evidence(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    skill = service.create(
+        user_id=user_id,
+        data=EvidenceCreate(
+            evidence_type=EvidenceType.SKILL,
+            title="Python backend development",
+            skill_name="Python",
+            proficiency="advanced",
+            credential="Synthetic Python Certificate",
+            url="https://example.invalid/certificate",
+            source="manual",
+        ),
+    )
+    service.approve(user_id=user_id, evidence_id=skill.id)
+
+    contexts = service.list_grounding_contexts(user_id=user_id)
+
+    assert len(contexts) == 1
+    assert contexts[0].evidence_id == skill.id
+    assert contexts[0].skill_name == "Python"
+    assert contexts[0].proficiency == "advanced"
+    assert contexts[0].credential == "Synthetic Python Certificate"
+    assert contexts[0].source_url == "https://example.invalid/certificate"
+
+
+def test_foreign_and_missing_ids_have_same_not_found_boundary(session: Session) -> None:
     owner_id = uuid4()
     other_user_id = uuid4()
     service = EvidenceService(session)
     created = create_project(service, owner_id)
 
-    with pytest.raises(EvidenceOwnershipError):
-        service.approve(user_id=other_user_id, evidence_id=created.id)
+    for evidence_id in (created.id, uuid4()):
+        with pytest.raises(EvidenceNotFoundError):
+            service.get_owned(user_id=other_user_id, evidence_id=evidence_id)
 
-    with pytest.raises(EvidenceOwnershipError):
+    with pytest.raises(EvidenceNotFoundError):
         service.update(
             user_id=other_user_id,
             evidence_id=created.id,
