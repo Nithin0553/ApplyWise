@@ -58,7 +58,9 @@ def create_application(
     )
 
 
-def make_resume_content(text: str = "Built a synthetic scheduling service.") -> ResumeVersionContent:
+def make_resume_content(
+    text: str = "Built a synthetic scheduling service.",
+) -> ResumeVersionContent:
     evidence_id = uuid4()
     return ResumeVersionContent(
         evidence=(
