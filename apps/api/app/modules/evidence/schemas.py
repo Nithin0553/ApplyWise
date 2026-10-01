@@ -31,6 +31,22 @@ class EvidenceCreate(BaseModel):
         return self
 
 
+class EvidenceUpdate(BaseModel):
+    evidence_type: EvidenceType | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    organization: str | None = Field(default=None, max_length=200)
+    role: str | None = Field(default=None, max_length=200)
+    location: str | None = Field(default=None, max_length=200)
+    description: str | None = None
+    skill_name: str | None = Field(default=None, max_length=200)
+    proficiency: str | None = Field(default=None, max_length=100)
+    credential: str | None = Field(default=None, max_length=200)
+    url: str | None = Field(default=None, max_length=500)
+    start_date: date | None = None
+    end_date: date | None = None
+    source: str | None = Field(default=None, max_length=100)
+
+
 class EvidenceView(EvidenceCreate):
     model_config = ConfigDict(from_attributes=True)
 
