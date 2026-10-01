@@ -5,12 +5,17 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.base import Base
+from app.modules.applications import models as application_models
 from app.modules.evidence import models as evidence_models
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
-_ = evidence_models.EvidenceRecord
+_ = (
+    application_models.ApplicationRecord,
+    application_models.ResumeVersionRecord,
+    evidence_models.EvidenceRecord,
+)
 target_metadata = Base.metadata
 
 
