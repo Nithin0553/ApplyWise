@@ -18,6 +18,17 @@ export interface ApplicationSummary {
   versionCount: number;
 }
 
+export interface ApplicationFormValues {
+  companyName: string;
+  roleTitle: string;
+  location: string;
+  jobUrl: string;
+  source: string;
+  notes: string;
+  appliedOn: string;
+  nextActionOn: string;
+}
+
 export interface ResumeVersionSummary {
   id: string;
   versionNumber: number;
