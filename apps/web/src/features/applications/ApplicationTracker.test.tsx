@@ -2,11 +2,13 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApplicationTracker } from "./ApplicationTracker";
 import type { ApplicationSummary, ResumeVersionSummary } from "./types";
+
+afterEach(cleanup);
 
 const applications: readonly ApplicationSummary[] = [
   {
