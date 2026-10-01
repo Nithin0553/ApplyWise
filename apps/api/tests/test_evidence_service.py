@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.base import Base
 from app.modules.evidence.models import EvidenceRecord, EvidenceStatus, EvidenceType
-from app.modules.evidence.schemas import EvidenceCreate
+from app.modules.evidence.schemas import EvidenceCreate, EvidenceUpdate
 from app.modules.evidence.service import (
     EvidenceOwnershipError,
     EvidenceService,
@@ -70,6 +70,61 @@ def test_owner_can_approve_and_unconfirm_persisted_evidence(session: Session) ->
     assert unconfirmed.approved_at is None
 
 
+def test_editing_approved_evidence_revokes_approval(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = create_project(service, user_id)
+    service.approve(user_id=user_id, evidence_id=created.id)
+
+    updated = service.update(
+        user_id=user_id,
+        evidence_id=created.id,
+        data=EvidenceUpdate(description="Built and tested a synthetic REST API."),
+    )
+    session.commit()
+
+    assert updated.description == "Built and tested a synthetic REST API."
+    assert updated.status == EvidenceStatus.UNCONFIRMED
+    assert updated.approved_at is None
+
+
+def test_noop_edit_keeps_existing_approval(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = create_project(service, user_id)
+    approved = service.approve(user_id=user_id, evidence_id=created.id)
+
+    updated = service.update(
+        user_id=user_id,
+        evidence_id=created.id,
+        data=EvidenceUpdate(title=created.title),
+    )
+
+    assert updated.status == EvidenceStatus.APPROVED
+    assert updated.approved_at == approved.approved_at
+
+
+def test_update_validates_full_date_range(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = service.create(
+        user_id=user_id,
+        data=EvidenceCreate(
+            evidence_type=EvidenceType.WORK_EXPERIENCE,
+            title="Synthetic internship",
+            start_date="2026-01-01",
+            end_date="2026-05-01",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="end_date cannot be earlier than start_date"):
+        service.update(
+            user_id=user_id,
+            evidence_id=created.id,
+            data=EvidenceUpdate(start_date="2026-06-01"),
+        )
+
+
 def test_list_approved_filters_state_and_owner(session: Session) -> None:
     owner_id = uuid4()
     other_user_id = uuid4()
@@ -98,6 +153,13 @@ def test_cross_user_access_is_rejected(session: Session) -> None:
 
     with pytest.raises(EvidenceOwnershipError):
         service.approve(user_id=other_user_id, evidence_id=created.id)
+
+    with pytest.raises(EvidenceOwnershipError):
+        service.update(
+            user_id=other_user_id,
+            evidence_id=created.id,
+            data=EvidenceUpdate(title="Unauthorized change"),
+        )
 
 
 def test_duplicate_transition_is_rejected(session: Session) -> None:
