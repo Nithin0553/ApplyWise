@@ -91,6 +91,11 @@ class ResumeVersionRecord(Base):
             ondelete="RESTRICT",
         ),
         UniqueConstraint(
+            "id",
+            "user_id",
+            name="uq_resume_versions_id_user",
+        ),
+        UniqueConstraint(
             "application_id",
             "version_number",
             name="uq_resume_versions_application_version",
