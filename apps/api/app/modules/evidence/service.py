@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import EvidenceRecord, EvidenceStatus
-from .schemas import ApprovedEvidence, EvidenceCreate, EvidenceView
+from .schemas import ApprovedEvidence, EvidenceCreate, EvidenceUpdate, EvidenceView
 
 
 class EvidenceNotFoundError(LookupError):
@@ -50,6 +50,43 @@ class EvidenceService:
             .order_by(EvidenceRecord.created_at, EvidenceRecord.id)
         ).all()
         return [EvidenceView.model_validate(record) for record in records]
+
+    def update(
+        self,
+        *,
+        user_id: UUID,
+        evidence_id: UUID,
+        data: EvidenceUpdate,
+    ) -> EvidenceView:
+        record = self._get_owned_record(user_id=user_id, evidence_id=evidence_id)
+        requested_updates = data.model_dump(exclude_unset=True)
+        if not requested_updates:
+            return EvidenceView.model_validate(record)
+
+        current_data = {
+            field_name: getattr(record, field_name)
+            for field_name in EvidenceCreate.model_fields
+        }
+        validated = EvidenceCreate.model_validate(
+            {**current_data, **requested_updates}
+        ).model_dump()
+        changed_values = {
+            field_name: value
+            for field_name, value in validated.items()
+            if getattr(record, field_name) != value
+        }
+        if not changed_values:
+            return EvidenceView.model_validate(record)
+
+        for field_name, value in changed_values.items():
+            setattr(record, field_name, value)
+
+        if record.status == EvidenceStatus.APPROVED:
+            record.status = EvidenceStatus.UNCONFIRMED
+            record.approved_at = None
+
+        self.session.flush()
+        return EvidenceView.model_validate(record)
 
     def approve(self, *, user_id: UUID, evidence_id: UUID) -> ApprovedEvidence:
         record = self._get_owned_record(user_id=user_id, evidence_id=evidence_id)
