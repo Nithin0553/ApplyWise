@@ -7,14 +7,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import EvidenceRecord, EvidenceStatus
-from .schemas import ApprovedEvidence, EvidenceCreate, EvidenceUpdate, EvidenceView
+from .schemas import (
+    ApprovedEvidence,
+    EvidenceCreate,
+    EvidenceGroundingContext,
+    EvidenceUpdate,
+    EvidenceView,
+)
 
 
 class EvidenceNotFoundError(LookupError):
-    pass
-
-
-class EvidenceOwnershipError(PermissionError):
     pass
 
 
@@ -117,10 +119,22 @@ class EvidenceService:
         ).all()
         return [ApprovedEvidence.model_validate(record) for record in records]
 
+    def list_grounding_contexts(
+        self, *, user_id: UUID
+    ) -> list[EvidenceGroundingContext]:
+        return [
+            EvidenceGroundingContext.from_approved(evidence)
+            for evidence in self.list_approved(user_id=user_id)
+        ]
+
     def _get_owned_record(self, *, user_id: UUID, evidence_id: UUID) -> EvidenceRecord:
-        record = self.session.get(EvidenceRecord, evidence_id)
+        record = self.session.scalar(
+            select(EvidenceRecord)
+            .where(EvidenceRecord.id == evidence_id)
+            .where(EvidenceRecord.user_id == user_id)
+        )
         if record is None:
+            # Deliberately use the same error for missing and foreign-owned IDs so
+            # callers cannot infer whether another user's evidence exists.
             raise EvidenceNotFoundError(str(evidence_id))
-        if record.user_id != user_id:
-            raise EvidenceOwnershipError("Evidence belongs to another user")
         return record
