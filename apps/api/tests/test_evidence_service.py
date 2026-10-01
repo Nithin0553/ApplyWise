@@ -101,7 +101,12 @@ def test_noop_edit_keeps_existing_approval(session: Session) -> None:
     )
 
     assert updated.status == EvidenceStatus.APPROVED
-    assert updated.approved_at == approved.approved_at
+    assert updated.approved_at is not None
+    assert approved.approved_at is not None
+    # SQLite drops timezone metadata for DateTime even when timezone=True.
+    assert updated.approved_at.replace(tzinfo=None) == approved.approved_at.replace(
+        tzinfo=None
+    )
 
 
 def test_update_validates_full_date_range(session: Session) -> None:
