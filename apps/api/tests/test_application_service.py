@@ -5,11 +5,15 @@ from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
-from app.modules.applications.models import ApplicationStatus
+from app.modules.applications.models import (
+    ApplicationStatus,
+    ResumeVersionRecord,
+)
 from app.modules.applications.schemas import (
     ApplicationCreate,
     ApplicationStatusChange,
@@ -32,6 +36,11 @@ from app.modules.applications.service import (
 @pytest.fixture
 def session() -> Session:
     engine = create_engine("sqlite+pysqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
     Base.metadata.create_all(engine)
     with Session(engine) as db_session:
         yield db_session
@@ -281,3 +290,24 @@ def test_listing_versions_requires_owned_application(session: Session) -> None:
             user_id=other_user_id,
             application_id=application.id,
         )
+
+
+def test_database_rejects_resume_version_owner_mismatch(session: Session) -> None:
+    service = ApplicationService(session)
+    owner_id = uuid4()
+    other_user_id = uuid4()
+    application = create_application(service, owner_id)
+
+    session.add(
+        ResumeVersionRecord(
+            user_id=other_user_id,
+            application_id=application.id,
+            version_number=1,
+            snapshot={},
+        )
+    )
+
+    with pytest.raises(IntegrityError):
+        session.flush()
+
+    session.rollback()

@@ -10,7 +10,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Enum,
-    ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -38,6 +38,13 @@ class ApplicationStatus(StrEnum):
 
 class ApplicationRecord(Base):
     __tablename__ = "applications"
+    __table_args__ = (
+        UniqueConstraint(
+            "id",
+            "user_id",
+            name="uq_applications_id_user",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), index=True, nullable=False)
@@ -77,6 +84,12 @@ class ApplicationRecord(Base):
 class ResumeVersionRecord(Base):
     __tablename__ = "resume_versions"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["application_id", "user_id"],
+            ["applications.id", "applications.user_id"],
+            name="fk_resume_versions_application_owner",
+            ondelete="RESTRICT",
+        ),
         UniqueConstraint(
             "application_id",
             "version_number",
@@ -89,7 +102,6 @@ class ResumeVersionRecord(Base):
     user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), index=True, nullable=False)
     application_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
-        ForeignKey("applications.id", ondelete="RESTRICT"),
         index=True,
         nullable=False,
     )

@@ -14,6 +14,8 @@ When an application moves to `applied`, F13 records the supplied transition date
 
 Every application and resume version is scoped to a `user_id`. Domain lookups query by both resource ID and owner. A missing identifier and an identifier owned by another user both raise the same not-found error. This prevents an API layer from revealing whether another user's private application or resume version exists.
 
+Ownership is also enforced in persistence: `resume_versions(application_id, user_id)` has a composite foreign key to `applications(id, user_id)`. A resume version therefore cannot be persisted under a user different from the owner of its application, even if code bypasses the F13 service.
+
 F01 will later supply the authenticated user ID. F13 does not invent a temporary authentication mechanism.
 
 ## Resume versions

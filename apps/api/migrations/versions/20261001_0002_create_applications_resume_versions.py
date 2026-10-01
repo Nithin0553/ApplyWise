@@ -40,6 +40,11 @@ def upgrade() -> None:
             name="ck_applications_status",
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "id",
+            "user_id",
+            name="uq_applications_id_user",
+        ),
     )
     op.create_index(
         op.f("ix_applications_user_id"),
@@ -61,8 +66,9 @@ def upgrade() -> None:
             name="ck_resume_versions_positive_version",
         ),
         sa.ForeignKeyConstraint(
-            ["application_id"],
-            ["applications.id"],
+            ["application_id", "user_id"],
+            ["applications.id", "applications.user_id"],
+            name="fk_resume_versions_application_owner",
             ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id"),
