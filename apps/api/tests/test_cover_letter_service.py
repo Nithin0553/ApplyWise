@@ -56,7 +56,7 @@ def test_paragraph_carries_both_statement_and_evidence_provenance() -> None:
         paragraphs(RawParagraph(text="I test Python backends.", cited_refs=("S1",)))
     )
 
-    draft = make_service(provider).generate(build_request())
+    draft = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert len(draft.paragraphs) == 1
     paragraph = draft.paragraphs[0]
@@ -72,7 +72,7 @@ def test_evidence_ids_are_merged_without_duplicates() -> None:
         paragraphs(RawParagraph(text="Testing and automation.", cited_refs=("S1", "S2")))
     )
 
-    draft = make_service(provider).generate(build_request())
+    draft = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     paragraph = draft.paragraphs[0]
     assert paragraph.statement_ids == (STATEMENT_ONE_ID, STATEMENT_TWO_ID)
@@ -83,7 +83,7 @@ def test_evidence_ids_are_merged_without_duplicates() -> None:
 def test_provider_sees_statement_refs_and_tone_but_no_identifiers() -> None:
     provider = FakeCoverLetterProvider(paragraphs())
 
-    make_service(provider).generate(build_request(tone="warm"))
+    make_service(provider).generate(build_request(tone="warm"), user_id=USER_ID)
 
     sent = provider.last_request
     assert sent is not None
@@ -112,7 +112,7 @@ def test_provider_sees_statement_refs_and_tone_but_no_identifiers() -> None:
 def test_ungrounded_paragraphs_are_rejected(raw: RawParagraph, reason: str) -> None:
     provider = FakeCoverLetterProvider(paragraphs(raw))
 
-    draft = make_service(provider).generate(build_request())
+    draft = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert draft.paragraphs == ()
     assert len(draft.rejected) == 1
@@ -127,7 +127,7 @@ def test_good_paragraphs_survive_alongside_rejected_ones() -> None:
         )
     )
 
-    draft = make_service(provider).generate(build_request())
+    draft = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert [item.text for item in draft.paragraphs] == ["Grounded paragraph."]
     assert len(draft.rejected) == 1
@@ -142,7 +142,7 @@ def test_max_paragraphs_is_enforced() -> None:
         )
     )
 
-    draft = make_service(provider).generate(build_request(max_paragraphs=2))
+    draft = make_service(provider).generate(build_request(max_paragraphs=2), user_id=USER_ID)
 
     assert len(draft.paragraphs) == 2
     assert draft.rejected[0].reason == "exceeds max_paragraphs"
@@ -153,18 +153,20 @@ def test_max_paragraphs_is_enforced() -> None:
 
 def test_provider_error_raises_generation_unavailable() -> None:
     with pytest.raises(GenerationUnavailableError):
-        make_service(unavailable_provider()).generate(build_request())
+        make_service(unavailable_provider()).generate(build_request(), user_id=USER_ID)
 
 
 def test_unexpected_provider_crash_raises_generation_unavailable() -> None:
     with pytest.raises(GenerationUnavailableError):
-        make_service(FakeCoverLetterProvider(TimeoutError("slow"))).generate(build_request())
+        make_service(FakeCoverLetterProvider(TimeoutError("slow"))).generate(
+            build_request(), user_id=USER_ID
+        )
 
 
 @pytest.mark.parametrize("bad", [None, "text", {"paragraphs": []}])
 def test_malformed_response_raises_malformed_error(bad: object) -> None:
     with pytest.raises(MalformedProviderResponseError):
-        make_service(FakeCoverLetterProvider(bad)).generate(build_request())
+        make_service(FakeCoverLetterProvider(bad)).generate(build_request(), user_id=USER_ID)
 
 
 # --- the F11 hard rules ---------------------------------------------------
@@ -175,7 +177,7 @@ def test_drafted_paragraphs_are_candidates_and_not_exportable() -> None:
         paragraphs(RawParagraph(text="Grounded.", cited_refs=("S1",)))
     )
 
-    paragraph = make_service(provider).generate(build_request()).paragraphs[0]
+    paragraph = make_service(provider).generate(build_request(), user_id=USER_ID).paragraphs[0]
 
     assert paragraph.status == "CANDIDATE"
     assert paragraph.verification_status == "PENDING"
@@ -219,13 +221,12 @@ def test_a_paragraph_cannot_exist_without_provenance() -> None:
 
 def test_request_requires_at_least_one_approved_statement() -> None:
     with pytest.raises(ValidationError):
-        CoverLetterRequest(user_id=USER_ID, job_context=JOB_CONTEXT, approved_statements=())
+        CoverLetterRequest(job_context=JOB_CONTEXT, approved_statements=())
 
 
 def test_request_rejects_duplicate_statements() -> None:
     with pytest.raises(ValidationError):
         CoverLetterRequest(
-            user_id=USER_ID,
             job_context=JOB_CONTEXT,
             approved_statements=(STATEMENT_ONE, STATEMENT_ONE),
         )
@@ -243,8 +244,8 @@ def test_stub_provider_drafts_deterministically() -> None:
     service = CoverLetterService(StubAIProvider())
     request = build_request()
 
-    first = service.generate(request)
-    second = service.generate(request)
+    first = service.generate(request, user_id=USER_ID)
+    second = service.generate(request, user_id=USER_ID)
 
     assert [p.text for p in first.paragraphs] == [p.text for p in second.paragraphs]
     assert first.provider == "stub"
@@ -252,7 +253,7 @@ def test_stub_provider_drafts_deterministically() -> None:
 
 
 def test_demo_provider_is_job_aware_and_its_ungrounded_flattery_is_rejected() -> None:
-    draft = CoverLetterService(DemoAIProvider()).generate(build_request())
+    draft = CoverLetterService(DemoAIProvider()).generate(build_request(), user_id=USER_ID)
 
     opening = draft.paragraphs[0].text
     assert "Software Engineer in Test" in opening
@@ -267,7 +268,9 @@ def test_demo_provider_is_job_aware_and_its_ungrounded_flattery_is_rejected() ->
 def test_demo_provider_tone_changes_the_opening() -> None:
     service = CoverLetterService(DemoAIProvider())
 
-    professional = service.generate(build_request(tone="professional")).paragraphs[0].text
-    warm = service.generate(build_request(tone="warm")).paragraphs[0].text
+    professional = (
+        service.generate(build_request(tone="professional"), user_id=USER_ID).paragraphs[0].text
+    )
+    warm = service.generate(build_request(tone="warm"), user_id=USER_ID).paragraphs[0].text
 
     assert professional != warm

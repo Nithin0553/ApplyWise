@@ -39,9 +39,17 @@ class ApprovedStatement(BaseModel):
 
 
 class CoverLetterRequest(BaseModel):
+    """What a caller may ask for.
+
+    Note what is absent, exactly as in ``GenerationRequest``: the user's
+    identity. It comes from the authenticated session (F01) and is passed to
+    ``CoverLetterService.generate`` by the route, so a caller cannot draft
+    against another user's account by editing a payload. There is no field to
+    edit.
+    """
+
     model_config = ConfigDict(frozen=True)
 
-    user_id: UUID
     job_context: JobContext
     approved_statements: tuple[ApprovedStatement, ...] = Field(min_length=1)
     tone: Literal["professional", "warm", "direct"] = "professional"

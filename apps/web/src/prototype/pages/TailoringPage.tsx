@@ -73,7 +73,7 @@ export function TailoringPage({ go }: PageProps) {
     } finally {
       setLoading(false);
     }
-  }, [selected, provider, jobTitle, company, description, requirements]);
+  }, [selected, provider, jobTitle, company, description, requirements, token]);
 
   // After a first generation, switching provider redraws straight away rather
   // than leaving a stale result on screen under a new provider name.

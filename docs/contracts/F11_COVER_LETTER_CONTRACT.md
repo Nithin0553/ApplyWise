@@ -5,6 +5,17 @@ approved, and keeps provenance all the way back to the original evidence. It
 lives in `app/modules/generation/` beside F07 and reuses the same provider
 seam.
 
+## Identity and authorization
+
+The route depends on F01's `require_role(UserRole.JOB_SEEKER)`. The user id is
+taken from the authenticated session and never from the request body, so a
+caller cannot draft a letter against another user's account by editing a
+payload. `CoverLetterRequest` has no `user_id` field at all;
+`CoverLetterService.generate` takes it as a keyword argument supplied by the
+route.
+
+Unauthenticated calls return 401, and a non-job-seeker role returns 403.
+
 ## Where F11 sits in the chain
 
 F07 generates candidate statements from approved **evidence**. F08 verifies
@@ -21,7 +32,6 @@ evidence -> F07 -> candidate statements -> F08 -> F09 -> approved statements -> 
 
 | Field | Meaning |
 |---|---|
-| `user_id` | Owner of the statements. |
 | `job_context` | Same `JobContext` type F07 uses. |
 | `approved_statements` | One or more `ApprovedStatement`. IDs must be unique. |
 | `tone` | `professional`, `warm` or `direct`. Default `professional`. |
@@ -89,11 +99,14 @@ evidence.
 ## Endpoint
 
 `POST /api/generation/cover-letter/preview` (optional `?provider=stub|demo`).
-Local development only; it carries no authentication, because F01 owns that.
+Requires a bearer token for a Job Seeker; the draft is always owned by the
+token's user.
 
 ## Tests
 
-`apps/api/tests/test_cover_letter_service.py` (22) plus endpoint tests in
+`apps/api/tests/test_cover_letter_service.py` plus endpoint tests in
 `apps/api/tests/test_generation_api.py`, with fixtures in
-`apps/api/tests/fixtures/cover_letter_fixtures.py`. All use a fake or bundled
+`apps/api/tests/fixtures/cover_letter_fixtures.py`. The endpoint tests include
+an unauthenticated 401 and a case proving a caller cannot draft against another
+user's account by putting their id in the body. All use a fake or bundled
 provider; no test performs a network call.

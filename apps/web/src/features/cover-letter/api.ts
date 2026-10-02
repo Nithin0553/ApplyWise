@@ -39,7 +39,7 @@ export interface CoverLetterDraft {
 }
 
 export interface CoverLetterRequest {
-  user_id: string;
+  // No user_id: the server takes identity from the bearer token (F01).
   job_context: JobContext;
   approved_statements: ApprovedStatement[];
   tone: "professional" | "warm" | "direct";
@@ -49,22 +49,36 @@ export interface CoverLetterRequest {
 export async function generateCoverLetter(
   request: CoverLetterRequest,
   provider: AiProvider,
+  token: string | null,
 ): Promise<CoverLetterDraft> {
   if (!USE_REAL.f11_coverLetter) {
     throw new ApiError("Cover letter generation is disabled in this build.");
+  }
+
+  if (!token) {
+    throw new ApiError("You are signed out. Sign in again to draft a letter.");
   }
 
   let response: Response;
   try {
     response = await fetch(`/api/generation/cover-letter/preview?provider=${provider}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(request),
     });
   } catch {
     throw new ApiError("Could not reach the API. Is the backend running on port 8000?");
   }
 
+  if (response.status === 401) {
+    throw new ApiError("Your session has expired. Sign in again.");
+  }
+  if (response.status === 403) {
+    throw new ApiError("This account does not have permission to draft cover letters.");
+  }
   if (response.status === 422) {
     throw new ApiError(
       "Rejected: a cover letter can only be drafted from verified, approved statements.",

@@ -56,7 +56,6 @@ JOB_CONTEXT = JobContext(
 
 def build_request(max_paragraphs: int = 3, tone: str = "professional") -> CoverLetterRequest:
     return CoverLetterRequest(
-        user_id=USER_ID,
         job_context=JOB_CONTEXT,
         approved_statements=(STATEMENT_ONE, STATEMENT_TWO, STATEMENT_THREE),
         tone=tone,  # type: ignore[arg-type]

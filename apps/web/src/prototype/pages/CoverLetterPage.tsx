@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { generateCoverLetter, type CoverLetterDraft } from "../../features/cover-letter/api";
 import { ApiError } from "../../features/tailoring/api";
+import { useAuth } from "../../features/auth";
 import { AI_PROVIDERS, type AiProvider } from "../../features/tailoring/config";
 import { MOCK_JOB_CONTEXT } from "../../features/tailoring/mockData";
 import type { PageProps } from "../Shell";
 import { toApprovedStatements, useApprovals } from "../store";
 
-const DEMO_USER_ID = "00000000-0000-0000-0000-0000000000aa";
 const TONES = ["professional", "warm", "direct"] as const;
 
 /** Scaffolding lines: part of the letter, but not AI-generated content. */
@@ -21,6 +21,7 @@ const SCAFFOLD_STYLE = {
 } as const;
 
 export function CoverLetterPage({ go }: PageProps) {
+  const { token } = useAuth();
   const { approvedIds } = useApprovals();
   const approvedStatements = useMemo(() => toApprovedStatements(approvedIds), [approvedIds]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -54,13 +55,13 @@ export function CoverLetterPage({ go }: PageProps) {
       setDraft(
         await generateCoverLetter(
           {
-            user_id: DEMO_USER_ID,
             job_context: MOCK_JOB_CONTEXT,
             approved_statements: selected,
             tone,
             max_paragraphs: 3,
           },
           provider,
+          token,
         ),
       );
     } catch (cause: unknown) {
@@ -68,7 +69,7 @@ export function CoverLetterPage({ go }: PageProps) {
     } finally {
       setLoading(false);
     }
-  }, [selected, tone, provider]);
+  }, [selected, tone, provider, token]);
 
   // Once a draft exists, changing the tone or the statements redraws it, so the
   // controls are not silently ignored.

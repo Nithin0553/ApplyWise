@@ -58,7 +58,12 @@ class CoverLetterService:
         self._new_id = id_factory
         self._now = clock
 
-    def generate(self, request: CoverLetterRequest) -> CoverLetterDraft:
+    def generate(self, request: CoverLetterRequest, *, user_id: UUID) -> CoverLetterDraft:
+        """Draft paragraphs for ``user_id``.
+
+        Identity is a keyword argument rather than a request field so that the
+        only way to supply it is from the authenticated session.
+        """
         ref_to_statement = {
             f"S{index}": item
             for index, item in enumerate(request.approved_statements, start=1)
@@ -104,7 +109,7 @@ class CoverLetterService:
 
         return CoverLetterDraft(
             draft_id=self._new_id(),
-            user_id=request.user_id,
+            user_id=user_id,
             provider=getattr(self._provider, "name", "unknown"),
             generated_at=self._now(),
             tone=request.tone,
