@@ -7,7 +7,15 @@ export interface GenerationEvidence {
   title: string;
   organization?: string | null;
   role?: string | null;
+  location?: string | null;
   description?: string | null;
+  // Structured fields from F02's grounding context. Skill and certification
+  // evidence often has no description, so these carry the meaning.
+  skill_name?: string | null;
+  proficiency?: string | null;
+  credential?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 export interface JobContext {

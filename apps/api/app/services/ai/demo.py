@@ -69,13 +69,34 @@ def _segments(text: str) -> dict[str, str]:
         etype = parts[0].split("]", 1)[0].lstrip("[").strip().upper()
 
     found = {"title": head, "detail": "", "etype": etype}
+    labels = (
+        "role",
+        "organization",
+        "location",
+        "skill",
+        "proficiency",
+        "credential",
+        "dates",
+    )
     for part in parts[1:]:
-        if part.startswith("role:"):
-            found["role"] = part.removeprefix("role:").strip()
-        elif part.startswith("organization:"):
-            found["organization"] = part.removeprefix("organization:").strip()
+        for label in labels:
+            if part.startswith(f"{label}:"):
+                found[label] = part.removeprefix(f"{label}:").strip()
+                break
         else:
+            # Unlabelled segment: the description.
             found["detail"] = part
+
+    # Skill and certification evidence often carries no description. Build one
+    # from the structured fields so the statement still says something real.
+    if not found["detail"]:
+        if found.get("skill"):
+            level = found.get("proficiency")
+            found["detail"] = (
+                f"Used {found['skill']} at {level} level" if level else f"Used {found['skill']}"
+            )
+        elif found.get("credential"):
+            found["detail"] = f"Holds {found['credential']}"
     return found
 
 

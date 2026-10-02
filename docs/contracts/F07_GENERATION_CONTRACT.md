@@ -15,11 +15,33 @@ statements that carry provenance back to the evidence used. F07 owns
 | `approved_evidence` | One or more `GenerationEvidence` items. Evidence IDs must be unique. |
 | `max_statements` | 1-10, default 5. |
 
-Callers must build `GenerationEvidence` only from F02's
-`ApprovedEvidenceProvider.list_approved(user_id=...)`. F07 does not query the
-evidence tables and cannot itself confirm approval state; supplying
-unapproved evidence violates this contract. A small adapter from
-`ApprovedEvidence` to `GenerationEvidence` will be added once F02 merges.
+Callers must build `GenerationEvidence` from F02's
+`ApprovedEvidenceProvider.list_grounding_contexts(user_id=...)` using
+`app.modules.generation.adapters.from_grounding_context(s)`. F07 does not query
+the evidence tables and cannot itself confirm approval state; supplying
+unapproved evidence violates this contract.
+
+### Fields carried from F02
+
+`GenerationEvidence` keeps the structured approved fields, not just title and
+description: `evidence_type`, `title`, `organization`, `role`, `location`,
+`description`, `skill_name`, `proficiency`, `credential`, `start_date`,
+`end_date`. This matters for SKILL and CERTIFICATION evidence, whose meaning
+lives in `skill_name` / `proficiency` / `credential` rather than in a
+description that is often absent.
+
+`source`, `source_url` and `approved_at` are deliberately **not** carried: they
+are provenance metadata rather than content a provider should write from, and
+provenance is tracked through `evidence_id`.
+
+`to_prompt_text()` flattens an item to one labelled line
+(`[skill] Python | skill: Python | proficiency: Advanced`), always placing the
+free-text description last. `tests/test_generation_adapters.py` guards against
+regressing to title-only grounding.
+
+The adapter reads the F02 context structurally through a `Protocol` rather than
+importing the evidence module, so F07 carries no build-time dependency on F02
+and stays testable without a database.
 
 ## Output
 
