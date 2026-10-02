@@ -1,18 +1,25 @@
 from __future__ import annotations
 
+from logging.config import fileConfig
+
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.base import Base
 from app.modules.applications import models as application_models
+from app.modules.auth import models as auth_models
 from app.modules.evidence import models as evidence_models
 from app.modules.sharing import models as sharing_models
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
 _ = (
+    auth_models.User,
     application_models.ApplicationRecord,
     application_models.ResumeVersionRecord,
     evidence_models.EvidenceRecord,

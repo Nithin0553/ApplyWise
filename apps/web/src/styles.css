@@ -5,3 +5,34 @@
 }
 body { margin: 0; }
 .shell { max-width: 960px; margin: 0 auto; padding: 4rem 1.5rem; }
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 320px;
+  margin-top: 2rem;
+}
+.auth-form input {
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+.auth-form button[type="submit"] {
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.auth-form__hint { margin: 0; font-size: 0.85rem; color: #4b5563; }
+.auth-form__error { margin: 0; color: #b91c1c; }
+.auth-form__switch { margin-top: 0.5rem; font-size: 0.9rem; }
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.session-panel { margin-top: 2rem; }

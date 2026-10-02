@@ -1,7 +1,7 @@
 """Create F02 evidence records.
 
 Revision ID: 20260921_0001
-Revises:
+Revises: 0001
 """
 
 from collections.abc import Sequence
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "20260921_0001"
-down_revision: str | None = None
+down_revision: str | None = "0001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
