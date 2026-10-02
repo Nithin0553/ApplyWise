@@ -24,8 +24,19 @@ Closing this needs F02 on `main`. The agreed design (review on PR #11) is for
 the request to carry selected evidence **ids** plus job context, and for the
 route to call `list_grounding_contexts(current_user.id)` server-side, adapt only
 the records that are both owned by that user and APPROVED, and pass those to
-`GenerationService`. That also removes a shape mismatch, since F02 returns `id`
-where this contract expects `evidence_id`.
+`GenerationService`.
+
+### The `id` / `evidence_id` field names
+
+F02 names its primary key `id`; this contract names the reference to it
+`evidence_id`. Until selection moves server-side, the web client translates
+between them explicitly in `toGenerationEvidence`
+(`apps/web/src/features/tailoring/api.ts`), which also normalizes F02's
+lowercase `evidence_type` values and refuses any record arriving without an id
+— an evidence item that cannot be cited must never reach the generator. The
+previous code cast F02's response straight to `GenerationEvidence`, which type-
+checked but would have produced `evidence_id: undefined` at runtime. Server-side
+selection makes that translation unnecessary rather than merely correct.
 
 Until then, treat the guarantee as a contract between trusted callers.
 
@@ -35,7 +46,6 @@ Until then, treat the guarantee as a contract between trusted callers.
 
 | Field | Meaning |
 |---|---|
-| `user_id` | Owner of the evidence. Generation never mixes users. |
 | `job_context` | `JobContext`: job title, optional company, description, optional requirements. F04 supplies normalized requirements once available. |
 | `approved_evidence` | One or more `GenerationEvidence` items. Evidence IDs must be unique. |
 | `max_statements` | 1-10, default 5. |

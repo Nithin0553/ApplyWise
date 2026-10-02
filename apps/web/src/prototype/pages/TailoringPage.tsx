@@ -24,13 +24,15 @@ export function TailoringPage({ go }: PageProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchApprovedEvidence()
+    fetchApprovedEvidence(token)
       .then((items) => {
         setEvidence(items);
         setSelectedIds(items.map((item) => item.evidence_id));
       })
-      .catch(() => setError("Could not load evidence."));
-  }, []);
+      .catch((cause: unknown) =>
+        setError(cause instanceof ApiError ? cause.message : "Could not load evidence."),
+      );
+  }, [token]);
 
   const selected = useMemo(
     () => evidence.filter((item) => selectedIds.includes(item.evidence_id)),
