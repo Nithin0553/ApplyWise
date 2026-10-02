@@ -7,7 +7,7 @@ changing that historical version.
 
 A share grant is owner-scoped and references exactly one saved F13 resume version. Creating
 a grant generates a high-entropy opaque secret. Only its SHA-256 digest is persisted; the raw
-secret is returned once to the caller so an API/UI layer can build the eventual share link.
+secret is returned once to the caller so an API/UI layer can build the share link.
 
 Reviewer lookup accepts the raw secret, hashes it, and resolves only an active grant. Missing,
 expired, and revoked grants all produce the same domain-level not-found result. This prevents
@@ -27,23 +27,24 @@ operations for feedback and never mutates the saved F13 snapshot when feedback i
 The service accepts a `reviewer_user_id` as an already-resolved identity. It does not decide
 whether that identity has the Reviewer role.
 
-## F01 integration seam
+## F01 integration
 
-F01 remains responsible for authentication and role authorization at the HTTP/API boundary.
-After F01 lands, the API layer should:
+F01 is responsible for authentication and role authorization at the HTTP/API boundary. The
+implemented F14 routes:
 
-1. resolve the current Job Seeker for owner-only share creation/list/revocation operations;
-2. require an authenticated Reviewer before submitting feedback; and
+1. require a `JOB_SEEKER` for owner-only share creation, listing, revocation, and feedback-history operations;
+2. require an authenticated `REVIEWER` before resolving a share for review or submitting feedback; and
 3. pass only the resolved user UUIDs into `SharingService`.
 
-F14 does not create temporary users, roles, sessions, headers, or bypass credentials.
+F14 does not create temporary users, roles, sessions, headers, or bypass credentials. Missing or
+foreign-owned owner resources continue to map to the same not-found response.
 
 ## F10 integration seam
 
-F14 does not render a resume and does not inspect document-provider internals. Successful
-share resolution returns the immutable `resume_version_id`. Once F10 lands, the API/application
-orchestration layer should pass that identifier through F10's public contract to obtain the
-rendered/shareable representation.
+F14 does not render a resume and does not inspect document-provider internals. Successful share
+resolution returns the immutable `resume_version_id`. Once F10's final rendering/export contract
+lands, the API/application orchestration layer should pass that identifier through F10's public
+contract to obtain the rendered/shareable representation.
 
 This keeps the access decision in F14, immutable content identity in F13, and document rendering
 in F10. F10 must not query F14 tables directly, and F14 must not read F10 persistence internals.
@@ -58,8 +59,8 @@ in F10. F10 must not query F14 tables directly, and F14 must not read F10 persis
 - Existing feedback remains part of the audit history after a grant is revoked or expires.
 - A share always remains tied to the resume version that existed when it was created.
 
-## Deferred wiring
+## Remaining integration work
 
-The safe F14 persistence/domain foundation is implemented before F01 and F10 are available.
-HTTP routes, authenticated role dependencies, rendered resume delivery, and final sharing-page
-integration remain explicit follow-up work after those team-owned contracts land.
+F01 authentication/RBAC wiring is complete. The remaining F14 integration is the F10-rendered
+resume delivery/share page once F10's final document service is available. The secure share and
+feedback boundary remains independent of F10 provider internals.

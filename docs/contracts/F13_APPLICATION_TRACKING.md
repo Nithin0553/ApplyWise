@@ -10,13 +10,13 @@ The service permits forward progress while allowing users to skip intermediate s
 
 When an application moves to `applied`, F13 records the supplied transition date as `applied_on` if that date is not already known. Moving to a terminal state records `closed_on`. Metadata updates validate that `closed_on` cannot precede `applied_on`.
 
-## Ownership boundary
+## Ownership and authentication boundary
 
-Every application and resume version is scoped to a `user_id`. Domain lookups query by both resource ID and owner. A missing identifier and an identifier owned by another user both raise the same not-found error. This prevents an API layer from revealing whether another user's private application or resume version exists.
+Every application and resume version is scoped to a `user_id`. Domain lookups query by both resource ID and owner. A missing identifier and an identifier owned by another user both raise the same not-found error. The HTTP layer preserves that behavior by returning the same 404 response for missing and foreign-owned resources.
 
 Ownership is also enforced in persistence: `resume_versions(application_id, user_id)` has a composite foreign key to `applications(id, user_id)`. A resume version therefore cannot be persisted under a user different from the owner of its application, even if code bypasses the F13 service.
 
-F01 will later supply the authenticated user ID. F13 does not invent a temporary authentication mechanism.
+F01 now supplies the authenticated identity. F13 HTTP routes require the `JOB_SEEKER` role and pass the resolved user UUID into `ApplicationService`; F13 does not parse or issue authentication credentials itself.
 
 ## Resume versions
 
@@ -37,4 +37,4 @@ Snapshot validation rejects duplicate evidence IDs, duplicate statement IDs, and
 
 ## Integration boundaries
 
-F02 remains the source of approved career evidence. F07/F08/F09 supply statement/provenance/verification/approval information. F10 may save or export a resume and associate the resulting artifact with the F13 version, but it must not rewrite the snapshot. F14 sharing/reviewer access should reference a specific saved resume version rather than exposing the complete Career Evidence Profile.
+F02 remains the source of approved career evidence. F07/F08/F09 supply statement/provenance/verification/approval information. F10 may save or export a resume and associate the resulting artifact with the F13 version, but it must not rewrite the snapshot. F14 sharing/reviewer access references a specific saved resume version rather than exposing the complete Career Evidence Profile.

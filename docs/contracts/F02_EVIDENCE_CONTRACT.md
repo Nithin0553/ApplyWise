@@ -20,8 +20,8 @@ The grounding context deliberately preserves structured factual fields instead o
 
 Every grounding context comes only from evidence in the `APPROVED` state and retains its evidence ID and approval timestamp for provenance.
 
-## Ownership and enumeration safety
+## Ownership, authentication, and enumeration safety
 
-F02 scopes single-record lookups by both `evidence_id` and `user_id`. A missing ID and an ID owned by another user both raise the same `EvidenceNotFoundError`. This is intentional: the future HTTP layer should map both cases to the same not-found response so callers cannot probe whether another user's private evidence ID exists.
+F02 scopes single-record lookups by both `evidence_id` and `user_id`. A missing ID and an ID owned by another user both raise the same `EvidenceNotFoundError` and map to the same HTTP 404 response, so callers cannot probe whether another user's private evidence ID exists.
 
-The HTTP authentication boundary itself is intentionally not implemented in F02. F01 owns authentication and role resolution; once F01 lands, an API/router layer can supply the authenticated user ID to `EvidenceService` without changing the F02 domain contract.
+F01 now supplies the authenticated identity at the HTTP boundary. F02 routes require the `JOB_SEEKER` role through F01's `require_role(...)` dependency and pass only the resolved UUID into `EvidenceService`. The domain service remains independent of token/session details, so F05/F07/F08 integrations continue to use the same approved-evidence contracts.
