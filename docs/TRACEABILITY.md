@@ -5,7 +5,7 @@
 | F02 Career Evidence Profile | High | 1 Foundations | TBD | TBD | Not started |
 | F08 Claim Verification | High | 3 Controlled Generation; prototype early | TBD | TBD | Not started |
 | F09 Statement Review and Approval | High | 3 Controlled Generation | TBD | TBD | Not started |
-| F01 User Registration and Authentication | High | 1 Foundations | TBD | TBD | Not started |
+| F01 User Registration and Authentication | High | 1 Foundations | Req-Func-Sw-1 – Req-Func-Sw-5 | Test-Case-1 (`apps/api/tests/test_auth.py`) | Prototype implemented (`feat/F01-auth-rbac`); pending PR review |
 | F07 AI Statement Generation with Provenance | High | 3 Controlled Generation | TBD | TBD | Not started |
 | F04 Job Description Analysis | High | 2 Job Analysis | TBD | TBD | Not started |
 | F05 Requirement-to-Evidence Matching and Gap Analysis | High | 2 Job Analysis | TBD | TBD | Not started |

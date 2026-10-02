@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- F01 User Registration and Authentication / RBAC foundation (`auth` module):
+  - Backend: `users` table and Alembic migration, bcrypt password hashing,
+    JWT access tokens, `/auth/register`, `/auth/login`, `/auth/me`, and the
+    `get_current_user` / `require_role` dependencies other modules will use
+    to enforce authorization server-side.
+  - Frontend: `features/auth` — `AuthProvider`/`useAuth()`, `RequireRole`,
+    and registration/login forms, wired into the app shell.
+  - Self-registration always creates a `job_seeker` account; administrator
+    accounts are provisioned out of band so no request can self-elevate.
+  - Tests: `apps/api/tests/test_auth.py` (registration, login, RBAC gating)
+    and `apps/web/src/features/auth/*.test.tsx`.
+
 ## [0.1.0] - 2026-09-15
 
 ### Added
