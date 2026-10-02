@@ -1,0 +1,16 @@
+Software Engineer
+Location: Remote
+Required qualifications:
+- Proficiency in Python and SQL.
+- Bachelor's degree in computer science or equivalent experience.
+- At least 3 years of software development experience.
+- Valid work authorization required.
+Preferred skills:
+- Familiarity with AWS.
+Optional skills:
+- Knowledge of Docker.
+Responsibilities:
+- Build and maintain REST APIs.
+- Collaborate with the product team.
+Benefits:
+- We offer 25 days of annual leave.
