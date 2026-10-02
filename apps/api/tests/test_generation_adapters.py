@@ -101,7 +101,6 @@ def test_provider_receives_the_structured_fields() -> None:
 
     service.generate(
         GenerationRequest(
-            user_id=uuid4(),
             job_context=JobContext(
                 job_title="SDET",
                 description="Python testing role.",
@@ -110,7 +109,8 @@ def test_provider_receives_the_structured_fields() -> None:
             approved_evidence=from_grounding_contexts(
                 [SKILL_CONTEXT, CERTIFICATION_CONTEXT, WORK_CONTEXT]
             ),
-        )
+        ),
+        user_id=uuid4(),
     )
 
     sent = provider.last_request
@@ -129,14 +129,14 @@ def test_demo_provider_writes_something_real_for_skill_and_certification() -> No
 
     result = service.generate(
         GenerationRequest(
-            user_id=uuid4(),
             job_context=JobContext(
                 job_title="SDET",
                 description="Python testing role.",
                 requirements=("Python",),
             ),
             approved_evidence=from_grounding_contexts([SKILL_CONTEXT, CERTIFICATION_CONTEXT]),
-        )
+        ),
+        user_id=uuid4(),
     )
 
     texts = " ".join(statement.text for statement in result.statements)

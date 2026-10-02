@@ -32,16 +32,24 @@ export async function fetchApprovedEvidence(): Promise<GenerationEvidence[]> {
 export async function generateStatements(
   request: GenerationRequest,
   provider: AiProvider,
+  token: string | null,
 ): Promise<GenerationResult> {
   if (!USE_REAL.f07_generation) {
     return MOCK_GENERATION_RESULT;
+  }
+
+  if (!token) {
+    throw new ApiError("You are signed out. Sign in again to generate statements.");
   }
 
   let response: Response;
   try {
     response = await fetch(`/api/generation/preview?provider=${provider}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(request),
     });
   } catch {
@@ -50,6 +58,12 @@ export async function generateStatements(
     );
   }
 
+  if (response.status === 401) {
+    throw new ApiError("Your session has expired. Sign in again.");
+  }
+  if (response.status === 403) {
+    throw new ApiError("This account does not have permission to generate statements.");
+  }
   if (response.status === 422) {
     throw new ApiError("The request was rejected: check the evidence and job fields.");
   }

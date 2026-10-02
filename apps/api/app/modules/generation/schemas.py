@@ -89,9 +89,15 @@ class JobContext(BaseModel):
 
 
 class GenerationRequest(BaseModel):
+    """What a caller may ask for.
+
+    Note what is absent: the user's identity. It comes from the authenticated
+    session (F01), never from the request body, so a caller cannot generate
+    against another user's account by editing a payload.
+    """
+
     model_config = ConfigDict(frozen=True)
 
-    user_id: UUID
     job_context: JobContext
     approved_evidence: tuple[GenerationEvidence, ...] = Field(min_length=1)
     max_statements: int = Field(default=5, ge=1, le=10)

@@ -7,7 +7,7 @@ import pytest
 from app.modules.generation.service import GenerationService
 from app.services.ai.factory import UnknownAIProviderError, get_ai_provider
 from app.services.ai.stub import StubAIProvider
-from tests.fixtures.generation_fixtures import EVIDENCE_ONE_ID, build_request
+from tests.fixtures.generation_fixtures import EVIDENCE_ONE_ID, USER_ID, build_request
 
 
 def test_get_ai_provider_returns_stub_for_stub_setting() -> None:
@@ -24,8 +24,8 @@ def test_stub_provider_is_deterministic_and_grounded() -> None:
     service = GenerationService(StubAIProvider())
     request = build_request()
 
-    first = service.generate(request)
-    second = service.generate(request)
+    first = service.generate(request, user_id=USER_ID)
+    second = service.generate(request, user_id=USER_ID)
 
     assert [s.text for s in first.statements] == [s.text for s in second.statements]
     assert first.statements[0].evidence_ids == (EVIDENCE_ONE_ID,)
@@ -34,7 +34,9 @@ def test_stub_provider_is_deterministic_and_grounded() -> None:
 
 
 def test_stub_provider_respects_max_statements() -> None:
-    result = GenerationService(StubAIProvider()).generate(build_request(max_statements=1))
+    result = GenerationService(StubAIProvider()).generate(
+        build_request(max_statements=1), user_id=USER_ID
+    )
 
     assert len(result.statements) == 1
 

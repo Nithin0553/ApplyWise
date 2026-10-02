@@ -1,20 +1,17 @@
-"""Tests for the F07 preview endpoint used by the tailoring UI."""
+"""Tests for the F07 preview endpoint.
+
+These run through the real auth stack (F01): the endpoint is reachable only
+with a bearer token, and the identity it generates for is the token's, never
+anything in the request body.
+"""
 
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from app.main import app
-from tests.fixtures.generation_fixtures import (
-    EVIDENCE_ONE_ID,
-    EVIDENCE_TWO_ID,
-    USER_ID,
-)
-
-client = TestClient(app)
+from tests.fixtures.generation_fixtures import EVIDENCE_ONE_ID, EVIDENCE_TWO_ID
 
 PAYLOAD = {
-    "user_id": str(USER_ID),
     "job_context": {
         "job_title": "Software Engineer in Test",
         "company": "Example Corp",
@@ -34,19 +31,80 @@ PAYLOAD = {
             "evidence_id": str(EVIDENCE_TWO_ID),
             "evidence_type": "SKILL",
             "title": "Python",
-            "description": "Used for test automation.",
+            "skill_name": "Python",
+            "proficiency": "Advanced",
         },
     ],
     "max_statements": 5,
 }
 
 
-def test_preview_returns_candidates_with_provenance() -> None:
-    response = client.post("/api/generation/preview?provider=stub", json=PAYLOAD)
+def _register(client: TestClient, email: str) -> tuple[str, str]:
+    """Create a job seeker and return (bearer token, user id)."""
+    response = client.post(
+        "/auth/register",
+        json={"email": email, "password": "testpass123", "full_name": "Test Person"},
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    return body["access_token"], body["user"]["id"]
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+# --- authentication -------------------------------------------------------
+
+
+def test_preview_requires_authentication(client: TestClient) -> None:
+    response = client.post("/api/generation/preview", json=PAYLOAD)
+
+    assert response.status_code == 401
+
+
+def test_preview_rejects_a_garbage_token(client: TestClient) -> None:
+    response = client.post(
+        "/api/generation/preview", json=PAYLOAD, headers=_auth("not-a-real-token")
+    )
+
+    assert response.status_code == 401
+
+
+def test_generation_is_scoped_to_the_token_not_the_request_body(client: TestClient) -> None:
+    """A caller cannot generate against someone else's account.
+
+    The body below carries another user's id. It is ignored: identity comes
+    from the token, so the result belongs to the authenticated caller.
+    """
+    token, user_id = _register(client, "owner@example.edu")
+    _, other_user_id = _register(client, "someone-else@example.edu")
+
+    response = client.post(
+        "/api/generation/preview?provider=stub",
+        json={**PAYLOAD, "user_id": other_user_id},
+        headers=_auth(token),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user_id"] == user_id
+    assert response.json()["user_id"] != other_user_id
+
+
+# --- behaviour ------------------------------------------------------------
+
+
+def test_preview_returns_candidates_with_provenance(client: TestClient) -> None:
+    token, user_id = _register(client, "provenance@example.edu")
+
+    response = client.post(
+        "/api/generation/preview?provider=stub", json=PAYLOAD, headers=_auth(token)
+    )
 
     assert response.status_code == 200
     body = response.json()
     assert body["provider"] == "stub"
+    assert body["user_id"] == user_id
     assert body["statements"], "expected at least one candidate statement"
     for statement in body["statements"]:
         assert statement["evidence_ids"], "every statement must carry provenance"
@@ -56,8 +114,12 @@ def test_preview_returns_candidates_with_provenance() -> None:
         assert statement["export_eligible"] is False
 
 
-def test_demo_provider_rejects_ungrounded_statements() -> None:
-    response = client.post("/api/generation/preview?provider=demo", json=PAYLOAD)
+def test_demo_provider_rejects_ungrounded_statements(client: TestClient) -> None:
+    token, _ = _register(client, "rejects@example.edu")
+
+    response = client.post(
+        "/api/generation/preview?provider=demo", json=PAYLOAD, headers=_auth(token)
+    )
 
     assert response.status_code == 200
     body = response.json()
@@ -68,22 +130,36 @@ def test_demo_provider_rejects_ungrounded_statements() -> None:
         assert statement["evidence_ids"]
 
 
-def test_preview_rejects_a_request_with_no_evidence() -> None:
-    payload = {**PAYLOAD, "approved_evidence": []}
+def test_preview_rejects_a_request_with_no_evidence(client: TestClient) -> None:
+    token, _ = _register(client, "noevidence@example.edu")
 
-    response = client.post("/api/generation/preview", json=payload)
+    response = client.post(
+        "/api/generation/preview",
+        json={**PAYLOAD, "approved_evidence": []},
+        headers=_auth(token),
+    )
 
     assert response.status_code == 422
 
 
-def test_unknown_provider_is_a_client_error() -> None:
-    response = client.post("/api/generation/preview?provider=mystery", json=PAYLOAD)
+def test_unknown_provider_is_a_client_error(client: TestClient) -> None:
+    token, _ = _register(client, "badprovider@example.edu")
+
+    response = client.post(
+        "/api/generation/preview?provider=mystery", json=PAYLOAD, headers=_auth(token)
+    )
 
     assert response.status_code == 400
 
 
-def test_providers_endpoint_lists_available_providers() -> None:
-    response = client.get("/api/generation/providers")
+def test_providers_endpoint_requires_authentication(client: TestClient) -> None:
+    assert client.get("/api/generation/providers").status_code == 401
+
+
+def test_providers_endpoint_lists_available_providers(client: TestClient) -> None:
+    token, _ = _register(client, "providers@example.edu")
+
+    response = client.get("/api/generation/providers", headers=_auth(token))
 
     assert response.status_code == 200
     assert "stub" in response.json()["available"]

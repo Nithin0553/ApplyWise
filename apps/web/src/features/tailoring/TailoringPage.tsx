@@ -3,10 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, fetchApprovedEvidence, generateStatements } from "./api";
 import { AI_PROVIDERS, USE_REAL, type AiProvider } from "./config";
 import { MOCK_JOB_CONTEXT } from "./mockData";
+import { useAuth } from "../auth";
 import "./tailoring.css";
 import type { GenerationEvidence, GenerationResult } from "./types";
-
-const DEMO_USER_ID = "00000000-0000-0000-0000-0000000000aa";
 
 /** Short label (E1, E2, ...) for an evidence id, matching what the backend sends the provider. */
 function refLabels(evidence: GenerationEvidence[]): Map<string, string> {
@@ -14,6 +13,7 @@ function refLabels(evidence: GenerationEvidence[]): Map<string, string> {
 }
 
 export function TailoringPage() {
+  const { token } = useAuth();
   const [evidence, setEvidence] = useState<GenerationEvidence[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [jobTitle, setJobTitle] = useState(MOCK_JOB_CONTEXT.job_title);
@@ -55,7 +55,6 @@ export function TailoringPage() {
     try {
       const generated = await generateStatements(
         {
-          user_id: DEMO_USER_ID,
           job_context: {
             job_title: jobTitle,
             company: company || null,
@@ -66,6 +65,7 @@ export function TailoringPage() {
           max_statements: maxStatements,
         },
         provider,
+        token,
       );
       setResult(generated);
     } catch (cause: unknown) {

@@ -4,6 +4,31 @@ F07 turns approved career evidence plus job context into **candidate** resume
 statements that carry provenance back to the evidence used. F07 owns
 `app/modules/generation/` and the provider abstraction in `app/services/ai/`.
 
+## Identity and authorization
+
+The route depends on F01's `require_role(UserRole.JOB_SEEKER)`. The user id is
+taken from the authenticated session and never from the request body, so a
+caller cannot generate against another user's account by editing a payload.
+`GenerationRequest` has no `user_id` field at all; `GenerationService.generate`
+takes it as a keyword argument supplied by the route.
+
+Unauthenticated calls return 401, and a non-job-seeker role returns 403.
+
+## Known gap: the approved-evidence trust boundary
+
+Evidence is currently supplied by the caller, so the "only approved evidence"
+guarantee is **contractual, not enforced**: a client could send fabricated
+records labelled as approved.
+
+Closing this needs F02 on `main`. The agreed design (review on PR #11) is for
+the request to carry selected evidence **ids** plus job context, and for the
+route to call `list_grounding_contexts(current_user.id)` server-side, adapt only
+the records that are both owned by that user and APPROVED, and pass those to
+`GenerationService`. That also removes a shape mismatch, since F02 returns `id`
+where this contract expects `evidence_id`.
+
+Until then, treat the guarantee as a contract between trusted callers.
+
 ## Input
 
 `GenerationRequest` (`app.modules.generation.schemas`):

@@ -26,7 +26,7 @@ export interface JobContext {
 }
 
 export interface GenerationRequest {
-  user_id: string;
+  // No user_id: the server takes identity from the bearer token (F01).
   job_context: JobContext;
   approved_evidence: GenerationEvidence[];
   max_statements: number;

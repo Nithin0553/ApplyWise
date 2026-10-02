@@ -3,15 +3,15 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, fetchApprovedEvidence, generateStatements } from "../../features/tailoring/api";
 import { AI_PROVIDERS, USE_REAL, type AiProvider } from "../../features/tailoring/config";
 import { MOCK_JOB_CONTEXT } from "../../features/tailoring/mockData";
+import { useAuth } from "../../features/auth";
 import type {
   GenerationEvidence,
   GenerationResult,
 } from "../../features/tailoring/types";
 import type { PageProps } from "../Shell";
 
-const DEMO_USER_ID = "00000000-0000-0000-0000-0000000000aa";
-
 export function TailoringPage({ go }: PageProps) {
+  const { token } = useAuth();
   const [evidence, setEvidence] = useState<GenerationEvidence[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [jobTitle, setJobTitle] = useState(MOCK_JOB_CONTEXT.job_title);
@@ -49,7 +49,6 @@ export function TailoringPage({ go }: PageProps) {
     try {
       const generated = await generateStatements(
         {
-          user_id: DEMO_USER_ID,
           job_context: {
             job_title: jobTitle,
             company: company || null,
@@ -63,6 +62,7 @@ export function TailoringPage({ go }: PageProps) {
           max_statements: 5,
         },
         provider,
+        token,
       );
       setResult(generated);
     } catch (cause: unknown) {

@@ -53,7 +53,7 @@ class GenerationService:
         self._new_id = id_factory
         self._now = clock
 
-    def generate(self, request: GenerationRequest) -> GenerationResult:
+    def generate(self, request: GenerationRequest, *, user_id: UUID) -> GenerationResult:
         # Step 2: short references -> real evidence IDs.
         ref_to_id: dict[str, UUID] = {
             f"E{index}": item.evidence_id
@@ -99,7 +99,7 @@ class GenerationService:
 
         return GenerationResult(
             generation_id=self._new_id(),
-            user_id=request.user_id,
+            user_id=user_id,
             provider=getattr(self._provider, "name", "unknown"),
             generated_at=self._now(),
             statements=tuple(accepted),
