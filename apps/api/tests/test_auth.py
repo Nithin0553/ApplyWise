@@ -4,6 +4,8 @@ Covers UC-1 (Register Account) acceptance criteria and the "authorization
 is enforced server-side" invariant from docs/ARCHITECTURE.md.
 """
 
+import uuid
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,23 @@ def _register_payload(**overrides: str) -> dict[str, str]:
     }
     payload.update(overrides)
     return payload
+
+
+class TestRoleModel:
+    def test_role_model_covers_all_three_product_user_types(self) -> None:
+        assert {role.value for role in UserRole} == {"job_seeker", "reviewer", "administrator"}
+
+    def test_register_cannot_self_assign_reviewer_or_administrator(
+        self, client: TestClient
+    ) -> None:
+        for crafted_role in ("reviewer", "administrator"):
+            payload = {
+                **_register_payload(email=f"{crafted_role}@example.com"),
+                "role": crafted_role,
+            }
+            response = client.post("/auth/register", json=payload)
+            assert response.status_code == 201
+            assert response.json()["user"]["role"] == "job_seeker"
 
 
 class TestRegister:
@@ -149,7 +168,16 @@ class TestCurrentUserAndRbac:
         assert response.json()["email"] == "jane.seeker@example.com"
 
     def test_me_rejects_token_for_deleted_or_unknown_user(self, client: TestClient) -> None:
-        token = create_access_token(user_id="does-not-exist", role="job_seeker")
+        token = create_access_token(
+            user_id=uuid.UUID("00000000-0000-0000-0000-000000000000"), role="job_seeker"
+        )
+
+        response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 401
+
+    def test_me_rejects_token_with_a_malformed_subject_claim(self, client: TestClient) -> None:
+        token = create_access_token(user_id="not-a-uuid", role="job_seeker")
 
         response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
 

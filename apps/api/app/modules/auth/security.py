@@ -6,6 +6,7 @@ isolation and swapped later without touching the request layer.
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -31,7 +32,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_access_token(*, user_id: str, role: str, expires_minutes: int | None = None) -> str:
+def create_access_token(
+    *, user_id: uuid.UUID | str, role: str, expires_minutes: int | None = None
+) -> str:
     expire_delta = timedelta(
         minutes=expires_minutes
         if expires_minutes is not None
@@ -39,7 +42,7 @@ def create_access_token(*, user_id: str, role: str, expires_minutes: int | None 
     )
     now = datetime.now(UTC)
     payload: dict[str, Any] = {
-        _JWT_SUBJECT_CLAIM: user_id,
+        _JWT_SUBJECT_CLAIM: str(user_id),
         _JWT_ROLE_CLAIM: role,
         "iat": now,
         "exp": now + expire_delta,

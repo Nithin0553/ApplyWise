@@ -4,6 +4,14 @@ Revision ID: 0001
 Revises:
 Create Date: 2026-10-01
 
+NOTE (coordination required before merge): this migration is currently a
+root migration (down_revision=None). PR #8 (F02/F13/F14) also adds a root
+migration. Only one root can exist once both land -- per
+docs/ARCHITECTURE.md, other modules' tables depend on `users` existing
+(F02=F01, F13=F01 in docs/FEATURE_BOUNDARIES.md), so this migration should
+become the actual root and PR #8's first migration should set
+down_revision="0001" once this merges. Whoever merges second should do
+that rebase; don't leave two Alembic heads.
 """
 
 from __future__ import annotations
@@ -23,7 +31,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "users",
-        sa.Column("id", sa.String(length=36), primary_key=True),
+        sa.Column("id", sa.Uuid(as_uuid=True), primary_key=True),
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("hashed_password", sa.String(length=255), nullable=False),
         sa.Column("full_name", sa.String(length=200), nullable=False),

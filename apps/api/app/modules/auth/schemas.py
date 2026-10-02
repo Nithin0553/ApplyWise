@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
@@ -51,7 +52,7 @@ class LoginRequest(BaseModel):
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
+    id: uuid.UUID
     email: str
     full_name: str
     role: UserRole

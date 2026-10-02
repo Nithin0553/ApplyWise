@@ -9,6 +9,7 @@ every module, not just auth's own routes.
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterable
 
 from fastapi import Depends, HTTPException, status
@@ -40,9 +41,13 @@ def get_current_user(
     except InvalidTokenError as exc:
         raise _CREDENTIALS_ERROR from exc
 
-    user_id = payload.get("sub")
-    if not user_id:
+    raw_user_id = payload.get("sub")
+    if not raw_user_id:
         raise _CREDENTIALS_ERROR
+    try:
+        user_id = uuid.UUID(raw_user_id)
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise _CREDENTIALS_ERROR from exc
 
     user = get_user_by_id(db, user_id)
     if user is None or not user.is_active:
