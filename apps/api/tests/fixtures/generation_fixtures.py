@@ -46,7 +46,6 @@ JOB_CONTEXT = JobContext(
 
 def build_request(max_statements: int = 5) -> GenerationRequest:
     return GenerationRequest(
-        user_id=USER_ID,
         job_context=JOB_CONTEXT,
         approved_evidence=(EVIDENCE_ONE, EVIDENCE_TWO),
         max_statements=max_statements,

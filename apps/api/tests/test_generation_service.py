@@ -53,7 +53,7 @@ def test_statement_carries_provenance_to_source_evidence() -> None:
         response_with(RawStatement(text="Automated regression suites.", cited_refs=("E1",)))
     )
 
-    result = make_service(provider).generate(build_request())
+    result = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert len(result.statements) == 1
     statement = result.statements[0]
@@ -69,7 +69,7 @@ def test_statement_may_cite_several_evidence_items() -> None:
         response_with(RawStatement(text="Python test automation.", cited_refs=("E1", "E2")))
     )
 
-    result = make_service(provider).generate(build_request())
+    result = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert result.statements[0].evidence_ids == (EVIDENCE_ONE_ID, EVIDENCE_TWO_ID)
 
@@ -79,7 +79,7 @@ def test_duplicate_citations_are_collapsed() -> None:
         response_with(RawStatement(text="Testing work.", cited_refs=("E1", "e1 ")))
     )
 
-    result = make_service(provider).generate(build_request())
+    result = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert result.statements[0].evidence_ids == (EVIDENCE_ONE_ID,)
 
@@ -90,7 +90,7 @@ def test_duplicate_citations_are_collapsed() -> None:
 def test_provider_receives_short_refs_and_never_database_ids() -> None:
     provider = FakeAIProvider(response_with())
 
-    make_service(provider).generate(build_request())
+    make_service(provider).generate(build_request(), user_id=USER_ID)
 
     sent = provider.last_request
     assert sent is not None
@@ -118,7 +118,7 @@ def test_provider_receives_short_refs_and_never_database_ids() -> None:
 def test_unsafe_statements_are_rejected_not_returned(raw: RawStatement, reason: str) -> None:
     provider = FakeAIProvider(response_with(raw))
 
-    result = make_service(provider).generate(build_request())
+    result = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert result.statements == ()
     assert len(result.rejected) == 1
@@ -133,7 +133,7 @@ def test_good_statements_survive_alongside_rejected_ones() -> None:
         )
     )
 
-    result = make_service(provider).generate(build_request())
+    result = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert [s.text for s in result.statements] == ["Valid statement."]
     assert len(result.rejected) == 1
@@ -147,7 +147,7 @@ def test_max_statements_is_enforced() -> None:
         )
     )
 
-    result = make_service(provider).generate(build_request(max_statements=1))
+    result = make_service(provider).generate(build_request(max_statements=1), user_id=USER_ID)
 
     assert len(result.statements) == 1
     assert result.rejected[0].reason == "exceeds max_statements"
@@ -158,14 +158,14 @@ def test_max_statements_is_enforced() -> None:
 
 def test_provider_error_raises_generation_unavailable() -> None:
     with pytest.raises(GenerationUnavailableError):
-        make_service(unavailable_provider()).generate(build_request())
+        make_service(unavailable_provider()).generate(build_request(), user_id=USER_ID)
 
 
 def test_unexpected_provider_crash_raises_generation_unavailable() -> None:
     provider = FakeAIProvider(TimeoutError("network timeout"))
 
     with pytest.raises(GenerationUnavailableError):
-        make_service(provider).generate(build_request())
+        make_service(provider).generate(build_request(), user_id=USER_ID)
 
 
 @pytest.mark.parametrize("bad_response", [None, "some text", {"statements": []}])
@@ -173,13 +173,13 @@ def test_malformed_response_raises_malformed_error(bad_response: object) -> None
     provider = FakeAIProvider(bad_response)
 
     with pytest.raises(MalformedProviderResponseError):
-        make_service(provider).generate(build_request())
+        make_service(provider).generate(build_request(), user_id=USER_ID)
 
 
 def test_garbage_inside_a_valid_response_is_rejected_per_statement() -> None:
     provider = FakeAIProvider(response_with("not a statement object"))  # type: ignore[arg-type]
 
-    result = make_service(provider).generate(build_request())
+    result = make_service(provider).generate(build_request(), user_id=USER_ID)
 
     assert result.statements == ()
     assert result.rejected[0].reason == "malformed statement"
@@ -193,7 +193,7 @@ def test_generated_statements_are_never_verified_approved_or_exportable() -> Non
         response_with(RawStatement(text="Candidate text.", cited_refs=("E1",)))
     )
 
-    statement = make_service(provider).generate(build_request()).statements[0]
+    statement = make_service(provider).generate(build_request(), user_id=USER_ID).statements[0]
 
     assert statement.status == "CANDIDATE"
     assert statement.verification_status == "PENDING"
@@ -225,13 +225,12 @@ def test_a_statement_cannot_exist_without_provenance() -> None:
 
 def test_request_requires_at_least_one_approved_evidence_item() -> None:
     with pytest.raises(ValidationError):
-        GenerationRequest(user_id=USER_ID, job_context=JOB_CONTEXT, approved_evidence=())
+        GenerationRequest(job_context=JOB_CONTEXT, approved_evidence=())
 
 
 def test_request_rejects_duplicate_evidence_ids() -> None:
     with pytest.raises(ValidationError):
         GenerationRequest(
-            user_id=USER_ID,
             job_context=JOB_CONTEXT,
             approved_evidence=(EVIDENCE_ONE, EVIDENCE_ONE),
         )

@@ -5,8 +5,8 @@
  * lands, flip its flag to true here — nothing else in the UI changes.
  */
 export const USE_REAL = {
-  /** F01 authentication — Prudhvi (@Pras04ad) */
-  f01_auth: false,
+  /** F01 authentication — Prudhvi (@Pras04ad), merged to main */
+  f01_auth: true,
   /** F02 approved evidence — Nithin (@Nithin0553), PR #8 open */
   f02_evidence: false,
   /** F04 job analysis — Sampreet (@Sampreet26) */

@@ -3,15 +3,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, fetchApprovedEvidence, generateStatements } from "../../features/tailoring/api";
 import { AI_PROVIDERS, USE_REAL, type AiProvider } from "../../features/tailoring/config";
 import { MOCK_JOB_CONTEXT } from "../../features/tailoring/mockData";
+import { useAuth } from "../../features/auth";
 import type {
   GenerationEvidence,
   GenerationResult,
 } from "../../features/tailoring/types";
 import type { PageProps } from "../Shell";
 
-const DEMO_USER_ID = "00000000-0000-0000-0000-0000000000aa";
-
 export function TailoringPage({ go }: PageProps) {
+  const { token } = useAuth();
   const [evidence, setEvidence] = useState<GenerationEvidence[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [jobTitle, setJobTitle] = useState(MOCK_JOB_CONTEXT.job_title);
@@ -24,13 +24,15 @@ export function TailoringPage({ go }: PageProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchApprovedEvidence()
+    fetchApprovedEvidence(token)
       .then((items) => {
         setEvidence(items);
         setSelectedIds(items.map((item) => item.evidence_id));
       })
-      .catch(() => setError("Could not load evidence."));
-  }, []);
+      .catch((cause: unknown) =>
+        setError(cause instanceof ApiError ? cause.message : "Could not load evidence."),
+      );
+  }, [token]);
 
   const selected = useMemo(
     () => evidence.filter((item) => selectedIds.includes(item.evidence_id)),
@@ -49,7 +51,6 @@ export function TailoringPage({ go }: PageProps) {
     try {
       const statements = await generateStatements(
         {
-          user_id: DEMO_USER_ID,
           job_context: {
             job_title: jobTitle,
             company: company || null,
@@ -63,6 +64,7 @@ export function TailoringPage({ go }: PageProps) {
           max_statements: 5,
         },
         provider,
+        token,
       );
       generated.current = true;
       setResult(statements);
