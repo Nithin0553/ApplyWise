@@ -1,23 +1,8 @@
-import { ResumePage } from "./features/resume/ResumePage";
-import "./App.css";
-
 export function App() {
   return (
-    <div className="applywise-app">
-      <a className="skip-link" href="#main-content">
-        Skip to main content
-      </a>
-
-      <header className="app-header">
-        <div className="app-header-inner">
-          <h1>ApplyWise</h1>
-          <span className="app-badge">Design prototype</span>
-        </div>
-      </header>
-
-      <main id="main-content" className="app-main" tabIndex={-1}>
-        <ResumePage />
-      </main>
-    </div>
+    <main className="shell">
+      <h1>ApplyWise</h1>
+      <p>Engineering foundation initialized. Feature implementation has not started.</p>
+    </main>
   );
 }
