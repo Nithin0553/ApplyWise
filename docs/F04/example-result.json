@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0",
+  "document_id": "ba9d97905541555a630fbf45e9f86e90a6e4a99b7e57521556b359b5bc6e3984",
+  "requirements": [
+    {
+      "id": "JR-248b246bcda9",
+      "text": "Proficiency in Python and SQL.",
+      "categories": [
+        "skill"
+      ],
+      "importance": "Critical",
+      "importance_basis": "section",
+      "source": {
+        "text": "Proficiency in Python and SQL.",
+        "start": 62,
+        "end": 92,
+        "line": 4,
+        "section": "Required qualifications"
+      },
+      "experience": null,
+      "needs_review": false,
+      "review_reasons": []
+    },
+    {
+      "id": "JR-50a056452a69",
+      "text": "Bachelor's degree in computer science or equivalent experience.",
+      "categories": [
+        "education",
+        "experience"
+      ],
+      "importance": "Critical",
+      "importance_basis": "section",
+      "source": {
+        "text": "Bachelor's degree in computer science or equivalent experience.",
+        "start": 95,
+        "end": 158,
+        "line": 5,
+        "section": "Required qualifications"
+      },
+      "experience": null,
+      "needs_review": true,
+      "review_reasons": [
+        "Alternatives are preserved together; do not require every option."
+      ]
+    },
+    {
+      "id": "JR-38d0475a1adc",
+      "text": "At least 3 years of software development experience.",
+      "categories": [
+        "experience"
+      ],
+      "importance": "Critical",
+      "importance_basis": "section",
+      "source": {
+        "text": "At least 3 years of software development experience.",
+        "start": 161,
+        "end": 213,
+        "line": 6,
+        "section": "Required qualifications"
+      },
+      "experience": {
+        "minimum_years": 3.0,
+        "maximum_years": null,
+        "stated_years": null,
+        "expression": "At least 3 years"
+      },
+      "needs_review": false,
+      "review_reasons": []
+    },
+    {
+      "id": "JR-cef3e860627c",
+      "text": "Valid work authorization required.",
+      "categories": [
+        "qualification"
+      ],
+      "importance": "Critical",
+      "importance_basis": "explicit",
+      "source": {
+        "text": "Valid work authorization required.",
+        "start": 216,
+        "end": 250,
+        "line": 7,
+        "section": "Required qualifications"
+      },
+      "experience": null,
+      "needs_review": false,
+      "review_reasons": []
+    },
+    {
+      "id": "JR-54102edbc36f",
+      "text": "Familiarity with AWS.",
+      "categories": [
+        "skill"
+      ],
+      "importance": "Preferred",
+      "importance_basis": "section",
+      "source": {
+        "text": "Familiarity with AWS.",
+        "start": 271,
+        "end": 292,
+        "line": 9,
+        "section": "Preferred skills"
+      },
+      "experience": null,
+      "needs_review": false,
+      "review_reasons": []
+    },
+    {
+      "id": "JR-e18832ae12de",
+      "text": "Knowledge of Docker.",
+      "categories": [
+        "skill"
+      ],
+      "importance": "Optional",
+      "importance_basis": "section",
+      "source": {
+        "text": "Knowledge of Docker.",
+        "start": 312,
+        "end": 332,
+        "line": 11,
+        "section": "Optional skills"
+      },
+      "experience": null,
+      "needs_review": false,
+      "review_reasons": []
+    },
+    {
+      "id": "JR-ce47424b7a5c",
+      "text": "Build and maintain REST APIs.",
+      "categories": [
+        "responsibility"
+      ],
+      "importance": null,
+      "importance_basis": "unspecified",
+      "source": {
+        "text": "Build and maintain REST APIs.",
+        "start": 353,
+        "end": 382,
+        "line": 13,
+        "section": "Responsibilities"
+      },
+      "experience": null,
+      "needs_review": true,
+      "review_reasons": [
+        "Importance is not stated; confirm it before matching."
+      ]
+    },
+    {
+      "id": "JR-0f035912065e",
+      "text": "Collaborate with the product team.",
+      "categories": [
+        "responsibility"
+      ],
+      "importance": null,
+      "importance_basis": "unspecified",
+      "source": {
+        "text": "Collaborate with the product team.",
+        "start": 385,
+        "end": 419,
+        "line": 14,
+        "section": "Responsibilities"
+      },
+      "experience": null,
+      "needs_review": true,
+      "review_reasons": [
+        "Importance is not stated; confirm it before matching."
+      ]
+    }
+  ],
+  "warnings": [
+    "Rule-based English prototype: review extracted requirements before downstream use.",
+    "Some requirements need review; unspecified importance remains null."
+  ]
+}
