@@ -6,8 +6,12 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
 describe("App", () => {
-  it("renders the product name", () => {
+  it("shows the sign-in screen when nobody is signed in", async () => {
     render(<App />);
-    expect(screen.getByRole("heading", { name: "ApplyWise" })).toBeInTheDocument();
+
+    // F01 owns the signed-out screen; the feature shell only appears after login.
+    expect(
+      await screen.findByRole("heading", { name: "Sign in to ApplyWise" }),
+    ).toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.modules.auth import auth_router
+from app.modules.generation.router import router as generation_router
 
 app = FastAPI(
     title="ApplyWise API",
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(generation_router)
 
 
 @app.get("/health", tags=["system"])
