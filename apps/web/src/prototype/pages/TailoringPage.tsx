@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, fetchApprovedEvidence, generateStatements } from "../../features/tailoring/api";
 import { AI_PROVIDERS, USE_REAL, type AiProvider } from "../../features/tailoring/config";
@@ -42,12 +42,12 @@ export function TailoringPage({ go }: PageProps) {
     [selected],
   );
 
-  async function onGenerate() {
+  const onGenerate = useCallback(async () => {
     setLoading(true);
     setError(null);
     setResult(null);
     try {
-      const generated = await generateStatements(
+      const statements = await generateStatements(
         {
           user_id: DEMO_USER_ID,
           job_context: {
@@ -64,13 +64,23 @@ export function TailoringPage({ go }: PageProps) {
         },
         provider,
       );
-      setResult(generated);
+      generated.current = true;
+      setResult(statements);
     } catch (cause: unknown) {
       setError(cause instanceof ApiError ? cause.message : "Generation failed.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [selected, provider, jobTitle, company, description, requirements]);
+
+  // After a first generation, switching provider redraws straight away rather
+  // than leaving a stale result on screen under a new provider name.
+  const generated = useRef(false);
+  useEffect(() => {
+    if (generated.current && selected.length > 0) {
+      void onGenerate();
+    }
+  }, [provider]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <main className="sf-page sf-reveal">

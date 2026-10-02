@@ -13,6 +13,8 @@ export const USE_REAL = {
   f04_jobAnalysis: false,
   /** F07 grounded generation — Niraali (@niraalibandi), implemented */
   f07_generation: true,
+  /** F11 cover letter generation — Niraali (@niraalibandi), implemented */
+  f11_coverLetter: true,
   /** F08 claim verification — Suraj (@surajloni) */
   f08_verification: false,
 } as const;

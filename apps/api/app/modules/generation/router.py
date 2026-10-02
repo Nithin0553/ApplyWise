@@ -18,6 +18,8 @@ from fastapi import APIRouter, HTTPException, Query
 from app.core.config import settings
 from app.services.ai.factory import UnknownAIProviderError, get_ai_provider
 
+from .cover_letter_schemas import CoverLetterDraft, CoverLetterRequest
+from .cover_letter_service import CoverLetterService
 from .errors import GenerationUnavailableError, MalformedProviderResponseError
 from .schemas import GenerationRequest, GenerationResult
 from .service import GenerationService
@@ -43,6 +45,32 @@ def preview_generation(
 
     try:
         return service.generate(request)
+    except GenerationUnavailableError as exc:
+        raise HTTPException(
+            status_code=503, detail="AI provider is unavailable. Try again."
+        ) from exc
+    except MalformedProviderResponseError as exc:
+        raise HTTPException(
+            status_code=502, detail="AI provider returned an unusable response."
+        ) from exc
+
+
+@router.post("/cover-letter/preview", response_model=CoverLetterDraft)
+def preview_cover_letter(
+    request: CoverLetterRequest,
+    provider: str | None = Query(
+        default=None,
+        description="Override the configured AI provider for this call (e.g. stub, demo).",
+    ),
+) -> CoverLetterDraft:
+    """Draft cover letter paragraphs from statements the user already approved."""
+    try:
+        ai_provider = get_ai_provider(provider or settings.ai_provider)
+    except UnknownAIProviderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        return CoverLetterService(ai_provider).generate(request)
     except GenerationUnavailableError as exc:
         raise HTTPException(
             status_code=503, detail="AI provider is unavailable. Try again."

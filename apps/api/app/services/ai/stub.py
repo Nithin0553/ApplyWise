@@ -7,7 +7,14 @@ output is always the same for the same input.
 
 from __future__ import annotations
 
-from .provider import GroundedGenerationRequest, GroundedGenerationResponse, RawStatement
+from .provider import (
+    CoverLetterRequest,
+    CoverLetterResponse,
+    GroundedGenerationRequest,
+    GroundedGenerationResponse,
+    RawParagraph,
+    RawStatement,
+)
 
 
 class StubAIProvider:
@@ -21,3 +28,10 @@ class StubAIProvider:
             for item in request.evidence[: request.max_statements]
         )
         return GroundedGenerationResponse(statements=statements)
+
+    def generate_cover_letter(self, request: CoverLetterRequest) -> CoverLetterResponse:
+        paragraphs = tuple(
+            RawParagraph(text=f"Relevant to this role: {item.text}", cited_refs=(item.ref,))
+            for item in request.statements[: request.max_paragraphs]
+        )
+        return CoverLetterResponse(paragraphs=paragraphs)

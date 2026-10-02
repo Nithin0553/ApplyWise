@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactElement } from "react";
 
 import "./softly.css";
+import { ApprovalContext, approvableIds } from "./store";
+import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { EvidencePage } from "./pages/EvidencePage";
 import { HomePage } from "./pages/HomePage";
 import { JobsPage } from "./pages/JobsPage";
@@ -17,6 +19,7 @@ const ROUTES = [
   { id: "match", label: "Match" },
   { id: "tailor", label: "Tailor" },
   { id: "review", label: "Review" },
+  { id: "cover", label: "Cover letter" },
   { id: "resume", label: "Resume" },
   { id: "tracker", label: "Tracker" },
 ] as const;
@@ -49,6 +52,15 @@ function useRoute(): [RouteId, (next: RouteId) => void] {
 
 export function Shell() {
   const [route, go] = useRoute();
+  const [approvedIds, setApprovedIds] = useState<string[]>(approvableIds().slice(0, 2));
+
+  const approvals = {
+    approvedIds,
+    toggle: (id: string) =>
+      setApprovedIds((current) =>
+        current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
+      ),
+  };
 
   const pages: Record<RouteId, ReactElement> = {
     home: <HomePage go={go} />,
@@ -57,11 +69,13 @@ export function Shell() {
     match: <MatchPage go={go} />,
     tailor: <TailoringPage go={go} />,
     review: <ReviewPage go={go} />,
+    cover: <CoverLetterPage go={go} />,
     resume: <ResumePage go={go} />,
     tracker: <TrackerPage go={go} />,
   };
 
   return (
+    <ApprovalContext.Provider value={approvals}>
     <div className="sf">
       <div className="sf-grain" aria-hidden="true" />
       <h1 className="sf-sr">ApplyWise</h1>
@@ -88,6 +102,7 @@ export function Shell() {
 
       {pages[route]}
     </div>
+    </ApprovalContext.Provider>
   );
 }
 
