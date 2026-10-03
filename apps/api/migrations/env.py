@@ -7,28 +7,35 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.base import Base
-
-# Import every module's models here so Base.metadata is complete for
-# autogenerate. Each feature owner adds their module's import in their own
-# PR when they introduce persistence, per docs/TEAM_WORKFLOW.md.
-from app.modules.auth import models as auth_models  # noqa: F401
+from app.modules.applications import models as application_models
+from app.modules.auth import models as auth_models
+from app.modules.evidence import models as evidence_models
+from app.modules.sharing import models as sharing_models
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+_ = (
+    auth_models.User,
+    application_models.ApplicationRecord,
+    application_models.ResumeVersionRecord,
+    evidence_models.EvidenceRecord,
+    sharing_models.PeerFeedbackRecord,
+    sharing_models.ResumeShareRecord,
+)
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
     )
 
     with context.begin_transaction():
@@ -43,7 +50,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

@@ -1,0 +1,124 @@
+.application-tracker,
+.application-form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.application-tracker__header,
+.application-tracker__detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.application-tracker__eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.application-tracker__layout {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.8fr) minmax(0, 2fr);
+  gap: 1.5rem;
+}
+
+.application-tracker__list,
+.application-tracker__details {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+}
+
+.application-tracker__application,
+.application-tracker__versions button {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.9rem;
+  text-align: left;
+}
+
+.application-tracker__application[data-selected="true"] {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.application-tracker__metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.application-tracker__metadata div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.application-tracker__metadata dt {
+  font-weight: 700;
+}
+
+.application-tracker__metadata dd {
+  margin: 0;
+}
+
+.application-tracker__versions {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.application-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.application-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.application-form input,
+.application-form textarea,
+.application-form select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem;
+  font: inherit;
+}
+
+.application-form__wide {
+  grid-column: 1 / -1;
+}
+
+.application-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+@media (max-width: 48rem) {
+  .application-tracker__layout,
+  .application-tracker__metadata,
+  .application-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .application-form__wide {
+    grid-column: auto;
+  }
+
+  .application-tracker__header,
+  .application-tracker__detail-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
