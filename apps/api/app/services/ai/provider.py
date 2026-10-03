@@ -50,6 +50,40 @@ class GroundedGenerationResponse:
     statements: tuple[RawStatement, ...]
 
 
+@dataclass(frozen=True)
+class PromptStatement:
+    """One approved statement, as shown to the provider (F11)."""
+
+    ref: str  # short reference, e.g. "S1"
+    text: str
+
+
+@dataclass(frozen=True)
+class CoverLetterRequest:
+    """Everything a provider may use when drafting a cover letter."""
+
+    job_context: str
+    statements: tuple[PromptStatement, ...]
+    instructions: str
+    tone: str
+    max_paragraphs: int
+
+
+@dataclass(frozen=True)
+class RawParagraph:
+    """One paragraph exactly as the provider returned it (untrusted)."""
+
+    text: str
+    cited_refs: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class CoverLetterResponse:
+    """Untrusted provider output. The cover letter service validates it."""
+
+    paragraphs: tuple[RawParagraph, ...]
+
+
 class AIProviderError(Exception):
     """Raised by a provider when it is unavailable or cannot answer."""
 
@@ -62,4 +96,7 @@ class AIProvider(Protocol):
     def generate_grounded(
         self, request: GroundedGenerationRequest
     ) -> GroundedGenerationResponse:
+        ...
+
+    def generate_cover_letter(self, request: CoverLetterRequest) -> CoverLetterResponse:
         ...
