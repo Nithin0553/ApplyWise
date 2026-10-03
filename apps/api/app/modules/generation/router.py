@@ -11,6 +11,12 @@ from F02's ``ApprovedEvidenceProvider.list_grounding_contexts(...)``; once F02
 is on main that selection moves server-side (see the follow-up in
 docs/contracts/F07_GENERATION_CONTRACT.md), so the approved-evidence guarantee
 becomes enforced rather than merely contractual.
+
+F11's cover-letter route has the same gap one step further along: it accepts
+approved statements from the client rather than resolving them against what
+F09 persisted. Until that store exists the route is prototype-only and is not
+served in production — see ``require_prototype_environment`` below and
+``cover_letter_contracts`` for the selection logic that will close it.
 """
 
 from __future__ import annotations
@@ -33,6 +39,21 @@ router = APIRouter(prefix="/api/generation", tags=["generation"])
 # Built once at import time: ruff flags calling a dependency factory inside an
 # argument default (B008), and a single instance is cheaper per request.
 require_job_seeker = require_role(UserRole.JOB_SEEKER)
+
+
+def require_prototype_environment() -> None:
+    """Refuse F11's endpoint outside development.
+
+    The cover-letter route still accepts approved statements from the client,
+    which proves their labels are well formed but not that F08 verified and F09
+    approved them. Until there is a server-side store to resolve ids against
+    (see ``cover_letter_contracts.select_approved_statements``), serving this
+    route in production would mean treating client-supplied approval state as
+    authoritative. So it does not exist there: the response is a plain 404,
+    which leaks nothing about why.
+    """
+    if settings.app_env == "production":
+        raise HTTPException(status_code=404, detail="Not Found")
 
 
 @router.post("/preview", response_model=GenerationResult)
@@ -64,7 +85,11 @@ def preview_generation(
         ) from exc
 
 
-@router.post("/cover-letter/preview", response_model=CoverLetterDraft)
+@router.post(
+    "/cover-letter/preview",
+    response_model=CoverLetterDraft,
+    dependencies=[Depends(require_prototype_environment)],
+)
 def preview_cover_letter(
     request: CoverLetterRequest,
     current_user: User = Depends(require_job_seeker),

@@ -16,6 +16,46 @@ route.
 
 Unauthenticated calls return 401, and a non-job-seeker role returns 403.
 
+## Known gap: the approved-statement trust boundary
+
+`approved_statements` currently arrives from the client. The `Literal` types on
+`ApprovedStatement` prove the labels are well formed — an `UNSUPPORTED` or
+unapproved statement cannot be represented by the model at all — but they do
+**not** prove the statement ever passed F08 verification or F09 approval. A
+caller can construct a new statement, set `verification_status="VERIFIED"` and
+`approval_status="APPROVED"`, and send it. The guarantee is therefore
+contractual, not enforced, in exactly the way F07's approved-evidence guarantee
+is pending F02.
+
+**Interim measure.** Because that is not safe to deploy, the endpoint is
+prototype-only: `require_prototype_environment` returns 404 when
+`APP_ENV=production`, so no production deployment can treat client-supplied
+approval state as authoritative. The guard is specific to F11; F07's own route
+is unaffected.
+
+**How it closes.** `cover_letter_contracts` already holds the seam and the
+selection logic:
+
+- `ApprovedStatementProvider` is the interface F09 implements once statements
+  are persisted — `list_approved_statements(user_id=...)`, returning only
+  statements that are persisted, owned, verified and approved. It mirrors F02's
+  `ApprovedEvidenceProvider`.
+- `select_approved_statements(provider, user_id=..., statement_ids=...)` is what
+  the route will call. The caller chooses *which* of its own approved statements
+  to draw on; it supplies ids, never the statements or their approval state. An
+  id that does not resolve to one of that user's approved statements raises
+  `StatementNotApprovedError`, with one error for every reason — missing,
+  foreign-owned, unverified, unapproved — so the response cannot be used to
+  discover whether another user's statement exists.
+- A partially valid selection is refused in full rather than trimmed: drafting
+  from fewer statements than the user chose would misrepresent their request.
+
+That logic is enforced and tested now, in
+`apps/api/tests/test_cover_letter_trust_boundary.py`, including the forged,
+foreign-owned and partially valid cases. Wiring it up when F09 lands is a change
+of caller — `CoverLetterRequest` carries `statement_ids` instead of
+`approved_statements`, and the guard comes off — not a change of policy.
+
 ## Where F11 sits in the chain
 
 F07 generates candidate statements from approved **evidence**. F08 verifies
@@ -100,13 +140,16 @@ evidence.
 
 `POST /api/generation/cover-letter/preview` (optional `?provider=stub|demo`).
 Requires a bearer token for a Job Seeker; the draft is always owned by the
-token's user.
+token's user. **Prototype-only**: returns 404 when `APP_ENV=production`, until
+statement selection moves server-side (see the known gap above).
 
 ## Tests
 
 `apps/api/tests/test_cover_letter_service.py` plus endpoint tests in
 `apps/api/tests/test_generation_api.py`, with fixtures in
-`apps/api/tests/fixtures/cover_letter_fixtures.py`. The endpoint tests include
-an unauthenticated 401 and a case proving a caller cannot draft against another
-user's account by putting their id in the body. All use a fake or bundled
-provider; no test performs a network call.
+`apps/api/tests/fixtures/cover_letter_fixtures.py`, and trust-boundary tests in
+`apps/api/tests/test_cover_letter_trust_boundary.py`. Between them they cover an
+unauthenticated 401, a caller putting another user's id in the body, a forged
+statement id, a foreign-owned statement, a partially valid selection, and the
+production gate. All use a fake or bundled provider; no test performs a network
+call.
