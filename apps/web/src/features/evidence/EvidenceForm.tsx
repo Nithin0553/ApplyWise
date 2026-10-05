@@ -58,11 +58,17 @@ export function EvidenceForm({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const title = readText(formData, "title");
+    const url = readText(formData, "url");
     const startDate = readText(formData, "startDate");
     const endDate = readText(formData, "endDate");
 
     if (!title) {
       setValidationError("Title is required.");
+      return;
+    }
+
+    if (url && !/^https?:\/\//i.test(url)) {
+      setValidationError("Supporting link must start with http:// or https://.");
       return;
     }
 
@@ -82,7 +88,7 @@ export function EvidenceForm({
       skillName: readText(formData, "skillName"),
       proficiency: readText(formData, "proficiency"),
       credential: readText(formData, "credential"),
-      url: readText(formData, "url"),
+      url,
       startDate,
       endDate,
       source: readText(formData, "source"),

@@ -74,6 +74,25 @@ describe("EvidenceForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("accepts only HTTP or HTTPS supporting links", () => {
+    const onSubmit = vi.fn();
+    render(<EvidenceForm onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Portfolio evidence" },
+    });
+    fireEvent.change(screen.getByLabelText("Supporting link"), {
+      target: { value: "javascript:alert(1)" },
+    });
+
+    fireEvent.submit(screen.getByRole("button", { name: "Save evidence" }).closest("form")!);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Supporting link must start with http:// or https://.",
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("warns that editing approved evidence can revoke approval", () => {
     render(
       <EvidenceForm
