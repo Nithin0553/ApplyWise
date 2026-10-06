@@ -1,0 +1,192 @@
+.resume-workspace {
+  color: #172b3a;
+}
+
+.workspace-heading {
+  margin-bottom: 24px;
+}
+
+.workspace-eyebrow {
+  color: #27665c;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.workspace-heading h2 {
+  margin: 8px 0;
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+}
+
+.prototype-notice {
+  padding: 14px 18px;
+  border: 1px solid #cbd8e2;
+  border-radius: 8px;
+  background: #edf3f7;
+  line-height: 1.5;
+}
+
+.resume-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 28px;
+  margin-top: 28px;
+  align-items: start;
+}
+
+.resume-controls {
+  padding: 24px;
+  border: 1px solid #d4dde5;
+  border-radius: 12px;
+  background: white;
+}
+
+.resume-controls h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.resume-controls label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.resume-controls select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #748596;
+  border-radius: 6px;
+  background: white;
+  color: #172b3a;
+  font: inherit;
+}
+
+.resume-controls p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.template-description,
+#export-note {
+  color: #526171;
+}
+
+.resume-controls hr {
+  margin: 24px 0;
+  border: 0;
+  border-top: 1px solid #d4dde5;
+}
+
+.export-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.export-actions button {
+  padding: 12px;
+  border: 1px solid #cbd5df;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.export-actions button:disabled {
+  background: #eef2f5;
+  color: #596675;
+  cursor: not-allowed;
+}
+
+.resume-workspace :focus-visible {
+  outline: 3px solid #176bba;
+  outline-offset: 4px;
+}
+
+.preview-area {
+  min-width: 0;
+}
+
+.preview-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.preview-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.preview-heading span {
+  color: #526171;
+  font-size: 0.85rem;
+}
+
+.resume-preview {
+  padding: 40px;
+  border: 1px solid #d4dde5;
+  background: white;
+  box-shadow: 0 8px 24px rgb(23 43 58 / 7%);
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+.resume-preview header {
+  padding-bottom: 18px;
+  border-bottom: 2px solid #263d50;
+}
+
+.resume-preview header h3 {
+  margin: 0 0 8px;
+  font-size: 1.8rem;
+}
+
+.resume-preview header p {
+  margin: 4px 0;
+}
+
+.resume-preview section {
+  margin-top: 24px;
+}
+
+.resume-preview h4 {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.resume-preview p {
+  margin: 6px 0;
+}
+
+.resume-preview ul {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+
+.resume-preview--compact {
+  padding: 28px;
+  line-height: 1.4;
+}
+
+.resume-preview--compact section {
+  margin-top: 16px;
+}
+
+@media (max-width: 800px) {
+  .resume-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-preview {
+    padding: 24px;
+  }
+
+  .resume-preview--compact {
+    padding: 18px;
+  }
+}
