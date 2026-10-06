@@ -149,7 +149,7 @@ export function HomePage({ go }: PageProps) {
             width: 48,
             height: 48,
             borderRadius: 16,
-            background: "#292524",
+            background: "#002d72",
             margin: "0 auto 20px",
             display: "flex",
             alignItems: "center",
@@ -157,7 +157,7 @@ export function HomePage({ go }: PageProps) {
           }}
           aria-hidden="true"
         >
-          <span style={{ width: 10, height: 10, borderRadius: 5, background: "#ffb7b2" }} />
+          <span style={{ width: 10, height: 10, borderRadius: 5, background: "#f9a825" }} />
         </div>
         <h3 className="sf-h2">Keep your evidence close</h3>
         <p className="sf-lede" style={{ margin: "12px auto 24px" }}>
@@ -177,10 +177,10 @@ export function HomePage({ go }: PageProps) {
             placeholder="you@example.edu"
             style={{
               borderRadius: 999,
-              border: "1px solid #e7e5e4",
+              border: "1px solid #e0ddd6",
               padding: "12px 20px",
               font: "inherit",
-              background: "#fafaf9",
+              background: "#ffffff",
               minWidth: 260,
             }}
           />

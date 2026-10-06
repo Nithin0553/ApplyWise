@@ -117,7 +117,7 @@ export function TailoringPage({ go }: PageProps) {
                     borderRadius: 999,
                     border: "1px solid #e7e5e4",
                     padding: "8px 14px",
-                    background: "#fafaf9",
+                    background: "#ffffff",
                   }}
                 >
                   {AI_PROVIDERS.map((name) => (
@@ -173,7 +173,7 @@ export function TailoringPage({ go }: PageProps) {
           </div>
 
           {result && result.rejected.length > 0 && (
-            <div className="sf-card" style={{ background: "#fdf6f5" }}>
+            <div className="sf-card" style={{ background: "#f6ebe8" }}>
               <h3 className="sf-h3">Discarded before you saw them</h3>
               <p className="sf-muted" style={{ marginTop: 0 }}>
                 The provider returned these. ApplyWise refused them.
@@ -186,7 +186,7 @@ export function TailoringPage({ go }: PageProps) {
                       margin: "8px 0 4px",
                       lineHeight: 1.6,
                       textDecoration: "line-through",
-                      color: "#8a3a33",
+                      color: "#9a4034",
                     }}
                   >
                     {item.text}
