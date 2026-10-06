@@ -65,7 +65,13 @@ def test_feature_routes_require_authentication(client: TestClient) -> None:
     assert client.get("/api/evidence/").status_code == 401
     assert client.get("/api/applications/").status_code == 401
     assert client.get("/api/shares/").status_code == 401
-    assert client.get("/api/shares/resolve/aaaaaaaaaaaaaaaaaaaa").status_code == 401
+    assert (
+        client.post(
+            "/api/shares/reviewer/resolve",
+            json={"secret": "synthetic-missing-secret"},
+        ).status_code
+        == 401
+    )
 
 
 def test_evidence_api_uses_authenticated_owner_boundary(client: TestClient) -> None:
@@ -156,23 +162,39 @@ def test_sharing_api_enforces_job_seeker_and_reviewer_roles(
     share_id = created.json()["grant"]["id"]
     secret = created.json()["secret"]
 
-    resolved = client.get(
-        f"/api/shares/resolve/{secret}",
+    resolved = client.post(
+        "/api/shares/reviewer/resolve",
         headers=_headers(reviewer_token),
+        json={"secret": secret},
     )
     assert resolved.status_code == 200
     assert resolved.json()["resume_version_id"] == version_id
 
     assert (
-        client.get(f"/api/shares/resolve/{secret}", headers=_headers(owner_token)).status_code
+        client.post(
+            "/api/shares/reviewer/resolve",
+            headers=_headers(owner_token),
+            json={"secret": secret},
+        ).status_code
         == 403
     )
     assert client.get("/api/shares/", headers=_headers(reviewer_token)).status_code == 403
 
-    feedback = client.post(
-        f"/api/shares/resolve/{secret}/feedback",
+    missing = client.post(
+        "/api/shares/reviewer/resolve",
         headers=_headers(reviewer_token),
-        json={"comment": "The evidence-backed bullets are clear."},
+        json={"secret": "synthetic-missing-secret"},
+    )
+    assert missing.status_code == 404
+    assert missing.json() == {"detail": "Share not found"}
+
+    feedback = client.post(
+        "/api/shares/reviewer/feedback",
+        headers=_headers(reviewer_token),
+        json={
+            "secret": secret,
+            "comment": "The evidence-backed bullets are clear.",
+        },
     )
     assert feedback.status_code == 201
 
@@ -192,6 +214,33 @@ def test_sharing_api_enforces_job_seeker_and_reviewer_roles(
         ).status_code
         == 404
     )
+
+
+def test_reviewer_share_secret_is_not_exposed_in_api_paths(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    reviewer_token = _reviewer_token(client, db_session)
+    secret = "synthetic-share-secret-that-must-not-be-in-the-path"
+
+    assert (
+        client.get(
+            f"/api/shares/resolve/{secret}",
+            headers=_headers(reviewer_token),
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/api/shares/resolve/{secret}/feedback",
+            headers=_headers(reviewer_token),
+            json={"comment": "Synthetic feedback."},
+        ).status_code
+        == 404
+    )
+
+    paths = client.get("/openapi.json").json()["paths"]
+    assert all("{secret}" not in path for path in paths)
 
 
 def test_alembic_chain_has_one_head_rooted_after_f01() -> None:
