@@ -1,0 +1,206 @@
+from __future__ import annotations
+
+from uuid import UUID, uuid4
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+from app.db.base import Base
+from app.modules.evidence.models import EvidenceRecord, EvidenceStatus, EvidenceType
+from app.modules.evidence.schemas import EvidenceCreate, EvidenceUpdate
+from app.modules.evidence.service import (
+    EvidenceNotFoundError,
+    EvidenceService,
+    InvalidEvidenceTransitionError,
+)
+
+
+@pytest.fixture
+def session() -> Session:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db_session:
+        yield db_session
+    Base.metadata.drop_all(engine)
+    engine.dispose()
+
+
+def create_project(service: EvidenceService, user_id: UUID):
+    return service.create(
+        user_id=user_id,
+        data=EvidenceCreate(
+            evidence_type=EvidenceType.PROJECT,
+            title="Synthetic course scheduling API",
+            role="Backend developer",
+            description="Built a REST API for a synthetic class project.",
+            url="https://example.invalid/project",
+            source="manual",
+        ),
+    )
+
+
+def test_new_evidence_is_persisted_unconfirmed(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+
+    created = create_project(service, user_id)
+    session.commit()
+
+    persisted = session.get(EvidenceRecord, created.id)
+    assert persisted is not None
+    assert persisted.user_id == user_id
+    assert persisted.status == EvidenceStatus.UNCONFIRMED
+    assert persisted.approved_at is None
+
+
+def test_owner_can_approve_and_unconfirm_persisted_evidence(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = create_project(service, user_id)
+
+    approved = service.approve(user_id=user_id, evidence_id=created.id)
+    session.commit()
+    assert approved.status == EvidenceStatus.APPROVED
+    assert approved.approved_at is not None
+
+    unconfirmed = service.unconfirm(user_id=user_id, evidence_id=created.id)
+    session.commit()
+    assert unconfirmed.status == EvidenceStatus.UNCONFIRMED
+    assert unconfirmed.approved_at is None
+
+
+def test_editing_approved_evidence_revokes_approval(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = create_project(service, user_id)
+    service.approve(user_id=user_id, evidence_id=created.id)
+
+    updated = service.update(
+        user_id=user_id,
+        evidence_id=created.id,
+        data=EvidenceUpdate(description="Built and tested a synthetic REST API."),
+    )
+    session.commit()
+
+    assert updated.description == "Built and tested a synthetic REST API."
+    assert updated.status == EvidenceStatus.UNCONFIRMED
+    assert updated.approved_at is None
+
+
+def test_noop_edit_keeps_existing_approval(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = create_project(service, user_id)
+    approved = service.approve(user_id=user_id, evidence_id=created.id)
+
+    updated = service.update(
+        user_id=user_id,
+        evidence_id=created.id,
+        data=EvidenceUpdate(title=created.title),
+    )
+
+    assert updated.status == EvidenceStatus.APPROVED
+    assert updated.approved_at is not None
+    assert approved.approved_at is not None
+    # SQLite drops timezone metadata for DateTime even when timezone=True.
+    assert updated.approved_at.replace(tzinfo=None) == approved.approved_at.replace(
+        tzinfo=None
+    )
+
+
+def test_update_validates_full_date_range(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = service.create(
+        user_id=user_id,
+        data=EvidenceCreate(
+            evidence_type=EvidenceType.WORK_EXPERIENCE,
+            title="Synthetic internship",
+            start_date="2026-01-01",
+            end_date="2026-05-01",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="end_date cannot be earlier than start_date"):
+        service.update(
+            user_id=user_id,
+            evidence_id=created.id,
+            data=EvidenceUpdate(start_date="2026-06-01"),
+        )
+
+
+def test_list_approved_filters_state_and_owner(session: Session) -> None:
+    owner_id = uuid4()
+    other_user_id = uuid4()
+    service = EvidenceService(session)
+
+    approved_record = create_project(service, owner_id)
+    create_project(service, owner_id)
+    other_record = create_project(service, other_user_id)
+
+    service.approve(user_id=owner_id, evidence_id=approved_record.id)
+    service.approve(user_id=other_user_id, evidence_id=other_record.id)
+    session.commit()
+
+    approved = service.list_approved(user_id=owner_id)
+
+    assert [item.id for item in approved] == [approved_record.id]
+    assert all(item.user_id == owner_id for item in approved)
+    assert all(item.status == EvidenceStatus.APPROVED for item in approved)
+
+
+def test_grounding_context_preserves_structured_skill_evidence(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    skill = service.create(
+        user_id=user_id,
+        data=EvidenceCreate(
+            evidence_type=EvidenceType.SKILL,
+            title="Python backend development",
+            skill_name="Python",
+            proficiency="advanced",
+            credential="Synthetic Python Certificate",
+            url="https://example.invalid/certificate",
+            source="manual",
+        ),
+    )
+    service.approve(user_id=user_id, evidence_id=skill.id)
+
+    contexts = service.list_grounding_contexts(user_id=user_id)
+
+    assert len(contexts) == 1
+    assert contexts[0].evidence_id == skill.id
+    assert contexts[0].skill_name == "Python"
+    assert contexts[0].proficiency == "advanced"
+    assert contexts[0].credential == "Synthetic Python Certificate"
+    assert contexts[0].source_url == "https://example.invalid/certificate"
+
+
+def test_foreign_and_missing_ids_have_same_not_found_boundary(session: Session) -> None:
+    owner_id = uuid4()
+    other_user_id = uuid4()
+    service = EvidenceService(session)
+    created = create_project(service, owner_id)
+
+    for evidence_id in (created.id, uuid4()):
+        with pytest.raises(EvidenceNotFoundError):
+            service.get_owned(user_id=other_user_id, evidence_id=evidence_id)
+
+    with pytest.raises(EvidenceNotFoundError):
+        service.update(
+            user_id=other_user_id,
+            evidence_id=created.id,
+            data=EvidenceUpdate(title="Unauthorized change"),
+        )
+
+
+def test_duplicate_transition_is_rejected(session: Session) -> None:
+    user_id = uuid4()
+    service = EvidenceService(session)
+    created = create_project(service, user_id)
+
+    service.approve(user_id=user_id, evidence_id=created.id)
+
+    with pytest.raises(InvalidEvidenceTransitionError):
+        service.approve(user_id=user_id, evidence_id=created.id)

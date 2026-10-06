@@ -10,9 +10,12 @@ dependencies = [
   "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.34,<1",
   "pydantic-settings>=2.7,<3",
+  "pydantic[email]>=2.9,<3",
   "sqlalchemy>=2.0,<3",
   "psycopg[binary]>=3.2,<4",
   "alembic>=1.14,<2",
+  "bcrypt>=4.2,<5",
+  "pyjwt>=2.9,<3",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +35,12 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection pattern relies on calling Depends()/Query()
+# in argument defaults; this is not the mutable-default-argument bug B008
+# otherwise guards against.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
