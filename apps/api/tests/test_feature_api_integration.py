@@ -200,5 +200,6 @@ def test_alembic_chain_has_one_head_rooted_after_f01() -> None:
     config.set_main_option("script_location", str(api_root / "migrations"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["20261001_0003"]
+    assert scripts.get_heads() == ["20261006_0004"]
+    assert scripts.get_revision("20261006_0004").down_revision == "20261001_0003"
     assert scripts.get_revision("20260921_0001").down_revision == "0001"
