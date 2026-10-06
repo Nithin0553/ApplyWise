@@ -5,16 +5,16 @@ import { AI_PROVIDERS, USE_REAL, type AiProvider } from "./config";
 import { MOCK_JOB_CONTEXT } from "./mockData";
 import { useAuth } from "../auth";
 import "./tailoring.css";
-import type { GenerationEvidence, GenerationResult } from "./types";
+import type { EvidenceOption, GenerationResult } from "./types";
 
 /** Short label (E1, E2, ...) for an evidence id, matching what the backend sends the provider. */
-function refLabels(evidence: GenerationEvidence[]): Map<string, string> {
+function refLabels(evidence: EvidenceOption[]): Map<string, string> {
   return new Map(evidence.map((item, index) => [item.evidence_id, `E${index + 1}`]));
 }
 
 export function TailoringPage() {
   const { token } = useAuth();
-  const [evidence, setEvidence] = useState<GenerationEvidence[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceOption[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [jobTitle, setJobTitle] = useState(MOCK_JOB_CONTEXT.job_title);
   const [company, setCompany] = useState(MOCK_JOB_CONTEXT.company ?? "");
@@ -61,7 +61,7 @@ export function TailoringPage() {
             description,
             requirements: MOCK_JOB_CONTEXT.requirements,
           },
-          approved_evidence: selected,
+          evidence_ids: selected.map((item) => item.evidence_id),
           max_statements: maxStatements,
         },
         provider,

@@ -1,16 +1,19 @@
 /**
- * F02 -> F07 evidence translation.
+ * F02 -> evidence picker translation.
  *
- * F02 returns records keyed by `id`; F07 cites evidence by `evidence_id`.
- * Casting one to the other compiles and then fails silently at runtime, which
- * is the bug these tests exist to prevent. The payloads below are shaped like
- * ApprovedEvidence in apps/api/app/modules/evidence/schemas.py, including F02's
- * lowercase enum values.
+ * Since evidence selection moved server-side, this mapping feeds the picker
+ * only. The id is the one load-bearing field: it is what the generation
+ * request sends, and the server reads the record itself from F02. The tests
+ * below pin that down — including that the mapper carries no approval state
+ * and no generation content, so nothing in the browser can assert either.
+ *
+ * Payloads are shaped like ApprovedEvidence in
+ * apps/api/app/modules/evidence/schemas.py, including F02's lowercase enum.
  */
 
 import { describe, expect, it } from "vitest";
 
-import { ApiError, toGenerationEvidence } from "./api";
+import { ApiError, toEvidenceOption } from "./api";
 
 const WORK_RECORD = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -35,44 +38,48 @@ const SKILL_RECORD = {
   proficiency: "Advanced",
 };
 
-describe("toGenerationEvidence", () => {
-  it("maps F02's id onto F07's evidence_id", () => {
-    const mapped = toGenerationEvidence(WORK_RECORD);
+describe("toEvidenceOption", () => {
+  it("maps F02's id onto the evidence_id the request sends", () => {
+    const mapped = toEvidenceOption(WORK_RECORD);
 
     expect(mapped.evidence_id).toBe(WORK_RECORD.id);
     // The failure this guards against: a cast leaves evidence_id undefined,
-    // which renders as "E?" and sends a request the backend cannot ground.
+    // and the request then selects nothing the server can resolve.
     expect(mapped.evidence_id).not.toBeUndefined();
   });
 
-  it("normalises F02's lowercase enum to the type F07 labels evidence with", () => {
-    expect(toGenerationEvidence(WORK_RECORD).evidence_type).toBe("WORK_EXPERIENCE");
-    expect(toGenerationEvidence(SKILL_RECORD).evidence_type).toBe("SKILL");
+  it("keeps the fields the picker shows", () => {
+    const mapped = toEvidenceOption(WORK_RECORD);
+
+    expect(mapped.title).toBe("Associate QA Engineer");
+    expect(mapped.organization).toBe("Model N");
+    expect(mapped.evidence_type).toBe("work_experience");
   });
 
-  it("keeps the structured fields that carry a skill's meaning", () => {
-    const mapped = toGenerationEvidence(SKILL_RECORD);
+  it("carries no approval state into the browser's model", () => {
+    const mapped = toEvidenceOption(WORK_RECORD) as unknown as Record<string, unknown>;
 
-    expect(mapped.skill_name).toBe("Python");
-    expect(mapped.proficiency).toBe("Advanced");
-    // No description on skill evidence: absent fields become null, not undefined.
-    expect(mapped.description).toBeNull();
-  });
-
-  it("drops F02 fields F07 must not generate from", () => {
-    const mapped = toGenerationEvidence(WORK_RECORD) as unknown as Record<string, unknown>;
-
-    // Provenance metadata and ownership are not content for the provider.
+    // Approval is decided server-side when the ids are resolved. Nothing the
+    // browser holds should be able to assert it.
     expect(mapped.status).toBeUndefined();
     expect(mapped.approved_at).toBeUndefined();
     expect(mapped.user_id).toBeUndefined();
   });
 
-  it("refuses a record with no id, because nothing could cite it", () => {
-    expect(() => toGenerationEvidence({ ...WORK_RECORD, id: undefined })).toThrow(ApiError);
+  it("carries no generation content either", () => {
+    const mapped = toEvidenceOption(SKILL_RECORD) as unknown as Record<string, unknown>;
+
+    // skill_name and proficiency reach the AI provider, so they must come from
+    // the server's own read of the record, never from this object.
+    expect(mapped.skill_name).toBeUndefined();
+    expect(mapped.proficiency).toBeUndefined();
+  });
+
+  it("refuses a record with no id, because nothing could select it", () => {
+    expect(() => toEvidenceOption({ ...WORK_RECORD, id: undefined })).toThrow(ApiError);
   });
 
   it("refuses a record with no title", () => {
-    expect(() => toGenerationEvidence({ ...WORK_RECORD, title: undefined })).toThrow(ApiError);
+    expect(() => toEvidenceOption({ ...WORK_RECORD, title: undefined })).toThrow(ApiError);
   });
 });

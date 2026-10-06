@@ -7,8 +7,8 @@
 export const USE_REAL = {
   /** F01 authentication — Prudhvi (@Pras04ad), merged to main */
   f01_auth: true,
-  /** F02 approved evidence — Nithin (@Nithin0553), PR #8 open */
-  f02_evidence: false,
+  /** F02 approved evidence — Nithin (@Nithin0553), merged to main */
+  f02_evidence: true,
   /** F04 job analysis — Sampreet (@Sampreet26) */
   f04_jobAnalysis: false,
   /** F07 grounded generation — Niraali (@niraalibandi), implemented */

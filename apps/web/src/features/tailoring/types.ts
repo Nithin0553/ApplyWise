@@ -1,21 +1,20 @@
 // Mirrors the F07 contract in apps/api/app/modules/generation/schemas.py.
 // Keep these in step with that file; it is the source of truth.
 
-export interface GenerationEvidence {
+/**
+ * One approved evidence item as the picker displays it.
+ *
+ * This is display data only. It is never sent to generation: the request
+ * carries ids, and the server reads the records themselves from F02. So a
+ * tampered copy of this object changes what the user sees in the list and
+ * nothing about what a statement is grounded in.
+ */
+export interface EvidenceOption {
   evidence_id: string;
   evidence_type: string;
   title: string;
   organization?: string | null;
-  role?: string | null;
-  location?: string | null;
   description?: string | null;
-  // Structured fields from F02's grounding context. Skill and certification
-  // evidence often has no description, so these carry the meaning.
-  skill_name?: string | null;
-  proficiency?: string | null;
-  credential?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
 }
 
 export interface JobContext {
@@ -26,9 +25,12 @@ export interface JobContext {
 }
 
 export interface GenerationRequest {
-  // No user_id: the server takes identity from the bearer token (F01).
+  // No user_id: identity comes from the bearer token (F01).
+  // No evidence content: only ids. The server resolves them against the
+  // caller's own approved evidence (F02), so neither the content nor the
+  // approval state can be supplied by the browser.
   job_context: JobContext;
-  approved_evidence: GenerationEvidence[];
+  evidence_ids: string[];
   max_statements: number;
 }
 
