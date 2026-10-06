@@ -55,13 +55,21 @@ export interface ProvenanceSnapshotItem {
   approval_status: ApprovalSnapshotStatus;
 }
 
-export interface ResumeVersionSnapshot {
+/**
+ * Immutable content F13 is allowed to save. Identity/version metadata is
+ * deliberately absent because the backend derives owner/application/version
+ * identity from F01 plus the route and creates the version metadata itself.
+ */
+export interface ResumeVersionContent {
+  evidence: EvidenceSnapshotItem[];
+  statements: ProvenanceSnapshotItem[];
+}
+
+export interface ResumeVersionSnapshot extends ResumeVersionContent {
   user_id: string;
   application_id: string;
   resume_version_id: string;
   created_at: string;
-  evidence: EvidenceSnapshotItem[];
-  statements: ProvenanceSnapshotItem[];
 }
 
 export interface ResumeVersionApiRecord {
@@ -187,6 +195,26 @@ export function listResumeVersions(
   return requestJson<ResumeVersionApiRecord[]>(
     token,
     `/api/applications/${encodeURIComponent(applicationId)}/resume-versions`,
+  );
+}
+
+/**
+ * Persist an immutable version only from upstream content that already carries
+ * its evidence/provenance/verification/approval snapshot. F13 does not invent
+ * or promote statement state here.
+ */
+export function saveResumeVersion(
+  token: string,
+  applicationId: string,
+  content: ResumeVersionContent,
+): Promise<ResumeVersionApiRecord> {
+  return requestJson<ResumeVersionApiRecord>(
+    token,
+    `/api/applications/${encodeURIComponent(applicationId)}/resume-versions`,
+    {
+      method: "POST",
+      body: JSON.stringify(content),
+    },
   );
 }
 
