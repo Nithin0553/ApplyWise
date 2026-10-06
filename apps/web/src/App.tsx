@@ -1,23 +1,7 @@
 import { useState } from "react";
 
 import { AuthProvider, LoginForm, RegisterForm, useAuth } from "./features/auth";
-
-function AuthenticatedPanel() {
-  const { user, logout } = useAuth();
-  if (!user) return null;
-
-  return (
-    <div className="session-panel">
-      <p>
-        Signed in as <strong>{user.full_name}</strong> ({user.email}) · role:{" "}
-        <code>{user.role}</code>
-      </p>
-      <button type="button" onClick={logout}>
-        Sign out
-      </button>
-    </div>
-  );
-}
+import { Shell } from "./prototype/Shell";
 
 function AuthGate() {
   const { user, isLoading } = useAuth();
@@ -27,8 +11,9 @@ function AuthGate() {
     return <p>Loading…</p>;
   }
 
+  // Signed in: the feature shell takes over. Signed out: F01 owns the screen.
   if (user) {
-    return <AuthenticatedPanel />;
+    return <Shell />;
   }
 
   return mode === "login" ? (
@@ -41,11 +26,7 @@ function AuthGate() {
 export function App() {
   return (
     <AuthProvider>
-      <main className="shell">
-        <h1>ApplyWise</h1>
-        <p>Engineering foundation initialized. Feature implementation starts with F01.</p>
-        <AuthGate />
-      </main>
+      <AuthGate />
     </AuthProvider>
   );
 }
