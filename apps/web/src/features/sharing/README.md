@@ -12,7 +12,8 @@ Referer header.
 
 `ReviewerSharePage` is the authenticated Reviewer surface. It reads the share secret from the
 client-side URL fragment (or an explicitly supplied integration prop), resolves the share through the
-reviewer-only F14 API, and submits reviewer feedback. The backend remains the authority for
+reviewer-only F14 API, and submits reviewer feedback. Reviewer API calls send the raw secret only in
+JSON request bodies, never in URL paths or query strings. The backend remains the authority for
 revoked/expired/missing links, which are all exposed outwardly as unavailable shares.
 
 `ShareManager` and `PeerFeedbackPanel` remain presentation components. `PeerFeedbackPanel` can be
@@ -31,11 +32,8 @@ author only as `Reviewer`; F14 does not expose reviewer identity through this UI
   branch intentionally does not modify `App.tsx` while the shared shell is moving.
 - Frontend API calls default to same-origin `/api/...` paths. `VITE_API_BASE_URL` remains an explicit
   override for deployments that intentionally host the API on another origin.
-
-The current backend F14 contract still accepts the share secret in the reviewer resolve/feedback API
-path. Moving the secret out of the backend request URL is a separate server-contract hardening task;
-the fragment change here prevents the browser-facing share link itself from putting the secret in the
-page request/query string.
+- PR #24 supplies the matching backend reviewer endpoints (`/api/shares/reviewer/resolve` and
+  `/api/shares/reviewer/feedback`) and must land before this frontend PR.
 
 Public self-registration currently creates Job Seeker accounts only. Reviewer accounts must be
 provisioned through the project-supported role-management path before the reviewer surface can be
