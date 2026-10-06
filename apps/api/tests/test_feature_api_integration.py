@@ -243,6 +243,37 @@ def test_reviewer_share_secret_is_not_exposed_in_api_paths(
     assert all("{secret}" not in path for path in paths)
 
 
+def test_reviewer_share_secret_preserves_length_bounds(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    reviewer_token = _reviewer_token(client, db_session)
+
+    for invalid_secret in ("x" * 19, "x" * 201):
+        resolve = client.post(
+            "/api/shares/reviewer/resolve",
+            headers=_headers(reviewer_token),
+            json={"secret": invalid_secret},
+        )
+        assert resolve.status_code == 422
+
+        feedback = client.post(
+            "/api/shares/reviewer/feedback",
+            headers=_headers(reviewer_token),
+            json={"secret": invalid_secret, "comment": "Synthetic feedback."},
+        )
+        assert feedback.status_code == 422
+
+    for valid_length_secret in ("x" * 20, "x" * 200):
+        response = client.post(
+            "/api/shares/reviewer/resolve",
+            headers=_headers(reviewer_token),
+            json={"secret": valid_length_secret},
+        )
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Share not found"}
+
+
 def test_alembic_chain_has_one_head_rooted_after_f01() -> None:
     api_root = Path(__file__).resolve().parents[1]
     config = Config(str(api_root / "alembic.ini"))
