@@ -88,12 +88,42 @@ class JobContext(BaseModel):
         return "\n".join(lines)
 
 
-class GenerationRequest(BaseModel):
-    """What a caller may ask for.
+class GenerationPreviewRequest(BaseModel):
+    """What a caller may ask for over HTTP.
 
-    Note what is absent: the user's identity. It comes from the authenticated
-    session (F01), never from the request body, so a caller cannot generate
-    against another user's account by editing a payload.
+    Note what is absent, and why each absence matters.
+
+    The user's identity is absent: it comes from the authenticated session
+    (F01), so a caller cannot generate against another user's account by
+    editing a payload.
+
+    The evidence *content* is absent too. A caller selects which of its own
+    approved evidence to draw on by id; the records themselves are read
+    server-side from F02 and can therefore neither be fabricated nor altered
+    in transit. This is what makes the "only approved evidence" guarantee
+    enforced rather than merely contractual.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    job_context: JobContext
+    evidence_ids: tuple[UUID, ...] = Field(min_length=1, max_length=20)
+    max_statements: int = Field(default=5, ge=1, le=10)
+
+    @model_validator(mode="after")
+    def evidence_ids_are_unique(self) -> Self:
+        if len(self.evidence_ids) != len(set(self.evidence_ids)):
+            raise ValueError("evidence_ids contains duplicate values")
+        return self
+
+
+class GenerationRequest(BaseModel):
+    """What ``GenerationService`` consumes, after evidence has been resolved.
+
+    This is an internal model, built by the route from a
+    ``GenerationPreviewRequest`` plus the records read from F02. It is not a
+    shape any client can send: keeping it separate is what stops
+    caller-supplied evidence reaching the service.
     """
 
     model_config = ConfigDict(frozen=True)

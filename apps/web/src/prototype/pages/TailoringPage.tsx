@@ -5,14 +5,14 @@ import { AI_PROVIDERS, USE_REAL, type AiProvider } from "../../features/tailorin
 import { MOCK_JOB_CONTEXT } from "../../features/tailoring/mockData";
 import { useAuth } from "../../features/auth";
 import type {
-  GenerationEvidence,
+  EvidenceOption,
   GenerationResult,
 } from "../../features/tailoring/types";
 import type { PageProps } from "../Shell";
 
 export function TailoringPage({ go }: PageProps) {
   const { token } = useAuth();
-  const [evidence, setEvidence] = useState<GenerationEvidence[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceOption[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [jobTitle, setJobTitle] = useState(MOCK_JOB_CONTEXT.job_title);
   const [company, setCompany] = useState(MOCK_JOB_CONTEXT.company ?? "");
@@ -60,7 +60,7 @@ export function TailoringPage({ go }: PageProps) {
               .map((item) => item.trim())
               .filter(Boolean),
           },
-          approved_evidence: selected,
+          evidence_ids: selected.map((item) => item.evidence_id),
           max_statements: 5,
         },
         provider,

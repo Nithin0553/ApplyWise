@@ -11,7 +11,7 @@ import {
   MOCK_APPROVED_EVIDENCE,
   MOCK_GENERATION_RESULT,
 } from "./mockData";
-import type { GenerationEvidence, GenerationRequest, GenerationResult } from "./types";
+import type { EvidenceOption, GenerationRequest, GenerationResult } from "./types";
 
 export class ApiError extends Error {}
 
@@ -25,7 +25,7 @@ export class ApiError extends Error {}
  * compile and then silently produce `evidence_id: undefined` at runtime.
  *
  * Every field is optional here because this is untrusted wire data, not a
- * promise. `toGenerationEvidence` is what turns it into something F07 accepts.
+ * promise. `toEvidenceOption` is what turns it into something the picker can show.
  */
 interface ApprovedEvidenceWire {
   id?: string;
@@ -43,13 +43,14 @@ interface ApprovedEvidenceWire {
 }
 
 /**
- * Translate one F02 record into the shape F07's contract accepts.
+ * Translate one F02 record into the shape the evidence picker displays.
  *
- * Fails loudly rather than passing a half-built item to the generator: an
- * evidence item with no id cannot carry provenance, and a statement without
- * provenance is exactly what F07 exists to prevent.
+ * Only the id is load-bearing: it is what the generation request sends, and
+ * the server reads the record itself. The remaining fields are labels for the
+ * list. A record with no id is refused rather than shown, because selecting it
+ * could not produce anything grounded.
  */
-export function toGenerationEvidence(raw: ApprovedEvidenceWire): GenerationEvidence {
+export function toEvidenceOption(raw: ApprovedEvidenceWire): EvidenceOption {
   if (!raw.id) {
     throw new ApiError(
       "Evidence arrived from the evidence service without an id, so nothing could cite it.",
@@ -61,27 +62,17 @@ export function toGenerationEvidence(raw: ApprovedEvidenceWire): GenerationEvide
 
   return {
     evidence_id: raw.id,
-    // F02 stores its enum as lowercase values ("work_experience", "skill").
-    // F07 labels evidence by type in the text it hands the provider, and the
-    // demo provider matches on the uppercase form, so normalise here.
-    evidence_type: raw.evidence_type.toUpperCase(),
+    evidence_type: raw.evidence_type,
     title: raw.title,
     organization: raw.organization ?? null,
-    role: raw.role ?? null,
-    location: raw.location ?? null,
     description: raw.description ?? null,
-    skill_name: raw.skill_name ?? null,
-    proficiency: raw.proficiency ?? null,
-    credential: raw.credential ?? null,
-    start_date: raw.start_date ?? null,
-    end_date: raw.end_date ?? null,
   };
 }
 
 /** F02 — approved evidence for the signed-in user. */
 export async function fetchApprovedEvidence(
   token: string | null,
-): Promise<GenerationEvidence[]> {
+): Promise<EvidenceOption[]> {
   if (!USE_REAL.f02_evidence) {
     return MOCK_APPROVED_EVIDENCE;
   }
@@ -106,7 +97,7 @@ export async function fetchApprovedEvidence(
   }
 
   const payload = (await response.json()) as ApprovedEvidenceWire[];
-  return payload.map(toGenerationEvidence);
+  return payload.map(toEvidenceOption);
 }
 
 /** F07 — generate candidate statements from approved evidence. */

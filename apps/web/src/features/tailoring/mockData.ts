@@ -1,25 +1,30 @@
-import type { GenerationEvidence, GenerationResult, JobContext } from "./types";
+import type { EvidenceOption, GenerationResult, JobContext } from "./types";
 
-/** Stands in for F02 until the evidence service is merged. */
-export const MOCK_APPROVED_EVIDENCE: GenerationEvidence[] = [
+/**
+ * Fallback list for the evidence picker when USE_REAL.f02_evidence is false.
+ *
+ * These ids exist only in the browser. With the flag on, the picker shows the
+ * user's real approved evidence and the server resolves the selected ids, so
+ * none of these would resolve to anything.
+ */
+export const MOCK_APPROVED_EVIDENCE: EvidenceOption[] = [
   {
     evidence_id: "11111111-1111-1111-1111-111111111111",
-    evidence_type: "WORK_EXPERIENCE",
+    evidence_type: "work_experience",
     title: "Associate QA Engineer",
     organization: "Model N",
-    role: "Associate QA Engineer",
     description:
       "Built automated regression suites for revenue management software and owned release-candidate test cycles.",
   },
   {
     evidence_id: "22222222-2222-2222-2222-222222222222",
-    evidence_type: "SKILL",
+    evidence_type: "skill",
     title: "Python",
     description: "Used for test automation and backend services.",
   },
   {
     evidence_id: "33333333-3333-3333-3333-333333333333",
-    evidence_type: "PROJECT",
+    evidence_type: "project",
     title: "ApplyWise capstone backend",
     organization: "Texas A&M University–Corpus Christi",
     description:

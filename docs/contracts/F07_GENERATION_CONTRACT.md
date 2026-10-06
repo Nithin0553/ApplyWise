@@ -14,47 +14,58 @@ takes it as a keyword argument supplied by the route.
 
 Unauthenticated calls return 401, and a non-job-seeker role returns 403.
 
-## Known gap: the approved-evidence trust boundary
+## The approved-evidence trust boundary
 
-Evidence is currently supplied by the caller, so the "only approved evidence"
-guarantee is **contractual, not enforced**: a client could send fabricated
-records labelled as approved.
+The guarantee that generation draws only on approved evidence is **enforced**,
+not merely contractual.
 
-Closing this needs F02 on `main`. The agreed design (review on PR #11) is for
-the request to carry selected evidence **ids** plus job context, and for the
-route to call `list_grounding_contexts(current_user.id)` server-side, adapt only
-the records that are both owned by that user and APPROVED, and pass those to
-`GenerationService`.
+A caller selects evidence by **id**. It never supplies the records. The route
+reads them for the authenticated user through F02's
+`ApprovedEvidenceProvider.list_grounding_contexts(user_id=...)`, which returns
+only evidence that is persisted, owned by that user, and APPROVED. There is no
+field in which content or approval state could be sent, so neither can be
+fabricated or altered in transit.
 
-### The `id` / `evidence_id` field names
+`resolution.resolve_approved_evidence(provider, user_id=..., evidence_ids=...)`
+is where the rule lives:
 
-F02 names its primary key `id`; this contract names the reference to it
-`evidence_id`. Until selection moves server-side, the web client translates
-between them explicitly in `toGenerationEvidence`
-(`apps/web/src/features/tailoring/api.ts`), which also normalizes F02's
-lowercase `evidence_type` values and refuses any record arriving without an id
-— an evidence item that cannot be cited must never reach the generator. The
-previous code cast F02's response straight to `GenerationEvidence`, which type-
-checked but would have produced `evidence_id: undefined` at runtime. Server-side
-selection makes that translation unnecessary rather than merely correct.
+- An id that does not resolve to one of this user's approved records raises
+  `EvidenceNotApprovedError`, which the route returns as **404**.
+- There is one error for every reason — the record does not exist, it belongs
+  to another user, it was never approved — so a response cannot be used to
+  discover whether someone else's evidence exists. F02's own service refuses
+  missing and foreign-owned records identically, for the same reason.
+- A partly valid selection is refused in full rather than trimmed. Generating
+  from fewer items than the user chose would change what the statements rest
+  on without anyone noticing.
+- Records are returned in the order the caller listed them, so the E1/E2
+  references in a result follow the user's own ordering.
 
-Until then, treat the guarantee as a contract between trusted callers.
+The provider seam is restated structurally in `resolution.py` rather than
+imported from F02, so the rule is testable with a fake store and no database.
+The route supplies the real `EvidenceService`.
+
+`apps/api/tests/test_generation_resolution.py` covers the rule directly;
+`apps/api/tests/test_generation_api.py` drives real F02 records through the
+HTTP route, including a fabricated id, another user's approved id, an
+unapproved id, and a partly valid selection.
 
 ## Input
 
-`GenerationRequest` (`app.modules.generation.schemas`):
+`GenerationPreviewRequest` (`app.modules.generation.schemas`) is the HTTP body:
 
 | Field | Meaning |
 |---|---|
 | `job_context` | `JobContext`: job title, optional company, description, optional requirements. F04 supplies normalized requirements once available. |
-| `approved_evidence` | One or more `GenerationEvidence` items. Evidence IDs must be unique. |
+| `evidence_ids` | One to twenty ids, unique, each an approved evidence record owned by the caller. |
 | `max_statements` | 1-10, default 5. |
 
-Callers must build `GenerationEvidence` from F02's
-`ApprovedEvidenceProvider.list_grounding_contexts(user_id=...)` using
-`app.modules.generation.adapters.from_grounding_context(s)`. F07 does not query
-the evidence tables and cannot itself confirm approval state; supplying
-unapproved evidence violates this contract.
+`GenerationRequest` is the **internal** model `GenerationService` consumes,
+built by the route from the resolved records. It is not a shape any client can
+send; keeping the two separate is what stops caller-supplied evidence reaching
+the service. F07 still does not query the evidence tables itself — it reads
+them through F02's documented seam and adapts them with
+`app.modules.generation.adapters.from_grounding_context(s)`.
 
 ### Fields carried from F02
 
@@ -142,12 +153,20 @@ provider invents is detected and rejected during mapping back to real IDs.
 | Provider raises anything else (timeout, SDK bug) | `GenerationUnavailableError` |
 | Response is not a `GroundedGenerationResponse` | `MalformedProviderResponseError` |
 | A single statement is malformed, empty, over-long, uncited, or cites an unknown reference | Statement dropped into `rejected`; the rest of the run continues |
+| A selected evidence id is unknown, unapproved, or owned by another user | `EvidenceNotApprovedError`, returned as HTTP 404 before any provider call |
 
-Both errors subclass `GenerationError`.
+All three errors subclass `GenerationError`.
 
 ## Tests
 
-`apps/api/tests/test_generation_service.py` and
-`apps/api/tests/test_ai_provider.py`, with deterministic fixtures in
-`apps/api/tests/fixtures/generation_fixtures.py`. All tests use a fake or stub
-provider; no test performs a network call.
+| Test file | Covers |
+|---|---|
+| `tests/test_generation_service.py` | Grounding, rejection and failure paths |
+| `tests/test_ai_provider.py` | The bundled stub and demo providers |
+| `tests/test_generation_adapters.py` | F02 structured fields surviving into the prompt |
+| `tests/test_generation_resolution.py` | The trust boundary, against a fake store |
+| `tests/test_generation_api.py` | The HTTP route end to end, through real F01 and F02 |
+| `apps/web/src/features/tailoring/evidenceMapping.test.ts` | The browser's view of an F02 record |
+
+All tests use a fake or bundled provider and an in-memory database; no test
+performs a network call or needs an API key.

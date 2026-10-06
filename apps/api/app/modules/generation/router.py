@@ -6,32 +6,38 @@ passes ``current_user.id`` to the service. A caller therefore cannot generate
 statements, or draft a cover letter, against another user's account by editing
 a payload.
 
-Evidence is still supplied by the caller. The F07 contract requires it to come
-from F02's ``ApprovedEvidenceProvider.list_grounding_contexts(...)``; once F02
-is on main that selection moves server-side (see the follow-up in
-docs/contracts/F07_GENERATION_CONTRACT.md), so the approved-evidence guarantee
-becomes enforced rather than merely contractual.
+Evidence is not supplied by the caller either. The F07 request carries
+evidence **ids**; the route reads the records themselves from F02 through
+``list_grounding_contexts(current_user.id)``, which returns only evidence that
+is persisted, owned by that user and APPROVED. An id that does not resolve is
+refused before anything reaches the AI provider, so the approved-evidence
+guarantee is enforced rather than merely contractual.
 
-F11's cover-letter route has the same gap one step further along: it accepts
-approved statements from the client rather than resolving them against what
-F09 persisted. Until that store exists the route is prototype-only and is not
-served in production — see ``require_prototype_environment`` below and
-``cover_letter_contracts`` for the selection logic that will close it.
+F11's cover-letter route still has that gap one step further along: it accepts
+approved statements from the client rather than resolving them against what F09
+persisted, because no such store exists yet. Until it does, the route is
+prototype-only and is not served in production — see
+``require_prototype_environment`` below, and ``cover_letter_contracts`` for the
+selection logic that will close it the same way F07's is closed here.
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
+from app.modules.evidence.service import EvidenceService
 from app.services.ai.factory import UnknownAIProviderError, get_ai_provider
 
 from .cover_letter_schemas import CoverLetterDraft, CoverLetterRequest
 from .cover_letter_service import CoverLetterService
 from .errors import GenerationUnavailableError, MalformedProviderResponseError
-from .schemas import GenerationRequest, GenerationResult
+from .resolution import EvidenceNotApprovedError, resolve_approved_evidence
+from .schemas import GenerationPreviewRequest, GenerationRequest, GenerationResult
 from .service import GenerationService
 
 router = APIRouter(prefix="/api/generation", tags=["generation"])
@@ -58,23 +64,45 @@ def require_prototype_environment() -> None:
 
 @router.post("/preview", response_model=GenerationResult)
 def preview_generation(
-    request: GenerationRequest,
+    request: GenerationPreviewRequest,
     current_user: User = Depends(require_job_seeker),
+    db: Session = Depends(get_db),
     provider: str | None = Query(
         default=None,
         description="Override the configured AI provider for this call (e.g. stub, demo).",
     ),
 ) -> GenerationResult:
-    """Generate candidate statements for the signed-in job seeker."""
+    """Generate candidate statements for the signed-in job seeker.
+
+    The caller selects evidence by id. The records are read from F02 for the
+    authenticated user, so unknown, unapproved and foreign-owned ids are
+    refused here and never reach the AI provider.
+    """
     try:
         ai_provider = get_ai_provider(provider or settings.ai_provider)
     except UnknownAIProviderError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    try:
+        approved_evidence = resolve_approved_evidence(
+            EvidenceService(db),
+            user_id=current_user.id,
+            evidence_ids=request.evidence_ids,
+        )
+    except EvidenceNotApprovedError as exc:
+        # 404 rather than 403: the response must not reveal whether a given
+        # evidence id exists for some other user.
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    resolved = GenerationRequest(
+        job_context=request.job_context,
+        approved_evidence=approved_evidence,
+        max_statements=request.max_statements,
+    )
     service = GenerationService(ai_provider)
 
     try:
-        return service.generate(request, user_id=current_user.id)
+        return service.generate(resolved, user_id=current_user.id)
     except GenerationUnavailableError as exc:
         raise HTTPException(
             status_code=503, detail="AI provider is unavailable. Try again."

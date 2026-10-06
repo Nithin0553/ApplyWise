@@ -30,7 +30,12 @@ from tests.fixtures.cover_letter_fixtures import (
     STATEMENT_TWO,
     USER_ID,
 )
-from tests.test_generation_api import COVER_LETTER_PAYLOAD, _auth, _register
+from tests.test_generation_api import (
+    COVER_LETTER_PAYLOAD,
+    _auth,
+    _register,
+    _seeded_user,
+)
 
 OTHER_USER_ID = UUID("00000000-0000-0000-0000-0000000000bb")
 
@@ -163,23 +168,22 @@ def test_cover_letter_route_is_not_served_in_production(
 def test_statement_generation_is_still_served_in_production(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The gate is specific to F11: F07's own route resolves nothing client-side."""
-    token, _ = _register(client, "prod-f07@example.edu")
+    """The gate is specific to F11.
+
+    F07's route is safe in production because it resolves evidence server-side:
+    the caller supplies ids, never content. F11's does not yet, which is the
+    whole reason it is gated. This test pins the distinction down, so removing
+    F11's gate without first moving its selection server-side would no longer
+    look symmetrical with F07.
+    """
+    token, _, evidence_ids = _seeded_user(client, "prod-f07@example.edu")
     monkeypatch.setattr(settings, "app_env", "production")
 
     response = client.post(
         "/api/generation/preview?provider=stub",
         json={
             "job_context": COVER_LETTER_PAYLOAD["job_context"],
-            "approved_evidence": [
-                {
-                    "evidence_id": "11111111-1111-1111-1111-111111111111",
-                    "evidence_type": "SKILL",
-                    "title": "Python",
-                    "skill_name": "Python",
-                    "proficiency": "Advanced",
-                }
-            ],
+            "evidence_ids": evidence_ids,
             "max_statements": 3,
         },
         headers=_auth(token),
