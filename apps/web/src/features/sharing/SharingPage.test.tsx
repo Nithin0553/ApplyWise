@@ -98,7 +98,7 @@ describe("SharingPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Peer review sharing" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Synthetic Labs — Engineer — Resume v1")).toBeInTheDocument();
+    expect(screen.getAllByText("Synthetic Labs — Engineer — Resume v1")).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "View feedback" }));
     expect(await screen.findByText("Strong evidence chain.")).toBeInTheDocument();
