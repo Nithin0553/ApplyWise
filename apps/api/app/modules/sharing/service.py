@@ -6,7 +6,7 @@ from hashlib import sha256
 from secrets import token_urlsafe
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.applications.service import (
@@ -144,11 +144,29 @@ class SharingService:
         data: PeerFeedbackCreate,
         at: datetime | None = None,
     ) -> PeerFeedbackView:
-        access = self.resolve_share(secret=secret, at=at)
+        # Lock the share row while choosing the next append position. On
+        # PostgreSQL this serializes concurrent feedback writes for one share,
+        # so two reviewers cannot claim the same position. SQLite ignores the
+        # row lock but still exercises the deterministic ordering rule in tests.
+        digest = self._digest_secret(secret)
+        share = self.session.scalar(
+            select(ResumeShareRecord)
+            .where(ResumeShareRecord.token_digest == digest)
+            .with_for_update()
+        )
+        self._require_active_share(share, at=at)
+        assert share is not None
+
+        last_position = self.session.scalar(
+            select(func.max(PeerFeedbackRecord.position)).where(
+                PeerFeedbackRecord.share_id == share.id
+            )
+        )
         record = PeerFeedbackRecord(
-            share_id=access.share_id,
-            resume_version_id=access.resume_version_id,
+            share_id=share.id,
+            resume_version_id=share.resume_version_id,
             reviewer_user_id=reviewer_user_id,
+            position=(last_position or 0) + 1,
             comment=data.comment,
         )
         self.session.add(record)
@@ -169,7 +187,7 @@ class SharingService:
             select(PeerFeedbackRecord)
             .where(PeerFeedbackRecord.share_id == share.id)
             .where(PeerFeedbackRecord.resume_version_id == share.resume_version_id)
-            .order_by(PeerFeedbackRecord.created_at, PeerFeedbackRecord.id)
+            .order_by(PeerFeedbackRecord.position)
         ).all()
         return [PeerFeedbackView.model_validate(record) for record in records]
 
