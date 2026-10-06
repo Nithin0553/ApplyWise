@@ -42,7 +42,7 @@ class SharedResumeAccess(BaseModel):
 class ReviewerShareResolve(BaseModel):
     """Carries the raw reviewer capability outside log-friendly URL fields."""
 
-    secret: str
+    secret: str = Field(min_length=20, max_length=200)
 
 
 class PeerFeedbackCreate(BaseModel):
@@ -60,7 +60,7 @@ class PeerFeedbackCreate(BaseModel):
 class ReviewerPeerFeedbackCreate(PeerFeedbackCreate):
     """Reviewer feedback request with the share capability in the body."""
 
-    secret: str
+    secret: str = Field(min_length=20, max_length=200)
 
 
 class PeerFeedbackView(BaseModel):
