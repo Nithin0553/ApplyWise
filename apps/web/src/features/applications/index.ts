@@ -7,7 +7,6 @@ export {
   getResumeVersion,
   listApplications,
   listResumeVersions,
-  saveResumeVersion,
   toApplicationFormValues,
   toApplicationSummary,
   toResumeVersionSummary,
@@ -18,7 +17,6 @@ export {
   type EvidenceSnapshotItem,
   type ProvenanceSnapshotItem,
   type ResumeVersionApiRecord,
-  type ResumeVersionContent,
   type ResumeVersionSnapshot,
   type VerificationSnapshotStatus,
 } from "./api";
