@@ -1,7 +1,23 @@
+.sharing-page,
+.reviewer-share-page,
 .sharing-manager,
 .peer-feedback {
   display: grid;
   gap: 1.5rem;
+}
+
+.sharing-page__controls,
+.reviewer-share-page__reference,
+.reviewer-share-page__lookup,
+.sharing-manager__new-link,
+.sharing-manager__share,
+.peer-feedback__form,
+.peer-feedback__history {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
 }
 
 .sharing-manager__header {
@@ -20,15 +36,39 @@
   text-transform: uppercase;
 }
 
-.sharing-manager__new-link,
-.sharing-manager__share,
-.peer-feedback__form,
-.peer-feedback__history {
+.sharing-page__control-grid {
   display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
+  grid-template-columns: minmax(0, 2fr) minmax(14rem, 1fr);
+  gap: 1rem;
+}
+
+.sharing-page__control-grid label,
+.reviewer-share-page__lookup label,
+.peer-feedback__form label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.sharing-page select,
+.sharing-page input,
+.reviewer-share-page input,
+.peer-feedback__form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.65rem;
+  font: inherit;
+}
+
+.sharing-page__error {
+  margin: 0;
+  padding: 0.75rem 1rem;
   border: 1px solid currentColor;
   border-radius: 0.5rem;
+}
+
+.sharing-page__status {
+  margin: 0;
 }
 
 .sharing-manager__link-row,
@@ -55,6 +95,11 @@
   align-items: center;
 }
 
+.sharing-manager__share[data-selected="true"] {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
 .sharing-manager__share h3,
 .sharing-manager__share p,
 .peer-feedback__history p {
@@ -63,10 +108,10 @@
 
 .sharing-manager__actions {
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .peer-feedback__form textarea {
-  width: 100%;
   resize: vertical;
 }
 
@@ -87,16 +132,39 @@
   justify-content: space-between;
 }
 
+.reviewer-share-page__reference dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.reviewer-share-page__reference dl div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.reviewer-share-page__reference dt {
+  font-weight: 700;
+}
+
+.reviewer-share-page__reference dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 48rem) {
+  .sharing-page__control-grid,
+  .reviewer-share-page__reference dl,
+  .sharing-manager__share {
+    grid-template-columns: 1fr;
+  }
+
   .sharing-manager__header,
   .sharing-manager__link-row,
   .sharing-manager__actions,
   .peer-feedback__meta {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .sharing-manager__share {
-    grid-template-columns: 1fr;
   }
 }

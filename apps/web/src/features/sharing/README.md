@@ -2,15 +2,30 @@
 
 Feature-owned UI for controlled peer-review sharing and feedback.
 
-`ShareManager` is an owner-facing, prop-driven component. It displays share lifecycle state,
-emits create/revoke/copy actions, and may display a newly created share URL supplied by its
-parent. It does not persist the URL or secret itself.
+`SharingPage` is the authenticated Job Seeker container. It discovers immutable resume versions
+through F13's public HTTP API, loads the current user's F14 grants, creates expiring or non-expiring
+links, revokes active grants, and displays owner-visible feedback. The share secret returned by the
+backend is kept only long enough to display/copy the newly created link; it is never persisted by the
+frontend.
 
-`PeerFeedbackPanel` displays feedback attached to one saved resume version. Supplying an
-`onSubmitFeedback` callback enables the reviewer form; omitting it gives the owner a read-only
-feedback history. The component does not make role decisions itself.
+`ReviewerSharePage` is the authenticated Reviewer surface. It resolves a supplied share secret and
+submits feedback through the reviewer-only F14 endpoints. The backend remains the authority for
+revoked/expired/missing links, which are all exposed outwardly as unavailable shares.
 
-F01 remains responsible for authenticated Job Seeker/Reviewer identity and authorization.
-F10 remains responsible for rendering the actual resume beside the reviewer feedback surface.
-The F14 UI therefore does not invent authentication, fetch Career Evidence Profile data, or
-implement a temporary document renderer.
+`ShareManager` and `PeerFeedbackPanel` remain presentation components. `PeerFeedbackPanel` can be
+read-only for the owner or interactive for a reviewer.
+
+## Integration boundaries
+
+- F01 supplies the bearer token and enforces Job Seeker / Reviewer authorization on the backend.
+- F13 remains the source of immutable resume-version identity; F14 discovers versions only through
+  F13's API and never reads another module's tables.
+- F10 remains responsible for rendering the actual shared resume. The reviewer page therefore shows
+  the authorized version reference and feedback surface rather than reconstructing Career Evidence
+  Profile data.
+- Shared-shell routing still needs to map a `?share=<secret>` URL to `ReviewerSharePage`. This feature
+  branch intentionally does not modify `App.tsx` while the shared shell is moving.
+
+Public self-registration currently creates Job Seeker accounts only. Reviewer accounts must be
+provisioned through the project-supported role-management path before the reviewer surface can be
+exercised end to end.
