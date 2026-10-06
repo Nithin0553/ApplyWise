@@ -18,6 +18,13 @@ migrations: anything deployed, and CI, must still go through Alembic, because
 only migrations record how an existing database moves from one version to the
 next.
 
+The script refuses to run against anything but SQLite. ``--seed`` writes a
+well-known account with a published password, so pointing this at a shared
+PostgreSQL database -- by having ``DATABASE_URL`` already exported in the shell,
+for instance -- would plant credentials anyone who has read this file knows. The
+check is in ``create_schema`` and ``seed`` themselves rather than only in
+``main``, so importing the module cannot route around it.
+
 Usage
 -----
 From apps/api, with the virtual environment active::
@@ -41,6 +48,8 @@ import os
 import sys
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import sessionmaker
 
 # Importing every module's models makes Base.metadata complete. This mirrors
@@ -91,6 +100,37 @@ DEMO_EVIDENCE = [
 ]
 
 
+class UnsupportedDatabaseError(RuntimeError):
+    """Raised when DATABASE_URL points at anything but SQLite."""
+
+
+def require_sqlite(url: str) -> str:
+    """Return ``url`` if it is a SQLite URL, otherwise refuse to go further.
+
+    Fails closed: an unparseable URL is rejected too, rather than being passed
+    to SQLAlchemy to interpret. The backend name is taken from the parsed URL,
+    so ``sqlite+pysqlite://`` is accepted and ``postgresql+psycopg://`` is not.
+    """
+    try:
+        backend = make_url(url).get_backend_name()
+    except ArgumentError as exc:
+        raise UnsupportedDatabaseError(
+            f"DATABASE_URL is not a valid SQLAlchemy URL: {url!r}"
+        ) from exc
+
+    if backend != "sqlite":
+        raise UnsupportedDatabaseError(
+            f"local_setup.py only runs against SQLite, but DATABASE_URL names the "
+            f"{backend!r} backend.\n"
+            "This script creates the schema from the models and can seed a demo "
+            "account with a published password, so it must never touch a shared "
+            "database.\n"
+            "For PostgreSQL, run the Alembic migrations instead:\n"
+            "  python -m alembic upgrade head"
+        )
+    return url
+
+
 def database_url() -> str:
     url = os.environ.get("DATABASE_URL")
     if not url:
@@ -105,6 +145,7 @@ def database_url() -> str:
 
 
 def create_schema(url: str) -> None:
+    require_sqlite(url)
     engine = create_engine(url)
     Base.metadata.create_all(bind=engine)
     print(f"Schema ready in {url}")
@@ -120,6 +161,8 @@ def seed(url: str) -> None:
     application uses. Seeded data that bypassed those rules would not prove the
     app works.
     """
+    require_sqlite(url)
+
     from app.modules.auth.schemas import RegisterRequest
     from app.modules.auth.service import get_user_by_email, register_user
     from app.modules.evidence.schemas import EvidenceCreate
@@ -169,9 +212,12 @@ def main() -> None:
     args = parser.parse_args()
 
     url = database_url()
-    create_schema(url)
-    if args.seed:
-        seed(url)
+    try:
+        create_schema(url)
+        if args.seed:
+            seed(url)
+    except UnsupportedDatabaseError as exc:
+        sys.exit(str(exc))
 
 
 if __name__ == "__main__":
