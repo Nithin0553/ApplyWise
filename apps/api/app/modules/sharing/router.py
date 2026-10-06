@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -13,6 +12,8 @@ from app.modules.auth.models import User, UserRole
 from .schemas import (
     PeerFeedbackCreate,
     PeerFeedbackView,
+    ReviewerPeerFeedbackCreate,
+    ReviewerShareResolve,
     ShareCreate,
     ShareCreated,
     SharedResumeAccess,
@@ -28,42 +29,40 @@ from .service import (
 router = APIRouter(prefix="/api/shares", tags=["sharing"])
 _job_seeker = require_role(UserRole.JOB_SEEKER)
 _reviewer = require_role(UserRole.REVIEWER)
-ShareSecret = Annotated[str, Path(min_length=20, max_length=200)]
 
 
 def _share_not_found(exc: Exception) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
 
 
-@router.get("/resolve/{secret}", response_model=SharedResumeAccess)
+@router.post("/reviewer/resolve", response_model=SharedResumeAccess)
 def resolve_share(
-    secret: ShareSecret,
+    payload: ReviewerShareResolve,
     db: Session = Depends(get_db),
     current_user: User = Depends(_reviewer),
 ) -> SharedResumeAccess:
     del current_user
     try:
-        return SharingService(db).resolve_share(secret=secret)
+        return SharingService(db).resolve_share(secret=payload.secret)
     except ShareNotFoundError as exc:
         raise _share_not_found(exc) from exc
 
 
 @router.post(
-    "/resolve/{secret}/feedback",
+    "/reviewer/feedback",
     response_model=PeerFeedbackView,
     status_code=status.HTTP_201_CREATED,
 )
 def add_peer_feedback(
-    secret: ShareSecret,
-    payload: PeerFeedbackCreate,
+    payload: ReviewerPeerFeedbackCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(_reviewer),
 ) -> PeerFeedbackView:
     try:
         result = SharingService(db).add_feedback(
-            secret=secret,
+            secret=payload.secret,
             reviewer_user_id=current_user.id,
-            data=payload,
+            data=PeerFeedbackCreate(comment=payload.comment),
         )
     except ShareNotFoundError as exc:
         raise _share_not_found(exc) from exc
