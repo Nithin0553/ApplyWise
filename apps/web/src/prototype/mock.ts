@@ -104,39 +104,52 @@ export const REQUIREMENTS: MockRequirement[] = [
 
 export interface MockReviewStatement {
   id: string;
+  statement_id: string;
   text: string;
   state: "VERIFIED" | "INFERRED" | "UNSUPPORTED";
   refs: string[];
+  evidence_ids: string[];
   note: string;
 }
 
 export const REVIEW_STATEMENTS: MockReviewStatement[] = [
   {
     id: "s1",
+    statement_id: "aaaaaaaa-0000-0000-0000-000000000001",
     text: "Built and maintained automated regression suites for revenue management software, supporting release-candidate test cycles.",
     state: "VERIFIED",
     refs: ["E1"],
+    evidence_ids: ["11111111-1111-1111-1111-111111111111"],
     note: "Every claim appears in the cited evidence.",
   },
   {
     id: "s2",
+    statement_id: "aaaaaaaa-0000-0000-0000-000000000002",
     text: "Wrote Python test automation for a backend service delivered by a six-person team.",
     state: "VERIFIED",
     refs: ["E2", "E3"],
+    evidence_ids: [
+      "22222222-2222-2222-2222-222222222222",
+      "33333333-3333-3333-3333-333333333333",
+    ],
     note: "Every claim appears in the cited evidence.",
   },
   {
     id: "s3",
+    statement_id: "aaaaaaaa-0000-0000-0000-000000000003",
     text: "Owned end-to-end quality for a revenue platform used by enterprise customers.",
     state: "INFERRED",
     refs: ["E1"],
+    evidence_ids: ["11111111-1111-1111-1111-111111111111"],
     note: "Your evidence says you built regression suites and owned test cycles — not that you owned quality end to end.",
   },
   {
     id: "s4",
+    statement_id: "aaaaaaaa-0000-0000-0000-000000000004",
     text: "Improved release quality by 40% across the product line.",
     state: "UNSUPPORTED",
     refs: [],
+    evidence_ids: [],
     note: "The 40% figure sits in an unconfirmed imported item, not in approved evidence.",
   },
 ];

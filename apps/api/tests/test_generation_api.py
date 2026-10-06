@@ -12,6 +12,10 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+# F11's cover-letter payload cites statement-level evidence ids; these are
+# fixed placeholders, not records that need to exist in F02.
+from tests.fixtures.generation_fixtures import EVIDENCE_ONE_ID, EVIDENCE_TWO_ID
+
 JOB_CONTEXT = {
     "job_title": "Software Engineer in Test",
     "company": "Example Corp",
@@ -328,3 +332,121 @@ def test_providers_endpoint_lists_available_providers(client: TestClient) -> Non
 
     assert response.status_code == 200
     assert "stub" in response.json()["available"]
+
+
+# --- F11 cover letter endpoint --------------------------------------------
+
+COVER_LETTER_PAYLOAD = {
+    "job_context": JOB_CONTEXT,
+    "approved_statements": [
+        {
+            "statement_id": "aaaaaaaa-0000-0000-0000-000000000001",
+            "text": "Built and maintained automated regression suites.",
+            "evidence_ids": [str(EVIDENCE_ONE_ID)],
+            "verification_status": "VERIFIED",
+            "approval_status": "APPROVED",
+        },
+        {
+            "statement_id": "aaaaaaaa-0000-0000-0000-000000000002",
+            "text": "Wrote Python test automation for a backend service.",
+            "evidence_ids": [str(EVIDENCE_TWO_ID)],
+            "verification_status": "VERIFIED",
+            "approval_status": "APPROVED",
+        },
+    ],
+    "tone": "professional",
+    "max_paragraphs": 3,
+}
+
+
+def test_cover_letter_requires_authentication(client: TestClient) -> None:
+    response = client.post(
+        "/api/generation/cover-letter/preview", json=COVER_LETTER_PAYLOAD
+    )
+
+    assert response.status_code == 401
+
+
+def test_cover_letter_is_scoped_to_the_token_not_the_request_body(
+    client: TestClient,
+) -> None:
+    """A caller cannot draft a letter against someone else's account.
+
+    The body below carries another user's id. It is ignored: identity comes
+    from the token, so the draft belongs to the authenticated caller.
+    """
+    token, user_id = _register(client, "letter-owner@example.edu")
+    _, other_user_id = _register(client, "letter-other@example.edu")
+
+    response = client.post(
+        "/api/generation/cover-letter/preview?provider=stub",
+        json={**COVER_LETTER_PAYLOAD, "user_id": other_user_id},
+        headers=_auth(token),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user_id"] == user_id
+    assert response.json()["user_id"] != other_user_id
+
+
+def test_cover_letter_preview_returns_grounded_paragraphs(client: TestClient) -> None:
+    token, _ = _register(client, "letter@example.edu")
+
+    response = client.post(
+        "/api/generation/cover-letter/preview?provider=demo",
+        json=COVER_LETTER_PAYLOAD,
+        headers=_auth(token),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["paragraphs"], "expected at least one paragraph"
+    for paragraph in body["paragraphs"]:
+        assert paragraph["statement_ids"]
+        assert paragraph["evidence_ids"]
+        assert paragraph["status"] == "CANDIDATE"
+        assert paragraph["export_eligible"] is False
+    reasons = " ".join(item["reason"] for item in body["rejected"])
+    assert "cites unknown statement reference" in reasons
+
+
+def test_cover_letter_preview_refuses_an_unsupported_statement(
+    client: TestClient,
+) -> None:
+    token, _ = _register(client, "unsupported@example.edu")
+    payload = {
+        **COVER_LETTER_PAYLOAD,
+        "approved_statements": [
+            {
+                **COVER_LETTER_PAYLOAD["approved_statements"][0],
+                "verification_status": "UNSUPPORTED",
+            }
+        ],
+    }
+
+    response = client.post(
+        "/api/generation/cover-letter/preview", json=payload, headers=_auth(token)
+    )
+
+    assert response.status_code == 422
+
+
+def test_cover_letter_preview_refuses_an_unapproved_statement(
+    client: TestClient,
+) -> None:
+    token, _ = _register(client, "unapproved@example.edu")
+    payload = {
+        **COVER_LETTER_PAYLOAD,
+        "approved_statements": [
+            {
+                **COVER_LETTER_PAYLOAD["approved_statements"][0],
+                "approval_status": "UNREVIEWED",
+            }
+        ],
+    }
+
+    response = client.post(
+        "/api/generation/cover-letter/preview", json=payload, headers=_auth(token)
+    )
+
+    assert response.status_code == 422

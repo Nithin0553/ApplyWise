@@ -1,7 +1,6 @@
-import { useState } from "react";
-
 import type { PageProps } from "../Shell";
 import { REVIEW_STATEMENTS } from "../mock";
+import { useApprovals } from "../store";
 
 const PILL: Record<string, string> = {
   VERIFIED: "sf-pill sf-pill-ok",
@@ -10,13 +9,7 @@ const PILL: Record<string, string> = {
 };
 
 export function ReviewPage({ go }: PageProps) {
-  const [approved, setApproved] = useState<string[]>(["s1", "s2"]);
-
-  function toggle(id: string) {
-    setApproved((current) =>
-      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
-    );
-  }
+  const { approvedIds: approved, toggle } = useApprovals();
 
   return (
     <main className="sf-page sf-reveal">
@@ -128,8 +121,14 @@ export function ReviewPage({ go }: PageProps) {
             </p>
           </div>
 
-          <button type="button" className="sf-btn sf-btn-dark" onClick={() => go("resume")}>
-            Approve {approved.length} and continue →
+          <p className="sf-muted" style={{ margin: 0 }}>
+            What you approve here is what the cover letter and the resume may use.
+          </p>
+          <button type="button" className="sf-btn sf-btn-dark" onClick={() => go("cover")}>
+            Draft a cover letter from these →
+          </button>
+          <button type="button" className="sf-btn sf-btn-ghost" onClick={() => go("resume")}>
+            Build the resume →
           </button>
         </aside>
       </div>

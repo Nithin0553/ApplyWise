@@ -15,7 +15,14 @@ same input. A real model plugs in beside it behind ``AIProvider``.
 
 from __future__ import annotations
 
-from .provider import GroundedGenerationRequest, GroundedGenerationResponse, RawStatement
+from .provider import (
+    CoverLetterRequest,
+    CoverLetterResponse,
+    GroundedGenerationRequest,
+    GroundedGenerationResponse,
+    RawParagraph,
+    RawStatement,
+)
 
 # Past tense -> gerund, so two clauses can be joined with "while".
 _GERUNDS = {
@@ -223,3 +230,118 @@ class DemoAIProvider:
         )
 
         return GroundedGenerationResponse(statements=tuple(statements))
+
+    # --- F11 cover letters -------------------------------------------------
+
+    def generate_cover_letter(self, request: CoverLetterRequest) -> CoverLetterResponse:
+        job_title = _job_title(request.job_context)
+        company = _company(request.job_context)
+        voice = {
+            "professional": {
+                "open": "I am writing to apply for the {role} position{at_company}.",
+                "bridge": "In my most recent work I",
+                "body": "Alongside that, I",
+                "close": "I would welcome the opportunity to discuss how this experience "
+                "would serve the {role} team.",
+            },
+            "warm": {
+                "open": "The {role} role{at_company} caught my eye, and I would love to be "
+                "part of it.",
+                "bridge": "Something I am proud of: I",
+                "body": "I also",
+                "close": "I would really enjoy talking about how this could help your team.",
+            },
+            "direct": {
+                "open": "I am applying for {role}{at_company}. Here is what I bring.",
+                "bridge": "Most recently I",
+                "body": "Also, I",
+                "close": "Happy to walk through any of this.",
+            },
+        }[request.tone]
+        at_company = f" at {company}" if company else ""
+
+        paragraphs: list[RawParagraph] = []
+        statements = request.statements[: request.max_paragraphs]
+
+        if statements:
+            first = statements[0]
+            paragraphs.append(
+                RawParagraph(
+                    text=(
+                        voice["open"].format(role=job_title, at_company=at_company)
+                        + f" {_as_clause(first.text, voice['bridge'])}"
+                    ),
+                    cited_refs=(first.ref,),
+                )
+            )
+
+        middle = statements[1:-1] if len(statements) > 2 else statements[1:]
+        if middle:
+            sentences = " ".join(_as_sentence(item.text) for item in middle)
+            body = f"{voice['body']} {sentences[0].lower()}{sentences[1:]}"
+            paragraphs.append(
+                RawParagraph(text=body, cited_refs=tuple(item.ref for item in middle))
+            )
+
+        if len(statements) > 2:
+            last = statements[-1]
+            paragraphs.append(
+                RawParagraph(
+                    text=(
+                        f"{_as_sentence(last.text)} "
+                        + voice["close"].format(role=job_title)
+                    ),
+                    cited_refs=(last.ref,),
+                )
+            )
+
+        # Teaching case: a flattering claim citing a statement nobody approved.
+        paragraphs.append(
+            RawParagraph(
+                text=(
+                    "Colleagues consistently describe me as the person who raised the "
+                    "quality bar for the whole engineering organisation."
+                ),
+                cited_refs=(f"S{len(request.statements) + 7}",),
+            )
+        )
+
+        # Second failure mode: pleasant filler citing nothing at all.
+        paragraphs.append(
+            RawParagraph(
+                text="I am passionate about quality and excited by this opportunity.",
+                cited_refs=(),
+            )
+        )
+
+        return CoverLetterResponse(paragraphs=tuple(paragraphs))
+
+
+def _job_title(job_context: str) -> str:
+    for line in job_context.splitlines():
+        if line.lower().startswith("job title:"):
+            return line.split(":", 1)[1].strip() or "the role"
+    return "the role"
+
+
+def _company(job_context: str) -> str:
+    for line in job_context.splitlines():
+        if line.lower().startswith("company:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
+def _as_sentence(text: str) -> str:
+    cleaned = text.strip()
+    if not cleaned:
+        return ""
+    cleaned = cleaned[0].upper() + cleaned[1:]
+    return cleaned if cleaned.endswith(".") else f"{cleaned}."
+
+
+def _as_clause(text: str, bridge: str) -> str:
+    """Reuse an approved statement as a supporting clause, unchanged in meaning."""
+    cleaned = text.strip().rstrip(".")
+    if not cleaned:
+        return ""
+    return f"{bridge} {cleaned[0].lower()}{cleaned[1:]}."
