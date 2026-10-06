@@ -5,12 +5,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createApplication,
   listApplications,
+  saveResumeVersion,
   toApplicationFormValues,
   toApplicationSummary,
   toResumeVersionSummary,
   transitionApplicationStatus,
   type ApplicationApiRecord,
   type ResumeVersionApiRecord,
+  type ResumeVersionContent,
 } from "./api";
 
 const applicationRecord: ApplicationApiRecord = {
@@ -119,6 +121,46 @@ describe("applications api", () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
       status: "interviewing",
     });
+  });
+
+  it("saves only immutable resume content and leaves owner/version identity to the backend", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(resumeVersion), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const content: ResumeVersionContent = {
+      evidence: [
+        {
+          evidence_id: "evidence-1",
+          evidence_type: "project",
+          title: "Synthetic project",
+          organization: null,
+          role: "Developer",
+          description: "Built a synthetic regression suite.",
+          approved_at: "2026-10-01T10:00:00Z",
+        },
+      ],
+      statements: [
+        {
+          statement_id: "statement-1",
+          text: "Built a synthetic regression suite.",
+          evidence_ids: ["evidence-1"],
+          verification_status: "VERIFIED",
+          approval_status: "APPROVED",
+        },
+      ],
+    };
+
+    await saveResumeVersion("session-token", "app-1", content);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/api/applications/app-1/resume-versions");
+    expect(init?.method).toBe("POST");
+    expect(JSON.parse(String(init?.body))).toEqual(content);
+    expect(String(init?.body)).not.toContain("user_id");
+    expect(String(init?.body)).not.toContain("resume_version_id");
   });
 
   it("maps backend records into the existing presentation contracts", () => {
