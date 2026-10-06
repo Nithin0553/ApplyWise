@@ -5,6 +5,7 @@ import {
   createShare,
   listOwnedShares,
   listShareableResumeVersions,
+  readReviewerShareSecret,
   resolveShare,
   submitPeerFeedback,
 } from "./api";
@@ -30,7 +31,7 @@ describe("sharing API", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8000/api/shares/");
+    expect(url).toBe("/api/shares/");
     expect(new Headers(init.headers).get("Authorization")).toBe("Bearer synthetic-token");
   });
 
@@ -53,7 +54,7 @@ describe("sharing API", () => {
     await createShare("token", "version-1", "2026-10-20T12:00:00Z");
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8000/api/shares/resume-versions/version-1");
+    expect(url).toBe("/api/shares/resume-versions/version-1");
     expect(init.method).toBe("POST");
     expect(JSON.parse(String(init.body))).toEqual({
       expires_at: "2026-10-20T12:00:00Z",
@@ -128,9 +129,15 @@ describe("sharing API", () => {
     expect(String(feedbackInit.body)).not.toContain("reviewer_user_id");
   });
 
-  it("builds a reviewer URL without exposing anything except the one-time share secret", () => {
-    expect(
-      buildReviewerShareUrl("synthetic-share-secret-123456", "https://applywise.example"),
-    ).toBe("https://applywise.example/?share=synthetic-share-secret-123456");
+  it("keeps the one-time reviewer secret in the client-only URL fragment", () => {
+    const url = buildReviewerShareUrl(
+      "synthetic-share-secret-123456",
+      "https://applywise.example",
+    );
+
+    expect(url).toBe("https://applywise.example/#share=synthetic-share-secret-123456");
+    expect(readReviewerShareSecret("#share=synthetic-share-secret-123456")).toBe(
+      "synthetic-share-secret-123456",
+    );
   });
 });
