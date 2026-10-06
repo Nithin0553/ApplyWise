@@ -27,3 +27,8 @@ uploads/
 
 # Python packaging metadata created by "pip install -e ."
 *.egg-info/
+
+# Local SQLite database created by apps/api/local_setup.py (Docker-free runs)
+local.db
+*.db
+*.sqlite3
