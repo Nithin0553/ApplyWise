@@ -1,7 +1,8 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../auth";
 import {
+  readReviewerShareSecret,
   resolveShare,
   submitPeerFeedback,
   toPeerFeedbackSummary,
@@ -28,7 +29,11 @@ function formatDate(value?: string | null): string {
 
 export function ReviewerSharePage({ secret }: ReviewerSharePageProps) {
   const { token } = useAuth();
-  const [secretInput, setSecretInput] = useState(secret ?? "");
+  const linkedSecret = useMemo(
+    () => secret ?? readReviewerShareSecret(),
+    [secret],
+  );
+  const [secretInput, setSecretInput] = useState(linkedSecret ?? "");
   const [resolvedSecret, setResolvedSecret] = useState<string | null>(null);
   const [share, setShare] = useState<SharedResumeReference | null>(null);
   const [submittedFeedback, setSubmittedFeedback] = useState<PeerFeedbackSummary[]>([]);
@@ -67,8 +72,8 @@ export function ReviewerSharePage({ secret }: ReviewerSharePageProps) {
   );
 
   useEffect(() => {
-    if (secret) void openShare(secret);
-  }, [openShare, secret]);
+    if (linkedSecret) void openShare(linkedSecret);
+  }, [linkedSecret, openShare]);
 
   function handleLookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,7 +100,7 @@ export function ReviewerSharePage({ secret }: ReviewerSharePageProps) {
         <p>Access is limited to the immutable version identified by the share link.</p>
       </header>
 
-      {!secret ? (
+      {!linkedSecret ? (
         <form className="reviewer-share-page__lookup" onSubmit={handleLookup}>
           <label htmlFor="review-share-secret">Share secret</label>
           <div className="sharing-manager__link-row">
