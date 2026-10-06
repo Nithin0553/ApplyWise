@@ -2,10 +2,12 @@
 
 Feature-owned UI for resume versions and application tracking.
 
-`ApplicationTracker` is deliberately prop-driven. It renders application status, metadata, and saved resume-version history, and emits callbacks for selection/status/version actions. It does not call backend endpoints or derive a user identity itself.
+`ApplicationsPage` is the authenticated F13 integration container. It reads the F01 bearer token through `useAuth()`, loads only the current user's `/api/applications` data, loads each application's saved resume-version history, and maps the backend snake-case DTOs into the existing presentation contracts.
 
-`ApplicationForm` covers the F13-owned create/edit metadata flow for company, role, location, job link, source, notes, application date, and next-action date. It normalizes trimmed text and returns the form values to a parent container rather than owning persistence.
+`ApplicationTracker` renders application status, metadata, and saved resume-version history. It emits selection, create, edit, status-transition, and version-open callbacks. Status options mirror the F13 backend lifecycle and expose only valid forward transitions; terminal statuses remain read-only.
 
-That separation keeps F13 ready for F01 integration: once authentication supplies the current user and the API layer is available, a thin container can load owner-scoped data, map API payloads, and pass them into these components without changing the feature presentation contract.
+`ApplicationForm` covers the F13-owned create/edit metadata flow for company, role, location, job link, source, notes, application date, and next-action date. Text input is normalized before it reaches the API client.
 
-The status options mirror the F13 backend lifecycle and only expose forward transitions. Terminal statuses are read-only in the normal tracker flow.
+`api.ts` is the F13 frontend boundary for the owner-scoped backend routes. It attaches the F01 bearer token, translates camel-case form values to the backend contract, exposes create/update/status/list/version reads, and preserves immutable resume-version snapshot data for inspection.
+
+The feature intentionally does not modify the shared `App.tsx` shell. `ApplicationsPage` is exported from this folder so the shared navigation can mount it once the active shell work is consolidated.
