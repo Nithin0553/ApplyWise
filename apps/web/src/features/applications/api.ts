@@ -5,7 +5,10 @@ import type {
   ResumeVersionSummary,
 } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+// Same-origin by default so production bundles never silently point at a
+// developer machine. Deployments with a separate API origin can opt in via
+// VITE_API_BASE_URL.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApplicationsApiError extends Error {
   readonly status: number;
@@ -34,6 +37,7 @@ export interface ApplicationApiRecord {
   updated_at: string;
 }
 
+/** Historical snapshot states. These are not an export/finalization decision. */
 export type VerificationSnapshotStatus = "VERIFIED" | "INFERRED" | "UNSUPPORTED";
 export type ApprovalSnapshotStatus = "UNREVIEWED" | "APPROVED" | "REJECTED";
 
@@ -56,20 +60,18 @@ export interface ProvenanceSnapshotItem {
 }
 
 /**
- * Immutable content F13 is allowed to save. Identity/version metadata is
- * deliberately absent because the backend derives owner/application/version
- * identity from F01 plus the route and creates the version metadata itself.
+ * Read model for an immutable F13 historical version. It deliberately retains
+ * the verification and approval states that existed at save time. F10 owns the
+ * separate finalization/export eligibility boundary and must not infer export
+ * permission merely from the fact that a historical F13 version exists.
  */
-export interface ResumeVersionContent {
-  evidence: EvidenceSnapshotItem[];
-  statements: ProvenanceSnapshotItem[];
-}
-
-export interface ResumeVersionSnapshot extends ResumeVersionContent {
+export interface ResumeVersionSnapshot {
   user_id: string;
   application_id: string;
   resume_version_id: string;
   created_at: string;
+  evidence: EvidenceSnapshotItem[];
+  statements: ProvenanceSnapshotItem[];
 }
 
 export interface ResumeVersionApiRecord {
@@ -195,26 +197,6 @@ export function listResumeVersions(
   return requestJson<ResumeVersionApiRecord[]>(
     token,
     `/api/applications/${encodeURIComponent(applicationId)}/resume-versions`,
-  );
-}
-
-/**
- * Persist an immutable version only from upstream content that already carries
- * its evidence/provenance/verification/approval snapshot. F13 does not invent
- * or promote statement state here.
- */
-export function saveResumeVersion(
-  token: string,
-  applicationId: string,
-  content: ResumeVersionContent,
-): Promise<ResumeVersionApiRecord> {
-  return requestJson<ResumeVersionApiRecord>(
-    token,
-    `/api/applications/${encodeURIComponent(applicationId)}/resume-versions`,
-    {
-      method: "POST",
-      body: JSON.stringify(content),
-    },
   );
 }
 
