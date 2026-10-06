@@ -44,6 +44,7 @@ const grant = {
 };
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   mocks.useAuth.mockReturnValue({ token: "synthetic-token" });
   mocks.listOwnedShares.mockResolvedValue([grant]);
   mocks.listShareableResumeVersions.mockResolvedValue([
@@ -88,6 +89,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.history.replaceState(null, "", "/");
   vi.clearAllMocks();
 });
 
@@ -113,17 +115,20 @@ describe("SharingPage", () => {
       );
     });
     const newShareLink = (await screen.findByLabelText("New share link")) as HTMLInputElement;
-    expect(newShareLink.value).toContain("share=synthetic-share-secret-123456");
+    expect(newShareLink.value).toContain("#share=synthetic-share-secret-123456");
   });
 });
 
 describe("ReviewerSharePage", () => {
-  it("resolves only the supplied secret and submits feedback through the reviewer endpoint", async () => {
+  it("reads the secret from the URL fragment and submits feedback through the reviewer endpoint", async () => {
     const secret = "synthetic-share-secret-123456";
-    render(<ReviewerSharePage secret={secret} />);
+    window.location.hash = `share=${secret}`;
+
+    render(<ReviewerSharePage />);
 
     expect(await screen.findByText("version-1-12345678")).toBeInTheDocument();
     expect(mocks.resolveShare).toHaveBeenCalledWith("synthetic-token", secret);
+    expect(screen.queryByLabelText("Share secret")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Feedback"), {
       target: { value: "  Keep the quantified result.  " },
