@@ -25,3 +25,6 @@ artifacts/
 tmp/
 uploads/
 *.log
+
+# Python packaging metadata created by "pip install -e ."
+*.egg-info/
