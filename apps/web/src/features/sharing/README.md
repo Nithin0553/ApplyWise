@@ -6,14 +6,18 @@ Feature-owned UI for controlled peer-review sharing and feedback.
 through F13's public HTTP API, loads the current user's F14 grants, creates expiring or non-expiring
 links, revokes active grants, and displays owner-visible feedback. The share secret returned by the
 backend is kept only long enough to display/copy the newly created link; it is never persisted by the
-frontend.
+frontend. The generated reviewer link stores that one-time secret in the URL fragment (`#share=...`)
+rather than the query string, so the browser does not send it as part of the initial page request or
+Referer header.
 
-`ReviewerSharePage` is the authenticated Reviewer surface. It resolves a supplied share secret and
-submits feedback through the reviewer-only F14 endpoints. The backend remains the authority for
+`ReviewerSharePage` is the authenticated Reviewer surface. It reads the share secret from the
+client-side URL fragment (or an explicitly supplied integration prop), resolves the share through the
+reviewer-only F14 API, and submits reviewer feedback. The backend remains the authority for
 revoked/expired/missing links, which are all exposed outwardly as unavailable shares.
 
 `ShareManager` and `PeerFeedbackPanel` remain presentation components. `PeerFeedbackPanel` can be
-read-only for the owner or interactive for a reviewer.
+read-only for the owner or interactive for a reviewer. Owner-facing feedback intentionally labels the
+author only as `Reviewer`; F14 does not expose reviewer identity through this UI.
 
 ## Integration boundaries
 
@@ -23,8 +27,15 @@ read-only for the owner or interactive for a reviewer.
 - F10 remains responsible for rendering the actual shared resume. The reviewer page therefore shows
   the authorized version reference and feedback surface rather than reconstructing Career Evidence
   Profile data.
-- Shared-shell routing still needs to map a `?share=<secret>` URL to `ReviewerSharePage`. This feature
+- Shared-shell routing still needs to map a `#share=<secret>` URL to `ReviewerSharePage`. This feature
   branch intentionally does not modify `App.tsx` while the shared shell is moving.
+- Frontend API calls default to same-origin `/api/...` paths. `VITE_API_BASE_URL` remains an explicit
+  override for deployments that intentionally host the API on another origin.
+
+The current backend F14 contract still accepts the share secret in the reviewer resolve/feedback API
+path. Moving the secret out of the backend request URL is a separate server-contract hardening task;
+the fragment change here prevents the browser-facing share link itself from putting the secret in the
+page request/query string.
 
 Public self-registration currently creates Job Seeker accounts only. Reviewer accounts must be
 provisioned through the project-supported role-management path before the reviewer surface can be
