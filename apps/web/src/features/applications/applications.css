@@ -1,15 +1,113 @@
+.applications-page,
 .application-tracker,
 .application-form {
   display: grid;
   gap: 1.5rem;
 }
 
+.applications-page {
+  width: min(100%, 72rem);
+}
+
+.applications-page__panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  background: #ffffff;
+}
+
+.applications-page__panel > h2,
+.applications-page__panel-header h2 {
+  margin: 0;
+}
+
+.applications-page__panel-header,
+.applications-page__error,
 .application-tracker__header,
-.application-tracker__detail-header {
+.application-tracker__detail-header,
+.application-tracker__detail-actions {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.applications-page__error {
+  align-items: center;
+  padding: 0.8rem 1rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.applications-page__loading {
+  margin: 0;
+}
+
+.applications-page__snapshot-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.applications-page__snapshot-counts div {
+  padding: 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.applications-page__snapshot-counts dt {
+  font-weight: 700;
+}
+
+.applications-page__snapshot-counts dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.25rem;
+}
+
+.applications-page__statements {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.applications-page__statements li {
+  padding: 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.applications-page__statements p {
+  margin: 0;
+}
+
+.applications-page__statement-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  font-size: 0.85rem;
+}
+
+.applications-page__statement-meta span {
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+}
+
+.application-tracker__detail-actions {
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.application-tracker__detail-actions label {
+  display: grid;
+  gap: 0.35rem;
 }
 
 .application-tracker__eyebrow {
@@ -108,7 +206,8 @@
 @media (max-width: 48rem) {
   .application-tracker__layout,
   .application-tracker__metadata,
-  .application-form__grid {
+  .application-form__grid,
+  .applications-page__snapshot-counts {
     grid-template-columns: 1fr;
   }
 
@@ -116,8 +215,11 @@
     grid-column: auto;
   }
 
+  .applications-page__panel-header,
+  .applications-page__error,
   .application-tracker__header,
-  .application-tracker__detail-header {
+  .application-tracker__detail-header,
+  .application-tracker__detail-actions {
     align-items: stretch;
     flex-direction: column;
   }

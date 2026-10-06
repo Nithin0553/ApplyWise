@@ -97,6 +97,23 @@ describe("ApplicationTracker", () => {
     expect(onStatusChange).toHaveBeenCalledWith("app-1", "interviewing");
   });
 
+  it("exposes edit for the selected application", () => {
+    const onEditApplication = vi.fn();
+    render(
+      <ApplicationTracker
+        applications={applications}
+        selectedApplicationId="app-1"
+        resumeVersions={versions}
+        onSelectApplication={() => undefined}
+        onEditApplication={onEditApplication}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit application" }));
+
+    expect(onEditApplication).toHaveBeenCalledWith("app-1");
+  });
+
   it("disables status changes for terminal applications", () => {
     const terminalApplication: ApplicationSummary = {
       id: "app-terminal",

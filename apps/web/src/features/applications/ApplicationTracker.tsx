@@ -15,6 +15,7 @@ interface ApplicationTrackerProps {
   onSelectApplication: (applicationId: string) => void;
   onStatusChange?: (applicationId: string, status: ApplicationStatus) => void;
   onCreateApplication?: () => void;
+  onEditApplication?: (applicationId: string) => void;
   onOpenVersion?: (resumeVersionId: string) => void;
 }
 
@@ -34,6 +35,7 @@ export function ApplicationTracker({
   onSelectApplication,
   onStatusChange,
   onCreateApplication,
+  onEditApplication,
   onOpenVersion,
 }: ApplicationTrackerProps) {
   const selectedApplication = applications.find(
@@ -86,6 +88,7 @@ export function ApplicationTracker({
               application={selectedApplication}
               resumeVersions={resumeVersions}
               onStatusChange={onStatusChange}
+              onEditApplication={onEditApplication}
               onOpenVersion={onOpenVersion}
             />
           ) : (
@@ -101,6 +104,7 @@ interface ApplicationDetailsProps {
   application: ApplicationSummary;
   resumeVersions: readonly ResumeVersionSummary[];
   onStatusChange?: (applicationId: string, status: ApplicationStatus) => void;
+  onEditApplication?: (applicationId: string) => void;
   onOpenVersion?: (resumeVersionId: string) => void;
 }
 
@@ -108,6 +112,7 @@ function ApplicationDetails({
   application,
   resumeVersions,
   onStatusChange,
+  onEditApplication,
   onOpenVersion,
 }: ApplicationDetailsProps) {
   const allowedStatuses = allowedApplicationStatuses(application.status);
@@ -120,29 +125,36 @@ function ApplicationDetails({
           <h3>{application.companyName}</h3>
           <p>{application.roleTitle}</p>
         </div>
-        <label>
-          Status
-          <select
-            aria-label={`Update status for ${application.companyName}`}
-            value={application.status}
-            disabled={!canChangeStatus}
-            onChange={(event) =>
-              onStatusChange?.(
-                application.id,
-                event.currentTarget.value as ApplicationStatus,
-              )
-            }
-          >
-            <option value={application.status}>
-              {APPLICATION_STATUS_LABELS[application.status]}
-            </option>
-            {allowedStatuses.map((status) => (
-              <option key={status} value={status}>
-                {APPLICATION_STATUS_LABELS[status]}
+        <div className="application-tracker__detail-actions">
+          {onEditApplication ? (
+            <button type="button" onClick={() => onEditApplication(application.id)}>
+              Edit application
+            </button>
+          ) : null}
+          <label>
+            Status
+            <select
+              aria-label={`Update status for ${application.companyName}`}
+              value={application.status}
+              disabled={!canChangeStatus}
+              onChange={(event) =>
+                onStatusChange?.(
+                  application.id,
+                  event.currentTarget.value as ApplicationStatus,
+                )
+              }
+            >
+              <option value={application.status}>
+                {APPLICATION_STATUS_LABELS[application.status]}
               </option>
-            ))}
-          </select>
-        </label>
+              {allowedStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {APPLICATION_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <dl className="application-tracker__metadata">
