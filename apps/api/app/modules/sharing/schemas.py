@@ -39,6 +39,12 @@ class SharedResumeAccess(BaseModel):
     expires_at: datetime | None
 
 
+class ReviewerShareResolve(BaseModel):
+    """Carries the raw reviewer capability outside log-friendly URL fields."""
+
+    secret: str
+
+
 class PeerFeedbackCreate(BaseModel):
     comment: str = Field(min_length=1, max_length=4000)
 
@@ -49,6 +55,12 @@ class PeerFeedbackCreate(BaseModel):
         if not normalized:
             raise ValueError("comment cannot be blank")
         return normalized
+
+
+class ReviewerPeerFeedbackCreate(PeerFeedbackCreate):
+    """Reviewer feedback request with the share capability in the body."""
+
+    secret: str
 
 
 class PeerFeedbackView(BaseModel):
