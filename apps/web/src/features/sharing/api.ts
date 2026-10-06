@@ -143,10 +143,10 @@ export function resolveShare(
   token: string,
   secret: string,
 ): Promise<SharedResumeAccessApiRecord> {
-  return requestJson<SharedResumeAccessApiRecord>(
-    token,
-    `/api/shares/resolve/${encodeURIComponent(secret)}`,
-  );
+  return requestJson<SharedResumeAccessApiRecord>(token, "/api/shares/reviewer/resolve", {
+    method: "POST",
+    body: JSON.stringify({ secret }),
+  });
 }
 
 export function submitPeerFeedback(
@@ -154,14 +154,10 @@ export function submitPeerFeedback(
   secret: string,
   comment: string,
 ): Promise<PeerFeedbackApiRecord> {
-  return requestJson<PeerFeedbackApiRecord>(
-    token,
-    `/api/shares/resolve/${encodeURIComponent(secret)}/feedback`,
-    {
-      method: "POST",
-      body: JSON.stringify({ comment: comment.trim() }),
-    },
-  );
+  return requestJson<PeerFeedbackApiRecord>(token, "/api/shares/reviewer/feedback", {
+    method: "POST",
+    body: JSON.stringify({ secret, comment: comment.trim() }),
+  });
 }
 
 /**
