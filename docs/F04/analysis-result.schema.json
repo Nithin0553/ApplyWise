@@ -1,0 +1,229 @@
+{
+  "$defs": {
+    "Category": {
+      "enum": [
+        "skill",
+        "education",
+        "experience",
+        "responsibility",
+        "qualification"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "ExperienceExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "minimum_years": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum Years"
+        },
+        "maximum_years": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum Years"
+        },
+        "stated_years": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stated Years"
+        },
+        "expression": {
+          "title": "Expression",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expression"
+      ],
+      "title": "ExperienceExpectation",
+      "type": "object"
+    },
+    "Importance": {
+      "enum": [
+        "Critical",
+        "Preferred",
+        "Optional"
+      ],
+      "title": "Importance",
+      "type": "string"
+    },
+    "Requirement": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "categories": {
+          "items": {
+            "$ref": "#/$defs/Category"
+          },
+          "minItems": 1,
+          "title": "Categories",
+          "type": "array"
+        },
+        "importance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Importance"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "importance_basis": {
+          "enum": [
+            "explicit",
+            "section",
+            "unspecified",
+            "conflicting"
+          ],
+          "title": "Importance Basis",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceContext"
+        },
+        "experience": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperienceExpectation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "needs_review": {
+          "default": false,
+          "title": "Needs Review",
+          "type": "boolean"
+        },
+        "review_reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Review Reasons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "categories",
+        "importance",
+        "importance_basis",
+        "source"
+      ],
+      "title": "Requirement",
+      "type": "object"
+    },
+    "SourceContext": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        },
+        "line": {
+          "minimum": 1,
+          "title": "Line",
+          "type": "integer"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        }
+      },
+      "required": [
+        "text",
+        "start",
+        "end",
+        "line"
+      ],
+      "title": "SourceContext",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "document_id": {
+      "title": "Document Id",
+      "type": "string"
+    },
+    "requirements": {
+      "items": {
+        "$ref": "#/$defs/Requirement"
+      },
+      "minItems": 1,
+      "title": "Requirements",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "document_id",
+    "requirements"
+  ],
+  "title": "AnalysisResult",
+  "type": "object"
+}

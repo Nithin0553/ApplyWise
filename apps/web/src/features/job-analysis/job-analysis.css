@@ -1,0 +1,25 @@
+:root { font-family: system-ui, sans-serif; color: #182c30; background: #f3f6f5; }
+body { margin: 0; }
+.job-analysis { max-width: 1000px; padding: 2.5rem 1.5rem; margin: auto; }
+.job-analysis h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin: .6rem 0; }
+.job-analysis h2 { font-size: 1.5rem; }
+.job-analysis h3 { font-size: 1.05rem; }
+.job-analysis p, .job-analysis li { line-height: 1.6; }
+.job-analysis .eyebrow { font-size: .75rem; letter-spacing: .13em; font-weight: 700; }
+.job-analysis .prototype { padding: .8rem 1rem; background: #fff6df; border: 1px solid #d9c99b; border-radius: .4rem; }
+.job-analysis form { margin: 1.5rem 0; padding: 1.5rem; background: white; border: 1px solid #ccd8d3; border-radius: .6rem; }
+.job-analysis label { display: block; font-weight: 600; margin-bottom: .6rem; }
+.job-analysis textarea { box-sizing: border-box; width: 100%; padding: .8rem; border: 1px solid #839a92; border-radius: .3rem; resize: vertical; font: inherit; line-height: 1.5; }
+.job-analysis button { padding: .65rem 1rem; border: 1px solid #195b46; border-radius: .3rem; background: #195b46; color: white; font: inherit; cursor: pointer; }
+.job-analysis button.secondary { color: #195b46; background: white; }
+.job-analysis button:disabled { opacity: .5; cursor: not-allowed; }
+.job-analysis :focus-visible { outline: 3px solid #b75e00; outline-offset: 3px; }
+.job-analysis .actions, .job-analysis .results-title { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin-top: 1rem; }
+.job-analysis .results-title { justify-content: space-between; }
+.job-analysis .requirements { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(310px,100%),1fr)); gap: 1rem; }
+.job-analysis article { background: white; padding: 1.2rem; border: 1px solid #ccd8d3; border-radius: .5rem; overflow-wrap: anywhere; }
+.job-analysis .tags { display: flex; flex-wrap: wrap; gap: .4rem; font-size: .8rem; }
+.job-analysis .tags span { background: #e9f1ed; padding: .3rem .5rem; border-radius: .3rem; }
+.job-analysis .warning { color: #684811; }
+.job-analysis .error { padding: 1rem; background: #ffeded; color: #802525; }
+.job-analysis .source-panel { background: white; padding: 1.5rem; margin-top: 1rem; border: 2px solid #195b46; border-radius: .5rem; }
