@@ -95,7 +95,7 @@ describe("sharing API", () => {
     ]);
   });
 
-  it("uses reviewer-only resolve and feedback endpoints without sending user identity", async () => {
+  it("keeps the reviewer secret in request bodies and never in API URLs", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -122,8 +122,18 @@ describe("sharing API", () => {
     await resolveShare("reviewer-token", secret);
     await submitPeerFeedback("reviewer-token", secret, "  Keep the strongest outcome first.  ");
 
-    const [, feedbackInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const [resolveUrl, resolveInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(resolveUrl).toBe("/api/shares/reviewer/resolve");
+    expect(resolveUrl).not.toContain(secret);
+    expect(resolveInit.method).toBe("POST");
+    expect(JSON.parse(String(resolveInit.body))).toEqual({ secret });
+
+    const [feedbackUrl, feedbackInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(feedbackUrl).toBe("/api/shares/reviewer/feedback");
+    expect(feedbackUrl).not.toContain(secret);
+    expect(feedbackInit.method).toBe("POST");
     expect(JSON.parse(String(feedbackInit.body))).toEqual({
+      secret,
       comment: "Keep the strongest outcome first.",
     });
     expect(String(feedbackInit.body)).not.toContain("reviewer_user_id");
