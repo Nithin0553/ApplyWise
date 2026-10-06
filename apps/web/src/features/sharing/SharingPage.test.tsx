@@ -112,9 +112,8 @@ describe("SharingPage", () => {
         null,
       );
     });
-    expect(await screen.findByLabelText("New share link")).toHaveValue(
-      expect.stringContaining("share=synthetic-share-secret-123456"),
-    );
+    const newShareLink = (await screen.findByLabelText("New share link")) as HTMLInputElement;
+    expect(newShareLink.value).toContain("share=synthetic-share-secret-123456");
   });
 });
 
