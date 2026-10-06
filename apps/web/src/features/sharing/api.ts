@@ -5,7 +5,9 @@ import type {
   SharedResumeReference,
 } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+// Empty means same-origin. Local development can still override this through
+// VITE_API_BASE_URL, while production builds never silently point at localhost.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class SharingApiError extends Error {
   readonly status: number;
@@ -213,6 +215,7 @@ export function toShareGrantSummary(
 export function toPeerFeedbackSummary(record: PeerFeedbackApiRecord): PeerFeedbackSummary {
   return {
     id: record.id,
+    // Reviewer identity is intentionally not exposed on the owner-facing UI.
     reviewerLabel: "Reviewer",
     comment: record.comment,
     createdAt: record.created_at,
@@ -230,11 +233,25 @@ export function toSharedResumeReference(
   };
 }
 
+/**
+ * Put the one-time share secret in the URL fragment rather than the query
+ * string. Fragments stay client-side and are not sent in the HTTP request or
+ * Referer header.
+ */
 export function buildReviewerShareUrl(
   secret: string,
   origin: string = window.location.origin,
 ): string {
   const url = new URL(origin);
-  url.searchParams.set("share", secret);
+  url.hash = new URLSearchParams({ share: secret }).toString();
   return url.toString();
+}
+
+/** Read a reviewer secret from the client-only URL fragment. */
+export function readReviewerShareSecret(
+  hash: string = window.location.hash,
+): string | null {
+  const normalized = hash.startsWith("#") ? hash.slice(1) : hash;
+  if (!normalized) return null;
+  return new URLSearchParams(normalized).get("share");
 }
