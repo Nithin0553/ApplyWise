@@ -82,15 +82,11 @@ export function CoverLetterPage({ go }: PageProps) {
 
   return (
     <main className="sf-page sf-reveal">
-      <header style={{ marginBottom: 28 }}>
-        <p className="sf-eyebrow">F11 · Cover letter · live</p>
-        <h2 className="sf-h2" style={{ marginTop: 10 }}>
-          A letter built only from what you already <span className="sf-cursive">approved</span>
-        </h2>
+      <header className="sf-pagehead">
+        <h2 className="sf-h2">Cover letter</h2>
         <p className="sf-lede">
-          F11 starts where F09 ends. It drafts from approved statements, keeps each paragraph tied
-          to its sources, and still produces candidates — approving a statement never
-          auto-approves a paragraph written from it.
+          Drafted from statements you have approved, with every paragraph tied to its sources.
+          Approving a statement does not approve a paragraph written from it.
         </p>
       </header>
 
@@ -274,8 +270,8 @@ export function CoverLetterPage({ go }: PageProps) {
 
           {draft && draft.paragraphs.length > 0 && (
             <div className="sf-banner sf-banner-warn">
-              These paragraphs are new prose, so they need their own verification and approval
-              before export. That step is F08/F09 work and is not wired up in this prototype.
+              These paragraphs are new text, so they need their own review and approval before
+              export.
             </div>
           )}
           <button type="button" className="sf-btn sf-btn-ghost" onClick={() => go("review")}>

@@ -496,3 +496,197 @@
   outline: 2px solid var(--royal);
   outline-offset: -2px;
 }
+
+/* ─── Account menu ─────────────────────────────────────────────────────── */
+
+.sf-account {
+  position: relative;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.sf-account__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sf-account__trigger:hover { background: var(--sage); }
+.sf-account__trigger:focus-visible { outline: 2px solid var(--sapphire); outline-offset: 2px; }
+
+.sf-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--sapphire);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.sf-account__name {
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) { .sf-account__name { display: none; } }
+
+.sf-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 232px;
+  padding: 6px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lift);
+}
+
+.sf-menu__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+
+.sf-menu__head span { font-size: 13px; color: var(--muted); word-break: break-all; }
+
+.sf-menu__item {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sf-menu__item:hover { background: var(--sage); }
+.sf-menu__item:focus-visible { outline: 2px solid var(--sapphire); outline-offset: -2px; }
+.sf-menu__item--quiet { color: var(--muted); }
+
+/* ─── Footer ───────────────────────────────────────────────────────────── */
+
+.sf-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 1120px;
+  margin: 64px auto 0;
+  padding: 24px 24px 32px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.sf-footer__brand { font-weight: 600; color: var(--sapphire); }
+.sf-footer__links { display: flex; gap: 20px; flex-wrap: wrap; }
+.sf-footer__links a { color: var(--muted); text-decoration: none; }
+.sf-footer__links a:hover { color: var(--sapphire); text-decoration: underline; }
+
+/* ─── Page headings ────────────────────────────────────────────────────── */
+
+.sf-pagehead { margin-bottom: 28px; }
+.sf-pagehead .sf-h2 { margin: 0 0 8px; }
+.sf-pagehead .sf-lede { margin: 0; }
+
+/* ─── Dashboard metrics ────────────────────────────────────────────────── */
+
+.sf-metric { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.sf-metric__label { margin: 0; font-size: 14px; font-weight: 600; color: var(--muted); }
+.sf-metric__value {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--sapphire);
+  font-variant-numeric: tabular-nums;
+}
+.sf-metric__empty { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ink); }
+
+.sf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--muted);
+}
+
+.sf-btn-sm { padding: 7px 14px; font-size: 14px; }
+
+/* ─── Tables ───────────────────────────────────────────────────────────── */
+
+.sf-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.sf-table th,
+.sf-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+.sf-table th { font-size: 13px; font-weight: 600; color: var(--muted); }
+
+/* ─── Definition rows (Profile) ────────────────────────────────────────── */
+
+.sf-details { margin: 16px 0 0; display: flex; flex-direction: column; }
+.sf-detail {
+  display: flex;
+  gap: 24px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sf-detail:last-child { border-bottom: 0; }
+.sf-detail dt { flex: 0 0 200px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.sf-detail dd { margin: 0; flex: 1; word-break: break-word; }
+
+@media (max-width: 640px) {
+  .sf-detail { flex-direction: column; gap: 4px; }
+  .sf-detail dt { flex: none; }
+}
+
+/* ─── Job analysis requirement groups ──────────────────────────────────── */
+
+.sf-reqgroup { margin-top: 18px; }
+.sf-reqgroup__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.sf-reqlist { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.sf-reqlist li { line-height: 1.5; }
+
+.sf-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--sapphire-soft);
+  color: var(--sapphire);
+  font-size: 13px;
+  font-weight: 600;
+}

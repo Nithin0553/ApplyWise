@@ -1,8 +1,8 @@
 /**
- * Sample data for the prototype pages.
+ * Sample data for the screens that are not yet wired to a backend.
  *
- * Every screen except Tailoring runs on this until its owner's feature is
- * merged. Tailoring calls the real F07 backend — see features/tailoring/api.ts.
+ * Screens fall back to this until their feature's endpoint is wired up.
+ * Tailoring already calls the real backend — see features/tailoring/api.ts.
  */
 
 export interface MockEvidence {
@@ -172,30 +172,3 @@ export const APPLICATIONS: MockApplication[] = [
   { company: "Verra Group", role: "Automation Analyst", stage: "Closed", when: "no response, 4 Sep", version: "v1" },
 ];
 
-export const DIARY = [
-  {
-    quote:
-      "I stopped rewriting the same bullet for the fifth time. It showed me which job needed which fact, and I just picked.",
-    who: "Priya, graduate student",
-  },
-  {
-    quote:
-      "The part I trust is the little tag on every line. I know where it came from, so I can defend it in the room.",
-    who: "Marcus, career changer",
-  },
-];
-
-export const FAQ = [
-  {
-    q: "Does ApplyWise write my resume for me?",
-    a: "It drafts statements from facts you have approved, and shows which fact each statement came from. You approve every line before it reaches a resume.",
-  },
-  {
-    q: "What stops it from inventing things?",
-    a: "Generated text must cite the evidence it used. Anything citing a source you did not supply is discarded before you see it, and anything unsupported is blocked from export.",
-  },
-  {
-    q: "Who can see my evidence profile?",
-    a: "Only you. A reviewer link shows one resume version and its comments — never the profile behind it.",
-  },
-];

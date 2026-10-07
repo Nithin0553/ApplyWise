@@ -13,14 +13,11 @@ export function ReviewPage({ go }: PageProps) {
 
   return (
     <main className="sf-page sf-reveal">
-      <header style={{ marginBottom: 28 }}>
-        <p className="sf-eyebrow">F08 · F09 · Verification and approval</p>
-        <h2 className="sf-h2" style={{ marginTop: 10 }}>
-          Checked by the system, <span className="sf-cursive">approved</span> by you
-        </h2>
+      <header className="sf-pagehead">
+        <h2 className="sf-h2">Review and approval</h2>
         <p className="sf-lede">
           Verification compares each statement against the evidence it cites. It is a check, not
-          permission — only you can approve a line onto your resume.
+          permission — only you can approve a statement for your resume.
         </p>
       </header>
 

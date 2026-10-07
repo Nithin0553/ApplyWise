@@ -17,14 +17,11 @@ export function EvidencePage({ go }: PageProps) {
 
   return (
     <main className="sf-page sf-reveal">
-      <header style={{ marginBottom: 28 }}>
-        <p className="sf-eyebrow">F02 · F03 · Career evidence</p>
-        <h2 className="sf-h2" style={{ marginTop: 10 }}>
-          The facts you are willing to <span className="sf-cursive">stand behind</span>
-        </h2>
+      <header className="sf-pagehead">
+        <h2 className="sf-h2">Career evidence</h2>
         <p className="sf-lede">
           Only approved evidence can be used to write resume content. Imported items start
-          unconfirmed until you check them.
+          unconfirmed until you review them.
         </p>
       </header>
 

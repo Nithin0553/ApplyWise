@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, fetchApprovedEvidence, generateStatements } from "../../features/tailoring/api";
-import { AI_PROVIDERS, USE_REAL, type AiProvider } from "../../features/tailoring/config";
+import { AI_PROVIDERS, type AiProvider } from "../../features/tailoring/config";
 import { MOCK_JOB_CONTEXT } from "../../features/tailoring/mockData";
 import { useAuth } from "../../features/auth";
 import type {
@@ -86,14 +86,11 @@ export function TailoringPage({ go }: PageProps) {
 
   return (
     <main className="sf-page sf-reveal">
-      <header style={{ marginBottom: 28 }}>
-        <p className="sf-eyebrow">F07 · Grounded generation {USE_REAL.f07_generation && "· live"}</p>
-        <h2 className="sf-h2" style={{ marginTop: 10 }}>
-          Drafted from your evidence, <span className="sf-cursive">never</span> beyond it
-        </h2>
+      <header className="sf-pagehead">
+        <h2 className="sf-h2">Tailored statements</h2>
         <p className="sf-lede">
-          Each statement cites the evidence it rests on. Anything citing a source you did not
-          supply is discarded before it reaches this page.
+          Each statement cites the approved evidence it rests on. Anything citing a source you did
+          not supply is discarded before it reaches this page.
         </p>
       </header>
 
@@ -211,7 +208,7 @@ export function TailoringPage({ go }: PageProps) {
           <div className="sf-card sf-card-sage">
             <h3 className="sf-h3">Evidence in play</h3>
             <p className="sf-muted" style={{ margin: "0 0 12px" }}>
-              {USE_REAL.f02_evidence ? "From the evidence service." : "Stubbed until F02 merges."}
+              Select the approved evidence to draw on.
             </p>
             {evidence.map((item) => (
               <label className="sf-check" key={item.evidence_id} style={{ marginBottom: 10 }}>

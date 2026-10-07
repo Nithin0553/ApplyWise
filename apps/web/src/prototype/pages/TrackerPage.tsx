@@ -6,11 +6,8 @@ const STAGES = ["Saved", "Applied", "Interviewing", "Closed"] as const;
 export function TrackerPage({ go }: PageProps) {
   return (
     <main className="sf-page sf-reveal">
-      <header style={{ marginBottom: 28 }}>
-        <p className="sf-eyebrow">F13 · Applications and versions</p>
-        <h2 className="sf-h2" style={{ marginTop: 10 }}>
-          What you sent, and <span className="sf-cursive">exactly</span> what it said
-        </h2>
+      <header className="sf-pagehead">
+        <h2 className="sf-h2">Applications</h2>
         <p className="sf-lede">
           Each saved version freezes the evidence, the provenance and the approvals as they were
           that day, so an interview months later holds no surprises.

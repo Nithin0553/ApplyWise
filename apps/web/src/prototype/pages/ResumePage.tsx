@@ -3,14 +3,11 @@ import type { PageProps } from "../Shell";
 export function ResumePage({ go }: PageProps) {
   return (
     <main className="sf-page sf-reveal">
-      <header style={{ marginBottom: 28 }}>
-        <p className="sf-eyebrow">F10 · F12 · Resume and export</p>
-        <h2 className="sf-h2" style={{ marginTop: 10 }}>
-          Only the lines you <span className="sf-cursive">approved</span>
-        </h2>
+      <header className="sf-pagehead">
+        <h2 className="sf-h2">Resume preview</h2>
         <p className="sf-lede">
-          Two statements were held back from this version: one inferred, one unsupported. Nothing
-          unapproved can reach the page.
+          Only approved statements appear here. Two were held back from this version: one
+          inferred, one unsupported.
         </p>
       </header>
 

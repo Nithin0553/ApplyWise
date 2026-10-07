@@ -13,14 +13,11 @@ export function MatchPage({ go }: PageProps) {
 
   return (
     <main className="sf-page sf-reveal">
-      <header style={{ marginBottom: 28 }}>
-        <p className="sf-eyebrow">F05 · F06 · Matching and gaps</p>
-        <h2 className="sf-h2" style={{ marginTop: 10 }}>
-          Where you are strong, and where you are <span className="sf-cursive">honestly</span> not
-        </h2>
+      <header className="sf-pagehead">
+        <h2 className="sf-h2">Requirement matching</h2>
         <p className="sf-lede">
-          A gap is never filled by inventing content. Add real evidence, or leave the gap and let
-          the rest of the resume speak.
+          How your approved evidence covers each requirement. Gaps are not filled automatically —
+          add evidence to close one.
         </p>
       </header>
 
