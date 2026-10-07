@@ -14,6 +14,7 @@ export function LoginForm({ onLoggedIn, onSwitchToRegister }: LoginFormProps) {
   const { login, error } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -45,15 +46,26 @@ export function LoginForm({ onLoggedIn, onSwitchToRegister }: LoginFormProps) {
       />
 
       <label htmlFor="login-password">Password</label>
-      <input
-        id="login-password"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        required
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-      />
+      <div className="auth-form__password">
+        <input
+          id="login-password"
+          name="password"
+          type={showPassword ? "text" : "password"}
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+        <button
+          type="button"
+          className="auth-form__reveal"
+          onClick={() => setShowPassword((current) => !current)}
+          aria-pressed={showPassword}
+          aria-label={showPassword ? "Hide password" : "Show password"}
+        >
+          {showPassword ? "Hide" : "Show"}
+        </button>
+      </div>
 
       {error && (
         <p role="alert" className="auth-form__error">

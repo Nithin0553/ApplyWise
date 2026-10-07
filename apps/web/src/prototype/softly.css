@@ -1,239 +1,273 @@
-/* "Softly" prototype theme for ApplyWise.
-   Warm, low-contrast, paper-like. Tokens first, then components. */
+/* ApplyWise theme — premium corporate.
+   Sapphire for authority, gold for action, ivory to stay warm rather than
+   sterile. Tokens first, then components. Class names are unchanged from the
+   previous theme, so no component markup depends on this file's history. */
 
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Reenie+Beanie&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 .sf {
-  --paper: #fdfcf8;
-  --sage: #e8efe8;
-  --lavender: #efedf4;
-  --coral: #ffb7b2;
-  --coral-deep: #c96f68;
-  --ink: #292524;
-  --muted: #78716c;
-  --line: #e7e5e4;
+  /* brand */
+  --sapphire: #002d72;
+  --sapphire-soft: #e6ebf3;
+  --gold: #f9a825;
+  --gold-soft: #fdf1d8;
+  --royal: #1e88e5;
+
+  /* surfaces — names kept so existing classes keep working */
+  --paper: #fff8e1;
   --white: #ffffff;
+  --sage: #f4f6fa;
+  --lavender: #f7f5ef;
+  --line: #e0ddd6;
 
-  /* status colours: distinct in lightness, not only hue */
-  --ok-bg: #e4efe6;
-  --ok-ink: #2f5d3a;
-  --warn-bg: #fbeedd;
-  --warn-ink: #85520c;
-  --stop-bg: #f7e1de;
-  --stop-ink: #8a3a33;
-  --cand-bg: #eceaf3;
-  --cand-ink: #4a4068;
+  /* text */
+  --ink: #1a2332;
+  --muted: #6b7280;
 
-  --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lift: 0 10px 30px -6px rgba(0, 0, 0, 0.09);
+  /* accents retained under their old names */
+  --coral: var(--gold);
+  --coral-deep: var(--sapphire);
 
-  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  /* status: separated by lightness as well as hue. Errors stay muted
+     rather than vibrant, so a rejection reads as considered, not alarming. */
+  --ok-bg: #e7f5ee;
+  --ok-ink: #0f6b43;
+  --warn-bg: #fdf1d8;
+  --warn-ink: #8a5a00;
+  --stop-bg: #f6ebe8;
+  --stop-ink: #9a4034;
+  --cand-bg: #e6ebf3;
+  --cand-ink: #002d72;
+
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-lift: 0 8px 24px -6px rgba(16, 24, 40, 0.12);
+
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   color: var(--ink);
   background: var(--paper);
   min-height: 100vh;
   font-weight: 400;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* --- global texture ---------------------------------------------------- */
+/* --- texture removed --------------------------------------------------- */
+/* The grain and floating blobs stay in the markup but render as nothing, so
+   the theme change needs no component edits. */
 
-.sf-grain {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  opacity: 0.35;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-.sf-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.6;
-  pointer-events: none;
-  animation: sf-float 6s ease-in-out infinite;
-}
-
-@keyframes sf-float {
-  0%, 100% { transform: translateY(-10px); }
-  50% { transform: translateY(10px); }
-}
+.sf-grain { display: none; }
+.sf-blob { display: none; }
 
 @keyframes sf-reveal {
-  from { opacity: 0; transform: translateY(30px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
 }
 
 .sf-reveal {
-  animation: sf-reveal 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: sf-reveal 0.25s ease-in-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-blob, .sf-reveal { animation: none; }
+  .sf-reveal { animation: none; }
 }
 
 /* --- layout ------------------------------------------------------------ */
 
 .sf-page {
   position: relative;
-  max-width: 1120px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 112px 16px 96px;
+  padding: 96px 32px 72px;
 }
 
-.sf-stack { display: flex; flex-direction: column; gap: 16px; }
+.sf-stack { display: flex; flex-direction: column; gap: 20px; }
 .sf-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
-.sf-grid { display: grid; gap: 16px; }
+.sf-grid { display: grid; gap: 24px; }
 .sf-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sf-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .sf-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.sf-side { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.sf-side { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
 
 @media (max-width: 860px) {
   .sf-grid-2, .sf-grid-3, .sf-grid-4, .sf-side { grid-template-columns: minmax(0, 1fr); }
-  .sf-page { padding-top: 96px; }
+  .sf-page { padding: 88px 16px 56px; }
 }
 
 /* --- navigation -------------------------------------------------------- */
 
 .sf-nav {
   position: fixed;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 40;
-  margin: 0 auto;
-  max-width: 1120px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px 10px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--shadow);
+  gap: 16px;
+  height: 64px;
+  padding: 0 32px;
+  background: var(--white);
+  border-bottom: 1px solid var(--line);
   overflow-x: auto;
 }
+
+@media (max-width: 860px) { .sf-nav { padding: 0 16px; } }
 
 .sf-logo {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--sapphire);
   white-space: nowrap;
 }
 
 .sf-logo-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--coral);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--sapphire);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .sf-logo-dot::after {
   content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--white);
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--gold);
 }
 
-.sf-navlinks { display: flex; gap: 2px; margin-left: auto; align-items: center; }
+.sf-navlinks { display: flex; gap: 4px; margin-left: auto; align-items: center; height: 100%; }
 
 .sf-navlink {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--muted);
   background: none;
   border: none;
+  border-bottom: 2px solid transparent;
   font-family: inherit;
-  padding: 8px 12px;
-  border-radius: 999px;
+  padding: 0 14px;
+  height: 100%;
   cursor: pointer;
   white-space: nowrap;
+  transition: color 0.2s ease-in-out;
 }
 
-.sf-navlink:hover { color: var(--ink); background: rgba(0, 0, 0, 0.03); }
-.sf-navlink[aria-current="page"] { color: var(--ink); background: var(--sage); }
+.sf-navlink:hover { color: var(--sapphire); }
+
+.sf-navlink[aria-current="page"] {
+  color: var(--sapphire);
+  border-bottom-color: var(--gold);
+}
 
 /* --- type -------------------------------------------------------------- */
 
 .sf-h1 {
-  font-size: clamp(40px, 7vw, 72px);
-  line-height: 1.05;
-  letter-spacing: -0.025em;
-  font-weight: 500;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  color: var(--sapphire);
   margin: 0;
 }
 
 .sf-h2 {
-  font-size: clamp(28px, 4vw, 40px);
-  letter-spacing: -0.025em;
-  font-weight: 500;
+  font-size: clamp(26px, 3.4vw, 32px);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--sapphire);
   margin: 0 0 8px;
 }
 
-.sf-h3 { font-size: 20px; font-weight: 500; margin: 0 0 4px; letter-spacing: -0.01em; }
-.sf-cursive { font-family: "Reenie Beanie", cursive; font-size: 1.25em; color: var(--coral-deep); }
-.sf-lede { font-size: 18px; line-height: 1.6; color: var(--muted); max-width: 500px; margin: 16px 0 0; }
+.sf-h3 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; color: var(--sapphire); }
+
+/* Was a handwriting face; now an emphasis colour, so the nine places that
+   use it read as deliberate highlighting rather than decoration. */
+.sf-cursive { color: var(--gold); font-weight: 800; }
+
+.sf-lede { font-size: 16px; line-height: 1.65; color: var(--muted); max-width: 720px; margin: 14px 0 0; }
 .sf-muted { color: var(--muted); font-size: 14px; }
-.sf-eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+
+.sf-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
 
 /* --- surfaces ---------------------------------------------------------- */
 
 .sf-card {
   background: var(--white);
-  border-radius: 2rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   padding: 24px;
   box-shadow: var(--shadow);
 }
 
-.sf-card-tight { border-radius: 1.25rem; padding: 18px; }
+.sf-card-tight { border-radius: 12px; padding: 18px; }
 .sf-card-sage { background: var(--sage); }
 .sf-card-lav { background: var(--lavender); }
 
 .sf-note {
   background: var(--white);
-  border-radius: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 16px;
   padding: 24px;
   box-shadow: var(--shadow);
 }
 
-.sf-note:nth-child(odd) { transform: rotate(-1deg); }
-.sf-note:nth-child(even) { transform: rotate(1deg); }
+/* The rotated sticky-note effect is gone; alignment reads as more considered. */
+.sf-note:nth-child(odd),
+.sf-note:nth-child(even) { transform: none; }
 
 .sf-sign { margin-top: 20px; }
-.sf-sign hr { width: 32px; border: none; border-top: 1px solid var(--line); margin: 0 0 4px; }
-.sf-sign span { font-family: "Reenie Beanie", cursive; font-size: 24px; color: var(--muted); }
+.sf-sign hr { width: 32px; border: none; border-top: 2px solid var(--gold); margin: 0 0 6px; }
+.sf-sign span { font-size: 14px; font-weight: 600; color: var(--sapphire); }
 
 /* --- controls ---------------------------------------------------------- */
 
 .sf-btn {
   font: inherit;
-  font-weight: 500;
-  font-size: 15px;
-  border-radius: 999px;
-  padding: 12px 22px;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 11px 20px;
   border: 1px solid transparent;
   cursor: pointer;
   text-decoration: none;
-  display: inline-block;
-  transition: transform 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
 }
 
-.sf-btn:hover { transform: translateY(-1px); }
-.sf-btn-primary { background: var(--coral); color: var(--ink); box-shadow: var(--shadow); }
-.sf-btn-dark { background: var(--ink); color: var(--paper); }
-.sf-btn-ghost { background: var(--white); color: var(--ink); border-color: var(--line); }
-.sf-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.sf-btn:hover { opacity: 0.9; transform: scale(1.02); }
+.sf-btn-primary { background: var(--gold); color: var(--sapphire); }
+.sf-btn-dark { background: var(--sapphire); color: var(--white); }
+.sf-btn-ghost { background: var(--white); color: var(--sapphire); border: 2px solid var(--sapphire); }
+.sf-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .sf-field { display: block; margin-bottom: 14px; }
-.sf-field > span { display: block; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+
+.sf-field > span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 700;
+}
 
 .sf-field input,
 .sf-field textarea,
@@ -241,73 +275,82 @@
   width: 100%;
   box-sizing: border-box;
   font: inherit;
-  font-size: 15px;
-  padding: 12px 16px;
-  border-radius: 1rem;
+  font-size: 14px;
+  padding: 11px 14px;
+  border-radius: 10px;
   border: 1px solid var(--line);
-  background: #fafaf9;
+  background: var(--white);
   color: var(--ink);
 }
 
-.sf-field textarea { min-height: 100px; resize: vertical; border-radius: 1.25rem; }
-.sf-check { display: flex; gap: 10px; align-items: flex-start; }
-.sf-check input { width: 17px; height: 17px; margin-top: 3px; accent-color: var(--coral-deep); flex-shrink: 0; }
+.sf-field input:focus,
+.sf-field textarea:focus,
+.sf-field select:focus {
+  outline: 2px solid var(--royal);
+  outline-offset: -1px;
+  border-color: var(--royal);
+}
 
-/* --- status --------------------------------------------------------- */
+.sf-field textarea { min-height: 100px; resize: vertical; }
+.sf-check { display: flex; gap: 10px; align-items: flex-start; }
+.sf-check input { width: 17px; height: 17px; margin-top: 3px; accent-color: var(--sapphire); flex-shrink: 0; }
+
+/* --- status ------------------------------------------------------------ */
 
 .sf-pill {
   display: inline-block;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 5px 11px;
   font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-right: 6px;
 }
 
 .sf-pill-ok { background: var(--ok-bg); color: var(--ok-ink); }
-.sf-pill-warn { background: var(--warn-bg); color: var(--warn-ink); }
+.sf-pill-warn { background: var(--gold); color: var(--sapphire); }
 .sf-pill-stop { background: var(--stop-bg); color: var(--stop-ink); }
 .sf-pill-cand { background: var(--cand-bg); color: var(--cand-ink); }
-.sf-pill-quiet { background: #f5f5f4; color: var(--muted); }
+.sf-pill-quiet { background: #f3f4f6; color: var(--muted); }
 
 .sf-chip {
   display: inline-block;
-  border: 1px solid var(--coral);
-  border-radius: 8px;
+  border: 1px solid var(--sapphire);
+  border-radius: 6px;
   padding: 1px 7px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--coral-deep);
-  background: var(--white);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sapphire);
+  background: var(--sapphire-soft);
   margin-right: 4px;
 }
 
-.sf-banner { border-radius: 1.25rem; padding: 14px 18px; font-size: 15px; line-height: 1.5; }
-.sf-banner-ok { background: var(--ok-bg); color: var(--ok-ink); }
-.sf-banner-warn { background: var(--warn-bg); color: var(--warn-ink); }
-.sf-banner-stop { background: var(--stop-bg); color: var(--stop-ink); }
+.sf-banner { border-radius: 12px; padding: 14px 18px; font-size: 14px; line-height: 1.55; border: 1px solid transparent; }
+.sf-banner-ok { background: var(--ok-bg); color: var(--ok-ink); border-color: #c7e6d6; }
+.sf-banner-warn { background: var(--warn-bg); color: var(--warn-ink); border-color: #f3dcae; }
+.sf-banner-stop { background: var(--stop-bg); color: var(--stop-ink); border-color: #e6cdc7; }
 
 /* --- odds and ends ----------------------------------------------------- */
 
-.sf-scroll { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; }
-.sf-scroll > * { flex: 0 0 288px; }
+.sf-scroll { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 8px; }
+.sf-scroll > * { flex: 0 0 300px; }
 
-.sf-faq { background: var(--white); border-radius: 1rem; border: 1px solid #f5f5f4; margin-bottom: 10px; }
-.sf-faq summary { padding: 20px 24px; font-weight: 500; cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.sf-faq { background: var(--white); border-radius: 12px; border: 1px solid var(--line); margin-bottom: 10px; }
+.sf-faq summary { padding: 18px 22px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; gap: 16px; color: var(--sapphire); }
 .sf-faq summary::-webkit-details-marker { display: none; }
-.sf-faq summary::after { content: "+"; font-size: 20px; color: var(--muted); transition: transform 0.5s ease-in-out; }
+.sf-faq summary::after { content: "+"; font-size: 20px; color: var(--gold); font-weight: 700; transition: transform 0.2s ease-in-out; }
 .sf-faq[open] summary::after { transform: rotate(45deg); }
-.sf-faq p { margin: 0; padding: 0 24px 24px; color: var(--muted); line-height: 1.6; }
+.sf-faq p { margin: 0; padding: 0 22px 22px; color: var(--muted); line-height: 1.6; }
 
-.sf-stat { font-size: 40px; font-weight: 500; letter-spacing: -0.03em; margin-top: 4px; }
+.sf-stat { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; color: var(--sapphire); margin-top: 4px; }
 
 .sf-phones { display: flex; justify-content: center; align-items: flex-start; gap: 16px; }
-.sf-phone { width: 280px; height: 580px; border-radius: 2.5rem; padding: 20px; box-sizing: border-box; box-shadow: var(--shadow-lift); }
+.sf-phone { width: 280px; height: 580px; border-radius: 20px; padding: 20px; box-sizing: border-box; border: 1px solid var(--line); box-shadow: var(--shadow-lift); }
 .sf-phone-mid { width: 300px; height: 620px; background: var(--white); }
-.sf-phone-l { background: var(--sage); opacity: 0.8; transform: translateY(48px); }
-.sf-phone-r { background: var(--lavender); opacity: 0.8; transform: translateY(96px); }
+.sf-phone-l { background: var(--sage); transform: translateY(48px); }
+.sf-phone-r { background: var(--lavender); transform: translateY(96px); }
 
 @media (max-width: 860px) { .sf-phone-l, .sf-phone-r { display: none; } }
 
@@ -318,4 +361,138 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* --- signed-out screen -------------------------------------------------- */
+/* F01 owns the form markup; these rules only frame and restyle it, so the
+   auth feature needs no changes to match the theme. */
+
+.sf-auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 16px;
+  box-sizing: border-box;
+  background: var(--paper);
+}
+
+.sf-auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 36px 32px 32px;
+  box-shadow: var(--shadow-lift);
+}
+
+.sf-auth-brand { font-size: 20px; margin-bottom: 10px; }
+
+.sf-auth-tagline {
+  margin: 0 0 26px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.sf-auth h1,
+.sf-auth h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sapphire);
+  margin: 0 0 18px;
+}
+
+.sf-auth .auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: none;
+  margin-top: 0;
+}
+
+.sf-auth .auth-form label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.sf-auth .auth-form input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 14px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+}
+
+.sf-auth .auth-form input:focus {
+  outline: 2px solid var(--royal);
+  outline-offset: -1px;
+  border-color: var(--royal);
+}
+
+.sf-auth .auth-form button[type="submit"] {
+  margin-top: 6px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  min-height: 44px;
+  padding: 11px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--gold);
+  color: var(--sapphire);
+  cursor: pointer;
+  transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.sf-auth .auth-form button[type="submit"]:hover { opacity: 0.9; transform: scale(1.02); }
+.sf-auth .auth-form button[type="submit"]:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.sf-auth .auth-form__hint { margin: 0; font-size: 13px; color: var(--muted); }
+.sf-auth .auth-form__error { margin: 0; font-size: 13px; color: var(--stop-ink); }
+.sf-auth .auth-form__switch { margin-top: 18px; font-size: 14px; color: var(--muted); }
+.sf-auth .link-button { color: var(--royal); font-weight: 600; text-decoration: underline; }
+
+/* Show/hide password control. The button sits inside the field, so the input
+   keeps its full width and the control never shifts the layout when its
+   label changes between "Show" and "Hide". */
+
+.sf-auth .auth-form__password { position: relative; display: block; }
+
+.sf-auth .auth-form__password input { padding-right: 72px; }
+
+.sf-auth .auth-form__reveal {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--royal);
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.sf-auth .auth-form__reveal:hover { background: var(--sapphire-soft); }
+
+.sf-auth .auth-form__reveal:focus-visible {
+  outline: 2px solid var(--royal);
+  outline-offset: -2px;
 }

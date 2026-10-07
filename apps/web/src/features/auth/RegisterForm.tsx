@@ -15,6 +15,7 @@ export function RegisterForm({ onRegistered, onSwitchToLogin }: RegisterFormProp
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -57,17 +58,28 @@ export function RegisterForm({ onRegistered, onSwitchToLogin }: RegisterFormProp
       />
 
       <label htmlFor="register-password">Password</label>
-      <input
-        id="register-password"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        required
-        minLength={8}
-        aria-describedby="register-password-hint"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-      />
+      <div className="auth-form__password">
+        <input
+          id="register-password"
+          name="password"
+          type={showPassword ? "text" : "password"}
+          autoComplete="new-password"
+          required
+          minLength={8}
+          aria-describedby="register-password-hint"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+        <button
+          type="button"
+          className="auth-form__reveal"
+          onClick={() => setShowPassword((current) => !current)}
+          aria-pressed={showPassword}
+          aria-label={showPassword ? "Hide password" : "Show password"}
+        >
+          {showPassword ? "Hide" : "Show"}
+        </button>
+      </div>
       <p id="register-password-hint" className="auth-form__hint">
         At least 8 characters, including a letter and a digit.
       </p>

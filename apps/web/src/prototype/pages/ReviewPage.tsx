@@ -32,7 +32,7 @@ export function ReviewPage({ go }: PageProps) {
               <article
                 className="sf-card"
                 key={statement.id}
-                style={blocked ? { background: "#fdf6f5" } : undefined}
+                style={blocked ? { background: "#f6ebe8" } : undefined}
               >
                 <div className="sf-check">
                   <input
