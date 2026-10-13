@@ -1,6 +1,7 @@
 /* ApplyWise guided journey — white surfaces, restrained blue/green lighting. */
 @keyframes aw-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes aw-out { to { opacity: 0; transform: translateY(-90vh); } }
+@keyframes aw-login-leave { to { opacity: 0; transform: translateY(-22px); } }
 @keyframes aw-pulse { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(180deg); } }
 @keyframes aw-sweep { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 @keyframes aw-circle { from { transform: scale(.25); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -46,6 +47,7 @@
 }
 .aw-splash.is-leaving { animation: aw-out 780ms ease-in forwards; }
 .aw-auth-enter { animation: aw-rise 650ms both; }
+.aw-auth-leave { animation: aw-login-leave 460ms ease-in forwards; pointer-events: none; }
 .aw-topbar {
   display: flex; align-items: center; justify-content: space-between;
   gap: 18px;
@@ -129,7 +131,7 @@
   background: linear-gradient(100deg,transparent 0%,transparent 43%,#bffeff 50%,transparent 57%,transparent 100%);
   background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; animation: aw-sweep 5s linear infinite;
 }
-.aw-input-glow { position: relative; padding: 2px; border-radius: 42px;
+.aw-input-glow { position: relative; z-index: 0; isolation: isolate; padding: 2px; border-radius: 42px;
   background: linear-gradient(100deg,#076efa,#16c6ec,#09d681,#0c73ea);
   background-size: 230% 100%; animation: aw-glow 5s linear infinite;
 }
