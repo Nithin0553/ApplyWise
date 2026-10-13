@@ -4,6 +4,7 @@ import { AuthProvider, LoginForm, RegisterForm, useAuth } from "./features/auth"
 import { GuidedJourney } from "./features/journey/GuidedJourney";
 import "./features/journey/journey.css";
 import "./prototype/softly.css";
+import "./features/auth/auth-theme.css";
 
 function AuthGate() {
   const { user, token, isLoading, logout } = useAuth();
@@ -44,11 +45,11 @@ function AuthGate() {
     return <GuidedJourney user={user} token={token} logout={logout} />;
   }
 
-  return <div className={`sf sf-auth ${user && token ? "aw-auth-leave" : "aw-auth-enter"}`}>
+  return <div className={`sf sf-auth aw-auth-shell ${user && token ? "aw-auth-leave" : "aw-auth-enter"}`}>
     <div className="sf-auth-card">
-      <div className="sf-logo sf-auth-brand">
-        <span className="sf-logo-dot" aria-hidden="true" />ApplyWise
-      </div>
+      <h1 className="aw-auth-wordmark">
+        <span className="aw-auth-wordmark-light" data-text="ApplyWise">ApplyWise</span>
+      </h1>
       <p className="sf-auth-tagline">Resume tailoring, grounded in what you actually did.</p>
       {mode === "login"
         ? <LoginForm onSwitchToRegister={() => setMode("register")} />
