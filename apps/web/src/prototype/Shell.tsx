@@ -78,7 +78,7 @@ export function Shell() {
     return (
       <ApprovalContext.Provider value={approvals}>
         <div className="sf sf--job-entry">
-          <header className="sf-jd-brand">ApplyWise</header>
+          <header><h1 className="sf-jd-brand">ApplyWise</h1></header>
           <JobDescriptionEntryPage
             onContinue={(description) => {
               setJobDescription(description);
