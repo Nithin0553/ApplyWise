@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, fetchApprovedEvidence, generateStatements } from "../../features/tailoring/api";
 import { AI_PROVIDERS, type AiProvider } from "../../features/tailoring/config";
-import { MOCK_JOB_CONTEXT } from "../../features/tailoring/mockData";
+import {
+  MOCK_APPROVED_EVIDENCE,
+  MOCK_GENERATION_RESULT,
+  MOCK_JOB_CONTEXT,
+} from "../../features/tailoring/mockData";
 import { useAuth } from "../../features/auth";
 import type {
   EvidenceOption,
@@ -10,7 +14,7 @@ import type {
 } from "../../features/tailoring/types";
 import type { PageProps } from "../Shell";
 
-export function TailoringPage({ go }: PageProps) {
+export function TailoringPage({ go, demo = false }: PageProps & { demo?: boolean }) {
   const { token } = useAuth();
   const [evidence, setEvidence] = useState<EvidenceOption[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -24,6 +28,11 @@ export function TailoringPage({ go }: PageProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (demo) {
+      setEvidence(MOCK_APPROVED_EVIDENCE);
+      setSelectedIds(MOCK_APPROVED_EVIDENCE.map((item) => item.evidence_id));
+      return;
+    }
     fetchApprovedEvidence(token)
       .then((items) => {
         setEvidence(items);
@@ -32,7 +41,7 @@ export function TailoringPage({ go }: PageProps) {
       .catch((cause: unknown) =>
         setError(cause instanceof ApiError ? cause.message : "Could not load evidence."),
       );
-  }, [token]);
+  }, [token, demo]);
 
   const selected = useMemo(
     () => evidence.filter((item) => selectedIds.includes(item.evidence_id)),
@@ -49,6 +58,17 @@ export function TailoringPage({ go }: PageProps) {
     setError(null);
     setResult(null);
     try {
+      if (demo) {
+        setResult({
+          ...MOCK_GENERATION_RESULT,
+          provider: "sample data (offline)",
+          statements: MOCK_GENERATION_RESULT.statements.filter((statement) =>
+            statement.evidence_ids.every((id) => selected.some((item) => item.evidence_id === id)),
+          ),
+        });
+        generated.current = true;
+        return;
+      }
       const statements = await generateStatements(
         {
           job_context: {
@@ -73,7 +93,7 @@ export function TailoringPage({ go }: PageProps) {
     } finally {
       setLoading(false);
     }
-  }, [selected, provider, jobTitle, company, description, requirements, token]);
+  }, [selected, provider, jobTitle, company, description, requirements, token, demo]);
 
   // After a first generation, switching provider redraws straight away rather
   // than leaving a stale result on screen under a new provider name.
@@ -107,6 +127,7 @@ export function TailoringPage({ go }: PageProps) {
                 </label>
                 <select
                   id="provider"
+                  disabled={demo}
                   value={provider}
                   onChange={(event) => setProvider(event.target.value as AiProvider)}
                   style={{
@@ -134,6 +155,7 @@ export function TailoringPage({ go }: PageProps) {
               </div>
             </div>
 
+            {demo && <p className="sf-muted">Sample results only. No AI or backend is called.</p>}
             {error && <div className="sf-banner sf-banner-stop">{error}</div>}
             {!result && !error && (
               <p className="sf-muted" style={{ margin: 0 }}>
