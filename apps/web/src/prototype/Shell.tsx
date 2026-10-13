@@ -89,7 +89,7 @@ export function Shell({ account }: { account?: ShellAccount } = {}) {
             {account && (
               <div className="sf-jd-header-actions">
                 <span className="sf-jd-avatar" aria-hidden="true">
-                  {(account.fullName.trim().split(/\\s+/).slice(0, 2).map((part) => part.charAt(0)).join("") || "?").toUpperCase()}
+                  {(account.fullName.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join("") || "?").toUpperCase()}
                 </span>
                 <details className="sf-jd-profile">
                   <summary>Profile</summary>
