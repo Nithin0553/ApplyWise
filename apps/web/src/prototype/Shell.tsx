@@ -4,7 +4,7 @@ import "./softly.css";
 import { ApprovalContext, approvableIds } from "./store";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { EvidencePage } from "./pages/EvidencePage";
-import { HomePage } from "./pages/HomePage";
+import { JobDescriptionEntryPage } from "./pages/JobDescriptionEntryPage";
 import { JobsPage } from "./pages/JobsPage";
 import { MatchPage } from "./pages/MatchPage";
 import { ResumePage } from "./pages/ResumePage";
@@ -50,8 +50,15 @@ function useRoute(): [RouteId, (next: RouteId) => void] {
   return [route, go];
 }
 
-export function Shell() {
+export interface ShellAccount {
+  fullName: string;
+  email: string;
+  logout: () => void;
+}
+
+export function Shell({ account }: { account?: ShellAccount } = {}) {
   const [route, go] = useRoute();
+  const [jobDescription, setJobDescription] = useState("");
   const [approvedIds, setApprovedIds] = useState<string[]>(approvableIds().slice(0, 2));
 
   const approvals = {
@@ -62,10 +69,9 @@ export function Shell() {
       ),
   };
 
-  const pages: Record<RouteId, ReactElement> = {
-    home: <HomePage go={go} />,
+  const pages: Record<Exclude<RouteId, "home">, ReactElement> = {
     evidence: <EvidencePage go={go} />,
-    jobs: <JobsPage go={go} />,
+    jobs: <JobsPage go={go} initialDescription={jobDescription} onDescriptionChange={setJobDescription} />,
     match: <MatchPage go={go} />,
     tailor: <TailoringPage go={go} />,
     review: <ReviewPage go={go} />,
@@ -73,6 +79,45 @@ export function Shell() {
     resume: <ResumePage go={go} />,
     tracker: <TrackerPage go={go} />,
   };
+
+  if (route === "home") {
+    return (
+      <ApprovalContext.Provider value={approvals}>
+        <div className="sf sf--job-entry">
+          <header className="sf-jd-header">
+            <h1 className="sf-jd-brand">ApplyWise</h1>
+            {account && (
+              <div className="sf-jd-header-actions">
+                <span className="sf-jd-avatar" aria-hidden="true">
+                  {(account.fullName.trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join("") || "?").toUpperCase()}
+                </span>
+                <details className="sf-jd-profile">
+                  <summary>Profile</summary>
+                  <div className="sf-jd-profile-popover">
+                    <strong>{account.fullName}</strong>
+                    <span>{account.email}</span>
+                  </div>
+                </details>
+                <span className="sf-jd-header-separator" aria-hidden="true" />
+                <button type="button" className="sf-jd-logout" onClick={() => {
+                  window.location.hash = "";
+                  account.logout();
+                }}>
+                  Log out
+                </button>
+              </div>
+            )}
+          </header>
+          <JobDescriptionEntryPage
+            onContinue={(description) => {
+              setJobDescription(description);
+              go("jobs");
+            }}
+          />
+        </div>
+      </ApprovalContext.Provider>
+    );
+  }
 
   return (
     <ApprovalContext.Provider value={approvals}>
