@@ -173,7 +173,8 @@ export function GuidedJourney({ user, token, logout }: Props) {
   async function finishSetup() {
     setBusy(true); setError(""); setStage("preparing");
     try {
-      if (profile.experience.trim()) {
+      const previous = readProfile(user.id);
+      if (profile.experience.trim() && profile.experience.trim() !== previous?.experience.trim()) {
         await addEvidence(token, `${profile.career} experience`, profile.career,
           profile.experience.trim());
       }
@@ -234,6 +235,12 @@ export function GuidedJourney({ user, token, logout }: Props) {
     }
   }
 
+  function newJob() {
+    setJob(""); setRole(""); setCompany("");
+    setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
+    changeStage("paste");
+  }
+
   async function openApplications() {
     setError(""); setStage("applications");
     try {
@@ -273,7 +280,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
     <header className="aw-topbar">
       <button className="aw-logo" type="button" onClick={() => changeStage("paste")}>ApplyWise</button>
       <nav className="aw-toplinks" aria-label="Your workspace">
-        <button type="button" onClick={() => changeStage("paste")}>New job</button>
+        <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
         <details className="aw-account"><summary>Profile</summary>
@@ -406,6 +413,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         {!activeCandidates.length && <p>No statements left. Return to analysis to generate another version.</p>}
       </article>
       <div className="aw-section-bottom">
+        <button className="aw-link" type="button" onClick={() => changeStage("analysis")}>← Back to job analysis</button>
         <p className="aw-muted">{pendingCount} statements awaiting review · {approvedIds.length} approved</p>
         <button type="button" className="aw-primary"
           disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
@@ -426,7 +434,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
             <span>{versionCounts[item.id] ?? "—"} resume versions</span></div>
         </article>) : <p className="aw-muted">No saved applications yet. Create a resume to add your first application.</p>}
       </div>
-      <button className="aw-primary" onClick={() => changeStage("paste")}>Start another application →</button>
+      <button className="aw-primary" onClick={newJob}>Start another application →</button>
     </main>}
   </div>;
 }
