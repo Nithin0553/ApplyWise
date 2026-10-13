@@ -775,3 +775,39 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Signed-out demo entry and the always-visible preview disclosure. */
+.sf-auth-demo {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+.sf-auth-demo .sf-muted { margin: 0 0 12px; }
+.sf-auth-demo .sf-btn { width: 100%; }
+.sf-demo-banner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 82px 32px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  line-height: 1.5;
+  font-size: 14px;
+  color: var(--sapphire);
+}
+.sf-demo-banner .sf-btn { flex-shrink: 0; }
+.sf--demo .sf-page { padding-top: 24px; }
+@media (max-width: 960px) {
+  .sf-demo-banner { padding-top: 140px; }
+}
+@media (max-width: 640px) {
+  .sf-demo-banner {
+    padding: 144px 16px 16px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
