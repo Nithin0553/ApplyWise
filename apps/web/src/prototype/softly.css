@@ -695,7 +695,8 @@
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: clamp(200px, 30vh, 255px);
+  height: clamp(205px, 29vh, 255px);
+  min-height: 185px;
   padding: 30px 36px 46px;
   border: 0;
   border-radius: 38px;
@@ -829,7 +830,8 @@
   .sf-jd-glow-wrap, .sf-jd-input-shell { border-radius: 30px; }
   .sf-jd-glow-wrap::before { border-radius: 33px; }
   .sf-jd-input {
-    min-height: clamp(170px, 27vh, 200px);
+    height: clamp(175px, 27vh, 210px);
+    min-height: 170px;
     padding: 22px 22px 42px;
     border-radius: 28px;
     font-size: 15px;
@@ -846,7 +848,7 @@
 @media (max-height: 700px) and (min-width: 641px) {
   .sf-jd-main { padding-top: 28px; padding-bottom: 18px; }
   .sf-jd-label { margin-bottom: 20px; font-size: clamp(24px, 2.7vw, 38px); }
-  .sf-jd-input { min-height: 175px; }
+  .sf-jd-input { height: 175px; min-height: 175px; }
   .sf-jd-privacy { margin-top: 12px; }
   .sf-jd-actions { margin-top: 14px; }
   .sf-jd-tip { margin-top: 14px; }
