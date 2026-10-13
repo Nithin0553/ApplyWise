@@ -20,7 +20,7 @@ const SCAFFOLD_STYLE = {
   paddingLeft: 14,
 } as const;
 
-export function CoverLetterPage({ go }: PageProps) {
+export function CoverLetterPage({ go, demo = false }: PageProps & { demo?: boolean }) {
   const { token } = useAuth();
   const { approvedIds } = useApprovals();
   const approvedStatements = useMemo(() => toApprovedStatements(approvedIds), [approvedIds]);
@@ -52,6 +52,29 @@ export function CoverLetterPage({ go }: PageProps) {
     setDraft(null);
     try {
       drafted.current = true;
+      if (demo) {
+        const intro = tone === "warm" ? "I would enjoy bringing this experience to your team: "
+          : tone === "direct" ? "Relevant experience: " : "My experience includes the following: ";
+        setDraft({
+          draft_id: "sample-preview",
+          user_id: "sample-preview",
+          provider: "sample data (offline)",
+          generated_at: new Date().toISOString(),
+          tone,
+          paragraphs: selected.slice(0, 3).map((statement) => ({
+            paragraph_id: `sample-${statement.statement_id}`,
+            text: `${intro}${statement.text.replace(/[.]$/, "")}.`,
+            statement_ids: [statement.statement_id],
+            evidence_ids: statement.evidence_ids,
+            status: "CANDIDATE" as const,
+            verification_status: "PENDING" as const,
+            approval_status: "UNREVIEWED" as const,
+            export_eligible: false as const,
+          })),
+          rejected: [],
+        });
+        return;
+      }
       setDraft(
         await generateCoverLetter(
           {
@@ -69,7 +92,7 @@ export function CoverLetterPage({ go }: PageProps) {
     } finally {
       setLoading(false);
     }
-  }, [selected, tone, provider, token]);
+  }, [selected, tone, provider, token, demo]);
 
   // Once a draft exists, changing the tone or the statements redraws it, so the
   // controls are not silently ignored.
@@ -107,6 +130,7 @@ export function CoverLetterPage({ go }: PageProps) {
               </button>
             </div>
 
+            {demo && <p className="sf-muted">Sample letter preview. Drafts are not saved or sent.</p>}
             {error && <div className="sf-banner sf-banner-stop">{error}</div>}
             {!draft && !error && !loading && (
               <p className="sf-muted" style={{ margin: 0 }}>
@@ -153,7 +177,7 @@ export function CoverLetterPage({ go }: PageProps) {
                   <span className="sf-pill sf-pill-quiet">Template</span>
                   Sincerely,
                   <br />
-                  Niraali Deepak Bandi
+                  {demo ? "Alex Morgan" : "Niraali Deepak Bandi"}
                 </p>
 
                 <p className="sf-muted" style={{ margin: "16px 0 0", lineHeight: 1.6 }}>
@@ -256,6 +280,7 @@ export function CoverLetterPage({ go }: PageProps) {
             <label className="sf-field" style={{ marginTop: 16 }}>
               <span>AI provider</span>
               <select
+                disabled={demo}
                 value={provider}
                 onChange={(event) => setProvider(event.target.value as AiProvider)}
               >
