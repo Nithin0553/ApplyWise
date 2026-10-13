@@ -25,15 +25,20 @@ export function JobDescriptionEntryPage({ onContinue }: JobDescriptionEntryPageP
         <label htmlFor="sf-job-description" className="sf-jd-label">
           Paste your job description to ApplyWise
         </label>
-        <textarea
-          id="sf-job-description"
-          className="sf-jd-input"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          autoComplete="off"
-          spellCheck
-          rows={7}
-        />
+        <div className="sf-jd-glow-wrap">
+          <div className="sf-jd-input-shell">
+            <textarea
+              id="sf-job-description"
+              className="sf-jd-input"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              autoComplete="off"
+              spellCheck
+              rows={7}
+              placeholder="Paste the job description here..."
+            />
+          </div>
+        </div>
         {canContinue && (
           <button type="submit" className="sf-jd-continue">
             Continue <span aria-hidden="true">→</span>
