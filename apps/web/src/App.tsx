@@ -10,6 +10,7 @@ function AuthGate() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [intro, setIntro] = useState(true);
   const [leaving, setLeaving] = useState(false);
+  const [enterJourney, setEnterJourney] = useState(false);
 
   useEffect(() => {
     const move = window.setTimeout(() => setLeaving(true), 1400);
@@ -19,6 +20,15 @@ function AuthGate() {
       window.clearTimeout(done);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || !token) {
+      setEnterJourney(false);
+      return;
+    }
+    const next = window.setTimeout(() => setEnterJourney(true), 480);
+    return () => window.clearTimeout(next);
+  }, [user, token]);
 
   if (intro) {
     return <main className={`aw-splash ${leaving ? "is-leaving" : ""}`} aria-label="ApplyWise welcome">
@@ -30,11 +40,11 @@ function AuthGate() {
     return <div className="sf sf-auth"><p className="sf-muted">Loading…</p></div>;
   }
 
-  if (user && token) {
+  if (user && token && enterJourney) {
     return <GuidedJourney user={user} token={token} logout={logout} />;
   }
 
-  return <div className="sf sf-auth aw-auth-enter">
+  return <div className={`sf sf-auth ${user && token ? "aw-auth-leave" : "aw-auth-enter"}`}>
     <div className="sf-auth-card">
       <div className="sf-logo sf-auth-brand">
         <span className="sf-logo-dot" aria-hidden="true" />ApplyWise
