@@ -9,9 +9,15 @@ Required: 2+ years in software quality assurance, strong test automation experie
 
 Preferred: experience with performance testing, and exposure to Kubernetes in production.`;
 
-export function JobsPage({ go }: PageProps) {
-  const [text, setText] = useState(POSTING);
-  const [analysed, setAnalysed] = useState(true);
+interface JobsPageProps extends PageProps {
+  initialDescription?: string;
+  onDescriptionChange?: (description: string) => void;
+}
+
+export function JobsPage({ go, initialDescription = "", onDescriptionChange }: JobsPageProps) {
+  const [text, setText] = useState(initialDescription || POSTING);
+  const [analysed, setAnalysed] = useState(!initialDescription);
+  const isUserPosting = initialDescription.trim().length > 0;
 
   return (
     <main className="sf-page sf-reveal">
@@ -52,6 +58,7 @@ export function JobsPage({ go }: PageProps) {
               value={text}
               onChange={(event) => {
                 setText(event.target.value);
+                onDescriptionChange?.(event.target.value);
                 setAnalysed(false);
               }}
               style={{ minHeight: 220 }}
@@ -67,7 +74,13 @@ export function JobsPage({ go }: PageProps) {
           <div className="sf-card sf-card-lav">
             <h3 className="sf-h3">Extracted requirements</h3>
             <p className="sf-muted" style={{ margin: "0 0 14px" }}>
-              {analysed ? `${REQUIREMENTS.length} found` : "Press analyse to refresh"}
+              {analysed
+                ? isUserPosting
+                  ? "Illustrative sample only — not extracted from your description"
+                  : `${REQUIREMENTS.length} sample requirements`
+                : isUserPosting
+                  ? "Your job description is ready. Automatic analysis is not yet integrated."
+                  : "Press analyse to refresh"}
             </p>
             {analysed &&
               REQUIREMENTS.map((requirement) => (
