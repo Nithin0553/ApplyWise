@@ -4,6 +4,7 @@ import type { PageProps } from "../Shell";
 import { useAuth } from "../../features/auth";
 import { listApplications, type ApplicationApiRecord } from "../../features/applications";
 import { fetchApprovedEvidence } from "../../features/tailoring/api";
+import { APPLICATIONS, EVIDENCE } from "../mock";
 
 /**
  * The signed-in landing page.
@@ -49,13 +50,13 @@ function Metric({
   );
 }
 
-export function DashboardPage({ go }: PageProps) {
+export function DashboardPage({ go, demo = false }: PageProps & { demo?: boolean }) {
   const { token, user } = useAuth();
   const [summary, setSummary] = useState<Summary>(EMPTY);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
-    if (!token) {
+    if (demo || !token) {
       setSummary(EMPTY);
       return;
     }
@@ -73,15 +74,26 @@ export function DashboardPage({ go }: PageProps) {
       applications: applications.status === "fulfilled" ? applications.value : null,
     });
     setLoading(false);
-  }, [token]);
+  }, [token, demo]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   const applications = summary.applications ?? [];
-  const recent = applications.slice(0, 4);
-  const firstName = (user?.full_name ?? "").trim().split(" ")[0];
+  const approvedEvidence = demo
+    ? EVIDENCE.filter((item) => item.status === "APPROVED").length
+    : summary.approvedEvidence;
+  const applicationCount = demo ? APPLICATIONS.length : summary.applications?.length ?? null;
+  const recent = demo
+    ? APPLICATIONS.slice(0, 4).map((item) => ({
+        id: item.company,
+        company_name: item.company,
+        role_title: item.role,
+        status: item.stage,
+      }))
+    : applications.slice(0, 4);
+  const firstName = demo ? "" : (user?.full_name ?? "").trim().split(" ")[0];
 
   return (
     <main className="sf-page sf-reveal">
@@ -95,19 +107,19 @@ export function DashboardPage({ go }: PageProps) {
 
       <section aria-labelledby="summary-heading" style={{ marginBottom: 40 }}>
         <h3 className="sf-h3" id="summary-heading">
-          Your account
+          {demo ? "Sample overview" : "Your account"}
         </h3>
         <div className="sf-grid sf-grid-3" style={{ marginTop: 16 }}>
           <Metric
             label="Approved evidence"
-            value={summary.approvedEvidence}
+            value={approvedEvidence}
             empty={loading ? "Loading…" : "No approved evidence yet"}
             action="Manage evidence"
             onAction={() => go("evidence")}
           />
           <Metric
             label="Applications tracked"
-            value={summary.applications ? applications.length : null}
+            value={applicationCount}
             empty={loading ? "Loading…" : "No applications added yet"}
             action="Open applications"
             onAction={() => go("tracker")}
@@ -115,7 +127,7 @@ export function DashboardPage({ go }: PageProps) {
           <article className="sf-card sf-metric">
             <p className="sf-metric__label">Next step</p>
             <p className="sf-metric__empty">
-              {summary.approvedEvidence && summary.approvedEvidence > 0
+              {approvedEvidence && approvedEvidence > 0
                 ? "Analyse a job description, then generate tailored statements."
                 : "Add and approve evidence before generating statements."}
             </p>
@@ -123,10 +135,10 @@ export function DashboardPage({ go }: PageProps) {
               type="button"
               className="sf-btn sf-btn-primary sf-btn-sm"
               onClick={() =>
-                go(summary.approvedEvidence && summary.approvedEvidence > 0 ? "jobs" : "evidence")
+                go(approvedEvidence && approvedEvidence > 0 ? "jobs" : "evidence")
               }
             >
-              {summary.approvedEvidence && summary.approvedEvidence > 0
+              {approvedEvidence && approvedEvidence > 0
                 ? "Analyse a job"
                 : "Add evidence"}
             </button>
