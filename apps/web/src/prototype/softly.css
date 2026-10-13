@@ -498,80 +498,183 @@
 }
 
 
-/* --- Signed-in job entry: quiet layout and living blue/green glow --------
-   The job entry remains the entire signed-in starting screen. The glow
-   decorates the field only: no animated text or distracting backgrounds. */
+/* --- ApplyWise job entry: the approved minimal signed-in interface -------- */
 .sf--job-entry {
   min-height: 100dvh;
-  background: #ffffff;
-  color: #151515;
+  background: #fff;
+  color: #222534;
+}
+
+.sf-jd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 16px clamp(20px, 3vw, 44px);
 }
 
 .sf-jd-brand {
   margin: 0;
-  padding: 12px 16px 0;
-  font-size: 16px;
-  line-height: 1.35;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: #151515;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  color: #171a24;
+}
+
+.sf-jd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: #3f4354;
+  font-size: 14px;
+}
+
+.sf-jd-avatar {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: #e9f2ff;
+  color: #1c52a3;
+  border: 1px solid #cddff6;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: -0.02em;
+}
+
+.sf-jd-profile { position: relative; }
+
+.sf-jd-profile summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 7px 4px;
+}
+
+.sf-jd-profile summary::-webkit-details-marker { display: none; }
+.sf-jd-profile summary:hover,
+.sf-jd-logout:hover { color: #075dd5; }
+
+.sf-jd-profile-popover {
+  position: absolute;
+  z-index: 10;
+  right: -20px;
+  top: calc(100% + 8px);
+  width: max-content;
+  max-width: min(80vw, 320px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid #e1e5ed;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(20, 35, 65, 0.12);
+  background: #fff;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.sf-jd-profile-popover strong { color: #202638; }
+.sf-jd-profile-popover span { color: #646a7b; }
+
+.sf-jd-header-separator {
+  width: 1px;
+  height: 20px;
+  background: #c8cbd3;
+}
+
+.sf-jd-logout {
+  padding: 7px 0;
+  color: #666b7a;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
 }
 
 .sf-jd-main {
   display: flex;
   justify-content: center;
-  min-height: calc(100dvh - 35px);
+  min-height: calc(100dvh - 75px);
   box-sizing: border-box;
-  padding: clamp(110px, 23vh, 180px) 20px 56px;
+  padding: clamp(76px, 13vh, 150px) 24px 70px;
 }
 
 .sf-jd-form {
-  width: min(100%, 700px);
+  width: min(100%, 1060px);
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .sf-jd-label {
-  display: block;
-  max-width: 850px;
-  margin-bottom: 24px;
+  margin: 0 0 58px;
+  color: #444758;
   text-align: center;
-  color: #60636a;
-  font-size: clamp(20px, 2.5vw, 28px);
-  font-weight: 650;
-  line-height: 1.3;
-  letter-spacing: -0.025em;
+  font-size: clamp(26px, 3.1vw, 46px);
+  font-weight: 750;
+  letter-spacing: -0.046em;
+  line-height: 1.15;
   white-space: nowrap;
+}
+
+/* A gentle left-to-right light travels *inside* the ApplyWise letters. */
+.sf-jd-title-light {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+  background: linear-gradient(95deg, #075bd9 0%, #047af0 40%, #13b9bb 65%, #0ca95b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.sf-jd-title-light::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  background-image: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 43%,
+    rgba(83, 225, 250, 0.16) 46%,
+    rgba(233, 255, 253, 0.96) 50%,
+    rgba(68, 244, 204, 0.22) 54%,
+    transparent 57%,
+    transparent 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: sf-jd-word-shine 5.5s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes sf-jd-word-shine {
+  0%, 12% { background-position: 100% 50%; }
+  74%, 100% { background-position: 0% 50%; }
 }
 
 .sf-jd-glow-wrap {
   position: relative;
   z-index: 0;
   width: 100%;
-  border-radius: 36px;
+  border-radius: 40px;
   isolation: isolate;
 }
 
-/* The blurred layer creates the halo; the shell creates a crisp moving edge. */
 .sf-jd-glow-wrap::before {
   content: "";
   position: absolute;
   z-index: -1;
   inset: -3px;
-  border-radius: 39px;
-  background: linear-gradient(
-    105deg,
-    #1769ff 0%,
-    #06b6d4 22%,
-    #22c55e 46%,
-    #10b981 67%,
-    #2563eb 87%,
-    #1769ff 100%
-  );
+  border-radius: 43px;
+  background: linear-gradient(105deg, #1769ff 0%, #06b6d4 22%, #22c55e 46%, #10b981 67%, #2563eb 87%, #1769ff 100%);
   background-size: 250% 250%;
-  filter: blur(13px);
-  opacity: 0.7;
+  filter: blur(12px);
+  opacity: 0.67;
   animation: sf-jd-light-flow 5s linear infinite;
   pointer-events: none;
 }
@@ -582,16 +685,8 @@
   width: 100%;
   box-sizing: border-box;
   padding: 2px;
-  border-radius: 36px;
-  background: linear-gradient(
-    105deg,
-    #1769ff 0%,
-    #06b6d4 22%,
-    #22c55e 46%,
-    #10b981 67%,
-    #2563eb 87%,
-    #1769ff 100%
-  );
+  border-radius: 40px;
+  background: linear-gradient(105deg, #1769ff 0%, #06b6d4 22%, #22c55e 46%, #10b981 67%, #2563eb 87%, #1769ff 100%);
   background-size: 250% 250%;
   animation: sf-jd-light-flow 5s linear infinite;
 }
@@ -600,48 +695,115 @@
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 175px;
-  padding: 24px 28px;
+  min-height: 275px;
+  padding: 30px 36px 46px;
   border: 0;
-  border-radius: 34px;
-  background: #ffffff;
-  color: #151515;
+  border-radius: 38px;
+  background: #fff;
+  color: #25283a;
   font: inherit;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.6;
   resize: vertical;
 }
 
-.sf-jd-input::placeholder { color: #777e87; }
-
+.sf-jd-input::placeholder { color: #707689; }
 .sf-jd-input:focus { outline: none; }
-
 .sf-jd-glow-wrap:focus-within {
   outline: 3px solid #185edc;
   outline-offset: 6px;
 }
 
-.sf-jd-continue {
-  align-self: flex-end;
-  margin-top: 22px;
-  padding: 12px 24px;
-  border: none;
-  border-radius: 999px;
-  background: #002d72;
-  color: #ffffff;
-  font: inherit;
+.sf-jd-counter {
+  position: absolute;
+  right: 32px;
+  bottom: 18px;
+  padding: 3px 4px;
+  background: #fff;
+  color: #697084;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.sf-jd-privacy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 25px 0 0;
+  text-align: center;
+  color: #697084;
   font-size: 14px;
-  font-weight: 600;
+  line-height: 1.5;
+}
+.sf-jd-privacy svg { flex: none; }
+
+.sf-jd-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.sf-jd-continue {
+  padding: 14px 38px;
+  min-width: 192px;
+  border: 0;
+  border-radius: 999px;
+  background: #0754cf;
+  color: white;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 650;
+  box-shadow: 0 8px 20px rgba(5, 83, 198, .17);
   cursor: pointer;
-  transition: background-color 160ms ease;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+.sf-jd-continue:not(:disabled):hover {
+  background: #003da7;
+  box-shadow: 0 10px 24px rgba(5, 83, 198, .25);
+}
+.sf-jd-continue:disabled {
+  opacity: .48;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
-.sf-jd-continue:hover { background: #1554a0; }
+.sf-jd-clear {
+  border: 0;
+  padding: 10px 6px;
+  background: transparent;
+  color: #0955c3;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+.sf-jd-clear:disabled { color: #a6adba; cursor: not-allowed; }
+.sf-jd-clear:not(:disabled):hover { text-decoration: underline; }
 
-.sf-jd-continue:focus-visible {
+.sf-jd-continue:focus-visible,
+.sf-jd-clear:focus-visible,
+.sf-jd-profile summary:focus-visible,
+.sf-jd-logout:focus-visible {
   outline: 3px solid #1769ff;
-  outline-offset: 3px;
+  outline-offset: 4px;
+  border-radius: 6px;
 }
+
+.sf-jd-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 36px 0 0;
+  color: #6b7084;
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: left;
+}
+.sf-jd-tip svg { flex: none; margin-top: 1px; }
+.sf-jd-tip strong { color: #343a51; font-weight: 650; }
 
 @keyframes sf-jd-light-flow {
   0% { background-position: 0% 50%; }
@@ -649,28 +811,40 @@
   100% { background-position: 0% 50%; }
 }
 
-@media (max-width: 640px) {
-  .sf-jd-brand { padding: 14px 16px 0; }
-  .sf-jd-main { padding: clamp(96px, 20vh, 150px) 16px 32px; }
+@media (max-width: 1000px) {
   .sf-jd-label {
-    font-size: clamp(20px, 5vw, 25px);
-    margin-bottom: 22px;
     white-space: normal;
-  }
-  .sf-jd-glow-wrap,
-  .sf-jd-input-shell { border-radius: 30px; }
-  .sf-jd-glow-wrap::before { border-radius: 33px; }
-  .sf-jd-input {
-    min-height: 160px;
-    padding: 20px;
-    border-radius: 28px;
+    font-size: clamp(27px, 4.2vw, 39px);
+    margin-bottom: 42px;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sf-jd-glow-wrap::before,
-  .sf-jd-input-shell {
-    animation: none;
+@media (max-width: 640px) {
+  .sf-jd-header { padding: 14px 16px; }
+  .sf-jd-brand { font-size: 21px; }
+  .sf-jd-header-actions { gap: 9px; font-size: 13px; }
+  .sf-jd-avatar { width: 30px; height: 30px; }
+  .sf-jd-main { padding: clamp(72px, 16vh, 125px) 16px 42px; }
+  .sf-jd-label { font-size: clamp(25px, 7vw, 36px); margin-bottom: 38px; }
+  .sf-jd-glow-wrap, .sf-jd-input-shell { border-radius: 30px; }
+  .sf-jd-glow-wrap::before { border-radius: 33px; }
+  .sf-jd-input {
+    min-height: 210px;
+    padding: 22px 22px 42px;
+    border-radius: 28px;
+    font-size: 15px;
   }
+  .sf-jd-counter { right: 22px; bottom: 14px; }
+  .sf-jd-privacy { font-size: 12px; }
+  .sf-jd-actions { margin-top: 24px; gap: 18px; }
+  .sf-jd-continue { min-width: 155px; padding: 12px 24px; font-size: 15px; }
+  .sf-jd-tip { margin-top: 30px; font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-jd-title-light::after,
+  .sf-jd-glow-wrap::before,
+  .sf-jd-input-shell { animation: none; }
+  .sf-jd-title-light::after { display: none; }
   .sf-jd-continue { transition: none; }
 }
