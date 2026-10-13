@@ -6,6 +6,7 @@ import { Shell } from "./prototype/Shell";
 function AuthGate() {
   const { user, isLoading } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [demoMode, setDemoMode] = useState(false);
 
   if (isLoading) {
     return (
@@ -18,6 +19,14 @@ function AuthGate() {
   // Signed in: the feature shell takes over. Signed out: F01 owns the screen.
   if (user) {
     return <Shell />;
+  }
+
+  // Demo is an isolated in-memory preview, never an authenticated session.
+  if (demoMode) {
+    return <Shell demo onExitDemo={() => {
+      window.location.hash = "";
+      setDemoMode(false);
+    }} />;
   }
 
   // F01 owns the form itself. The frame around it belongs to the shell, so the
@@ -37,6 +46,12 @@ function AuthGate() {
         ) : (
           <RegisterForm onSwitchToLogin={() => setMode("login")} />
         )}
+        <div className="sf-auth-demo">
+          <p className="sf-muted">Just looking around? Explore the interface without an account.</p>
+          <button type="button" className="sf-btn sf-btn-ghost" onClick={() => setDemoMode(true)}>
+            Explore Demo
+          </button>
+        </div>
       </div>
     </div>
   );
