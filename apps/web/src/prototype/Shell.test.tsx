@@ -20,17 +20,39 @@ function enterJobDescription(description: string) {
   fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 }
 
-describe("prototype shell", () => {
-  it("opens with a focused job description field instead of a dashboard", () => {
+describe("ApplyWise signed-in entry", () => {
+  it("opens on the approved page with one input, heading, and basic controls", () => {
     window.location.hash = "";
     render(<Shell />);
 
-    expect(screen.getByRole("heading", { name: "ApplyWise" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ApplyWise", level: 1 })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Paste your job description to ApplyWise", level: 2 }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("textbox", { name: "Paste your job description to ApplyWise" }),
     ).toHaveValue("");
+    expect(screen.getByText("0 / 6000")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Clear" })).toBeDisabled();
     expect(screen.queryByRole("navigation", { name: "Main" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /continue/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/We'll use it to tailor/i)).not.toBeInTheDocument();
+  });
+
+  it("tracks entered characters and clears the field without leaving the page", () => {
+    window.location.hash = "";
+    render(<Shell />);
+
+    const textbox = screen.getByRole("textbox", { name: "Paste your job description to ApplyWise" });
+    expect(textbox).toHaveAttribute("maxLength", "6000");
+    fireEvent.change(textbox, { target: { value: "Python, SQL, and REST testing" } });
+
+    expect(screen.getByText("29 / 6000")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continue/i })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(textbox).toHaveValue("");
+    expect(screen.getByText("0 / 6000")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
   });
 
   it("keeps the pasted job description when continuing to Jobs", async () => {
@@ -38,11 +60,9 @@ describe("prototype shell", () => {
     vi.stubGlobal("scrollTo", vi.fn());
     render(<Shell />);
 
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "Paste your job description to ApplyWise" }),
-      { target: { value: "   " } },
-    );
-    expect(screen.queryByRole("button", { name: /continue/i })).not.toBeInTheDocument();
+    const input = screen.getByRole("textbox", { name: "Paste your job description to ApplyWise" });
+    fireEvent.change(input, { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: /continue/i })).toBeDisabled();
 
     const description = "We need an analyst who can work with Python and SQL.";
     enterJobDescription(description);
@@ -53,6 +73,19 @@ describe("prototype shell", () => {
     expect(
       screen.getByText("Your job description is ready. Automatic analysis is not yet integrated."),
     ).toBeInTheDocument();
+  });
+
+  it("reveals account details and triggers the existing logout callback", () => {
+    window.location.hash = "";
+    const logout = vi.fn();
+    render(<Shell account={{ fullName: "Alex Morgan", email: "alex@example.com", logout }} />);
+
+    expect(screen.getByText("AM")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Profile"));
+    expect(screen.getByText("Alex Morgan")).toBeVisible();
+    expect(screen.getByText("alex@example.com")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
+    expect(logout).toHaveBeenCalledOnce();
   });
 
   it("keeps the review safety rule after entering the job workflow", async () => {
