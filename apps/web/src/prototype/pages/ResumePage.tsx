@@ -1,11 +1,12 @@
 import type { PageProps } from "../Shell";
 
-export function ResumePage({ go }: PageProps) {
+export function ResumePage({ go, demo = false }: PageProps & { demo?: boolean }) {
   return (
     <main className="sf-page sf-reveal">
       <header className="sf-pagehead">
         <h2 className="sf-h2">Resume preview</h2>
         <p className="sf-lede">
+          {demo && "Sample resume for a fictional applicant. "}
           Only approved statements appear here. Two were held back from this version: one
           inferred, one unsupported.
         </p>
@@ -15,10 +16,12 @@ export function ResumePage({ go }: PageProps) {
         <section className="sf-card" style={{ padding: 40 }}>
           <div style={{ borderBottom: "2px solid #292524", paddingBottom: 14 }}>
             <div style={{ fontSize: 26, fontWeight: 500, letterSpacing: "-0.02em" }}>
-              Niraali Deepak Bandi
+              {demo ? "Alex Morgan" : "Niraali Deepak Bandi"}
             </div>
             <div className="sf-muted" style={{ marginTop: 4 }}>
-              Corpus Christi, TX · niraali@example.edu · github.com/niraalibandi
+              {demo
+                ? "Corpus Christi, TX · alex.morgan@example.com · example.com/alex"
+                : "Corpus Christi, TX · niraali@example.edu · github.com/niraalibandi"}
             </div>
           </div>
 
