@@ -4,7 +4,7 @@ import "./softly.css";
 import { ApprovalContext, approvableIds } from "./store";
 import { CoverLetterPage } from "./pages/CoverLetterPage";
 import { EvidencePage } from "./pages/EvidencePage";
-import { HomePage } from "./pages/HomePage";
+import { JobDescriptionEntryPage } from "./pages/JobDescriptionEntryPage";
 import { JobsPage } from "./pages/JobsPage";
 import { MatchPage } from "./pages/MatchPage";
 import { ResumePage } from "./pages/ResumePage";
@@ -52,6 +52,7 @@ function useRoute(): [RouteId, (next: RouteId) => void] {
 
 export function Shell() {
   const [route, go] = useRoute();
+  const [jobDescription, setJobDescription] = useState("");
   const [approvedIds, setApprovedIds] = useState<string[]>(approvableIds().slice(0, 2));
 
   const approvals = {
@@ -62,10 +63,9 @@ export function Shell() {
       ),
   };
 
-  const pages: Record<RouteId, ReactElement> = {
-    home: <HomePage go={go} />,
+  const pages: Record<Exclude<RouteId, "home">, ReactElement> = {
     evidence: <EvidencePage go={go} />,
-    jobs: <JobsPage go={go} />,
+    jobs: <JobsPage go={go} initialDescription={jobDescription} onDescriptionChange={setJobDescription} />,
     match: <MatchPage go={go} />,
     tailor: <TailoringPage go={go} />,
     review: <ReviewPage go={go} />,
@@ -73,6 +73,22 @@ export function Shell() {
     resume: <ResumePage go={go} />,
     tracker: <TrackerPage go={go} />,
   };
+
+  if (route === "home") {
+    return (
+      <ApprovalContext.Provider value={approvals}>
+        <div className="sf sf--job-entry">
+          <header className="sf-jd-brand">ApplyWise</header>
+          <JobDescriptionEntryPage
+            onContinue={(description) => {
+              setJobDescription(description);
+              go("jobs");
+            }}
+          />
+        </div>
+      </ApprovalContext.Provider>
+    );
+  }
 
   return (
     <ApprovalContext.Provider value={approvals}>
