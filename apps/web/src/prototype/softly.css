@@ -498,9 +498,9 @@
 }
 
 
-/* --- Signed-in job entry (focused starting screen) ----------------------
-   Deliberately independent of the larger prototype shell so returning
-   users see only the input from the UI reference, not a dashboard or nav. */
+/* --- Signed-in job entry: quiet layout and living blue/green glow --------
+   The job entry remains the entire signed-in starting screen. The glow
+   decorates the field only: no animated text or distracting backgrounds. */
 .sf--job-entry {
   min-height: 100dvh;
   background: #ffffff;
@@ -522,51 +522,108 @@
   justify-content: center;
   min-height: calc(100dvh - 35px);
   box-sizing: border-box;
-  padding: clamp(124px, 26vh, 200px) 20px 56px;
+  padding: clamp(110px, 23vh, 180px) 20px 56px;
 }
 
 .sf-jd-form {
-  width: min(100%, 600px);
+  width: min(100%, 700px);
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .sf-jd-label {
-  margin-bottom: 10px;
+  display: block;
+  max-width: 850px;
+  margin-bottom: 24px;
   text-align: center;
-  color: #151515;
-  font-size: clamp(18px, 2.25vw, 22px);
-  font-weight: 400;
-  line-height: 1.4;
-  letter-spacing: -0.015em;
+  color: #60636a;
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+}
+
+.sf-jd-glow-wrap {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  border-radius: 36px;
+  isolation: isolate;
+}
+
+/* The blurred layer creates the halo; the shell creates a crisp moving edge. */
+.sf-jd-glow-wrap::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -3px;
+  border-radius: 39px;
+  background: linear-gradient(
+    105deg,
+    #1769ff 0%,
+    #06b6d4 22%,
+    #22c55e 46%,
+    #10b981 67%,
+    #2563eb 87%,
+    #1769ff 100%
+  );
+  background-size: 250% 250%;
+  filter: blur(13px);
+  opacity: 0.7;
+  animation: sf-jd-light-flow 5s linear infinite;
+  pointer-events: none;
+}
+
+.sf-jd-input-shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px;
+  border-radius: 36px;
+  background: linear-gradient(
+    105deg,
+    #1769ff 0%,
+    #06b6d4 22%,
+    #22c55e 46%,
+    #10b981 67%,
+    #2563eb 87%,
+    #1769ff 100%
+  );
+  background-size: 250% 250%;
+  animation: sf-jd-light-flow 5s linear infinite;
 }
 
 .sf-jd-input {
+  display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 205px;
-  padding: 25px 30px;
-  border: 3px solid #111111;
-  border-radius: 50px;
-  background: #ffffff;
-  color: #151515;
+  min-height: 175px;
+  padding: 24px 28px;
+  border: 0;
+  border-radius: 34px;
+  background: #17191e;
+  color: #f3f7fa;
   font: inherit;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.6;
   resize: vertical;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.sf-jd-input:focus-visible {
-  outline: 3px solid #1e88e5;
-  outline-offset: 4px;
+.sf-jd-input::placeholder { color: #a3a9b4; }
+
+.sf-jd-input:focus { outline: none; }
+
+.sf-jd-glow-wrap:focus-within {
+  outline: 3px solid #185edc;
+  outline-offset: 6px;
 }
 
 .sf-jd-continue {
   align-self: flex-end;
-  margin-top: 18px;
-  padding: 11px 24px;
+  margin-top: 22px;
+  padding: 12px 24px;
   border: none;
   border-radius: 999px;
   background: #002d72;
@@ -575,21 +632,40 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 160ms ease;
 }
 
-.sf-jd-continue:hover { background: #154b93; }
+.sf-jd-continue:hover { background: #1554a0; }
 
 .sf-jd-continue:focus-visible {
-  outline: 3px solid #1e88e5;
+  outline: 3px solid #1769ff;
   outline-offset: 3px;
+}
+
+@keyframes sf-jd-light-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 @media (max-width: 640px) {
   .sf-jd-brand { padding: 14px 16px 0; }
-  .sf-jd-main { padding: clamp(96px, 22vh, 160px) 16px 32px; }
+  .sf-jd-main { padding: clamp(96px, 20vh, 150px) 16px 32px; }
+  .sf-jd-label { font-size: clamp(30px, 7.5vw, 40px); margin-bottom: 22px; }
+  .sf-jd-glow-wrap,
+  .sf-jd-input-shell { border-radius: 30px; }
+  .sf-jd-glow-wrap::before { border-radius: 33px; }
   .sf-jd-input {
-    min-height: 195px;
-    padding: 24px;
-    border-radius: 36px;
+    min-height: 160px;
+    padding: 20px;
+    border-radius: 28px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-jd-glow-wrap::before,
+  .sf-jd-input-shell {
+    animation: none;
+  }
+  .sf-jd-continue { transition: none; }
 }
