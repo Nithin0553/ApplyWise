@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import {
@@ -331,7 +331,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         </section>
         <section className="aw-panel aw-stagger">
           <h3>Evidence match</h3>
-          <div className="aw-match-circle" style={{ "--percent": `${match.percentage}%` } as React.CSSProperties}>
+          <div className="aw-match-circle" style={{ "--percent": `${match.percentage}%` } as CSSProperties}>
             <strong>{match.percentage}%</strong>
           </div>
           <p className="aw-muted aw-center">Estimated keyword overlap only — not a verified match or ATS score.</p>
@@ -346,12 +346,13 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <details className="aw-add-evidence"><summary>+ Add your own evidence</summary>
             <form onSubmit={async (e) => {
               e.preventDefault();
-              const data = new FormData(e.currentTarget);
+              const form = e.currentTarget;
+              const data = new FormData(form);
               const summary = String(data.get("summary") ?? "").trim();
               const title = String(data.get("title") ?? "").trim();
               if (!summary || !title) return;
               setBusy(true); setError("");
-              try { const item = await addEvidence(token, title, role, summary); setEvidence((current) => [...current, item]); (e.target as HTMLFormElement).reset(); }
+              try { const item = await addEvidence(token, title, role, summary); setEvidence((current) => [...current, item]); form.reset(); }
               catch (err) { setError(err instanceof Error ? err.message : "Could not add evidence."); }
               finally { setBusy(false); }
             }}>
