@@ -538,10 +538,11 @@
   margin-bottom: 24px;
   text-align: center;
   color: #60636a;
-  font-size: clamp(32px, 5vw, 52px);
-  font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: -0.045em;
+  font-size: clamp(20px, 2.5vw, 28px);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
 }
 
 .sf-jd-glow-wrap {
@@ -603,15 +604,15 @@
   padding: 24px 28px;
   border: 0;
   border-radius: 34px;
-  background: #17191e;
-  color: #f3f7fa;
+  background: #ffffff;
+  color: #151515;
   font: inherit;
   font-size: 16px;
   line-height: 1.6;
   resize: vertical;
 }
 
-.sf-jd-input::placeholder { color: #a3a9b4; }
+.sf-jd-input::placeholder { color: #777e87; }
 
 .sf-jd-input:focus { outline: none; }
 
@@ -651,7 +652,11 @@
 @media (max-width: 640px) {
   .sf-jd-brand { padding: 14px 16px 0; }
   .sf-jd-main { padding: clamp(96px, 20vh, 150px) 16px 32px; }
-  .sf-jd-label { font-size: clamp(30px, 7.5vw, 40px); margin-bottom: 22px; }
+  .sf-jd-label {
+    font-size: clamp(20px, 5vw, 25px);
+    margin-bottom: 22px;
+    white-space: normal;
+  }
   .sf-jd-glow-wrap,
   .sf-jd-input-shell { border-radius: 30px; }
   .sf-jd-glow-wrap::before { border-radius: 33px; }
