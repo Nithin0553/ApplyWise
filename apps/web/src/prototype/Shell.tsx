@@ -140,7 +140,7 @@ function AccountMenu({ go }: PageProps) {
   );
 }
 
-function SiteFooter() {
+function SiteFooter({ demo }: { demo: boolean }) {
   return (
     <footer className="sf-footer">
       <span className="sf-footer__brand">ApplyWise</span>
@@ -150,13 +150,13 @@ function SiteFooter() {
         ) : (
           <span className="sf-muted">Contact support</span>
         )}
-        <a href="#profile">Account</a>
+        {demo ? <span>Sample preview</span> : <a href="#profile">Account</a>}
       </nav>
     </footer>
   );
 }
 
-export function Shell() {
+export function Shell({ demo = false, onExitDemo }: { demo?: boolean; onExitDemo?: () => void } = {}) {
   const [route, go] = useRoute();
   const [approvedIds, setApprovedIds] = useState<string[]>(approvableIds().slice(0, 2));
 
@@ -169,21 +169,21 @@ export function Shell() {
   };
 
   const pages: Record<RouteId, ReactElement> = {
-    home: <DashboardPage go={go} />,
+    home: <DashboardPage go={go} demo={demo} />,
     evidence: <EvidencePage go={go} />,
     jobs: <JobsPage go={go} />,
     match: <MatchPage go={go} />,
-    tailor: <TailoringPage go={go} />,
+    tailor: <TailoringPage go={go} demo={demo} />,
     review: <ReviewPage go={go} />,
-    cover: <CoverLetterPage go={go} />,
-    resume: <ResumePage go={go} />,
+    cover: <CoverLetterPage go={go} demo={demo} />,
+    resume: <ResumePage go={go} demo={demo} />,
     tracker: <TrackerPage go={go} />,
     profile: <ProfilePage go={go} />,
   };
 
   return (
     <ApprovalContext.Provider value={approvals}>
-      <div className="sf">
+      <div className={demo ? "sf sf--demo" : "sf"}>
         <h1 className="sf-sr">ApplyWise</h1>
 
         <nav className="sf-nav" aria-label="Main">
@@ -204,11 +204,21 @@ export function Shell() {
               </button>
             ))}
           </div>
-          <AccountMenu go={go} />
+          {!demo && <AccountMenu go={go} />}
         </nav>
 
-        {pages[route]}
-        <SiteFooter />
+        {demo && (
+          <div className="sf-demo-banner" role="status">
+            <div>
+              <strong>Demo mode</strong> — You are exploring sample data. Nothing here is saved to an account.
+            </div>
+            <button type="button" className="sf-btn sf-btn-ghost sf-btn-sm" onClick={onExitDemo}>
+              Exit demo
+            </button>
+          </div>
+        )}
+        {demo && route === "profile" ? pages.home : pages[route]}
+        <SiteFooter demo={demo} />
       </div>
     </ApprovalContext.Provider>
   );
