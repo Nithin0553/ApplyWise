@@ -61,6 +61,71 @@ describe("ApplyWise guided journey", () => {
     expect(screen.getByRole("button", { name: /generate resume/i })).toBeDisabled();
     expect(screen.getByText(/No evidence saved yet/)).toBeInTheDocument();
   }, 6000);
+  it("requires human approval, persists a resume version, and downloads only approved text", async () => {
+    window.localStorage.setItem(
+      `applywise.journey.profile.${user.id}`,
+      JSON.stringify({ career: "QA Engineer", years: "3–5 years", arrangement: "Hybrid",
+        focus: ["Testing"], experience: "Tested REST APIs.", resumeName: "" }),
+    );
+    vi.stubGlobal("scrollTo", vi.fn());
+    const evidenceId = "11111111-1111-4111-8111-111111111111";
+    const statementId = "22222222-2222-4222-8222-222222222222";
+    const requests: string[] = [];
+    const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const path = String(input);
+      requests.push(path);
+      let payload: unknown;
+      if (path === "/api/evidence/") {
+        payload = [{ id: evidenceId, evidence_type: "work_experience", title: "API Testing",
+          organization: null, role: "QA Engineer", description: "Tested REST APIs",
+          status: "approved", approved_at: "2026-10-13T00:00:00Z" }];
+      } else if (path.includes("/api/generation/preview")) {
+        payload = { statements: [{ statement_id: statementId, text: "Tested REST APIs.",
+          evidence_ids: [evidenceId], status: "CANDIDATE", verification_status: "PENDING",
+          approval_status: "UNREVIEWED", export_eligible: false }] };
+      } else if (path === "/api/applications/" && init?.method === "POST") {
+        payload = { id: "33333333-3333-4333-8333-333333333333", role_title: "QA Engineer",
+          company_name: "Company", status: "draft", created_at: "2026-10-13T00:00:00Z" };
+      } else if (path.includes("resume-versions") && init?.method === "POST") {
+        const posted = JSON.parse(String(init.body)) as { statements: Array<{ text: string; approval_status: string }> };
+        expect(posted.statements).toEqual([expect.objectContaining({
+          text: "Tested REST APIs.", approval_status: "APPROVED",
+          verification_status: "INFERRED",
+        })]);
+        payload = { id: "version", version_number: 1 };
+      } else if (path === "/api/applications/") {
+        payload = [{ id: "33333333-3333-4333-8333-333333333333",
+          role_title: "QA Engineer", company_name: "Company", status: "draft" }];
+      } else if (path.includes("resume-versions")) {
+        payload = [{ id: "version", version_number: 1 }];
+      } else { throw Error(`Unexpected request ${path}`); }
+      return { ok: true, json: async () => payload };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:reviewed") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    render(<GuidedJourney user={user} token="test-token" logout={vi.fn()} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Paste your job description to ApplyWise" }),
+      { target: { value: "QA Engineer\\n- REST API testing" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue →" }));
+    expect(await screen.findByRole("heading", { name: "Here's what the role asks for." }, { timeout: 4000 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Generate resume/i }));
+    expect(await screen.findByRole("heading", { name: "Make every line yours." }, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Save to applications/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Review this line/i }));
+    expect(screen.getByText(/Tested REST APIs/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /I verified this — Approve/ }));
+    expect(screen.queryByRole("button", { name: /Review this line/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Save to applications/ }));
+    expect(await screen.findByRole("heading", { name: "Applications" }, { timeout: 6000 })).toBeInTheDocument();
+    expect(requests).toContain("/api/applications/");
+    expect(requests.some((path) => path.includes("resume-versions"))).toBe(true);
+    expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
+  }, 10000);
+
 });
 
 describe("grounded analysis helpers", () => {
