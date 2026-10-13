@@ -690,3 +690,88 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+
+/* Accessibility and small-screen refinements: shared across all prototype pages. */
+.sf :where(button, a, input, select, textarea):focus-visible {
+  outline: 3px solid var(--royal);
+  outline-offset: 3px;
+}
+.sf :where(button, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+.sf :where(p, li, td, dd) {
+  overflow-wrap: anywhere;
+}
+.sf :where(button, input, select, textarea) {
+  font-family: inherit;
+}
+.sf-navlink {
+  min-height: 44px;
+}
+.sf-navlinks {
+  min-width: 0;
+}
+.sf-menu {
+  z-index: 60;
+}
+@media (max-width: 960px) {
+  .sf-nav {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 64px;
+    padding: 8px 16px;
+    overflow: visible;
+  }
+  .sf-navlinks {
+    order: 3;
+    width: 100%;
+    height: auto;
+    margin-left: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sf-navlink {
+    flex: 0 0 auto;
+    height: 44px;
+    padding: 0 12px;
+  }
+  .sf-page {
+    padding-top: 148px;
+  }
+}
+@media (max-width: 640px) {
+  .sf-page {
+    padding: 154px 16px 48px;
+  }
+  .sf-card, .sf-note {
+    padding: 18px;
+  }
+  .sf-footer {
+    margin-top: 32px;
+    padding: 20px 16px 28px;
+  }
+  .sf-auth-card {
+    width: min(100%, 440px);
+    box-sizing: border-box;
+    padding: 26px 20px;
+  }
+  .sf-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sf-table th, .sf-table td {
+    min-width: 110px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sf *, .sf *::before, .sf *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
