@@ -16,3 +16,17 @@ Nobody develops directly on `main`. Every change follows:
 `Issue -> short-lived branch -> tests -> pull request -> CI -> review -> merge`
 
 Current foundation version: **0.1.0**
+
+
+## Preview the frontend without an account
+
+ApplyWise provides an **Explore Demo** button below sign-in. It opens the current
+prototype pages with clearly marked, synthetic sample content. Demo sessions
+are temporary and run only in the browser: they do not create an account,
+store a token, call authenticated endpoints, or save changes.
+
+For local UI review, run `cd apps/web && npm ci && npm run dev` and visit
+`http://localhost:5173`. On a hosted frontend preview, the demo also works
+without a deployed API. Real registration, login, evidence persistence, and
+server-generated documents still require the API and database. Some prototype
+controls are visual previews and are not yet wired to live actions.
