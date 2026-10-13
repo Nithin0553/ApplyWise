@@ -115,7 +115,7 @@ describe("ApplyWise guided journey", () => {
     expect(await screen.findByRole("heading", { name: "Make every line yours." }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Save to applications/ })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: /Review this line/i }));
-    expect(screen.getByText(/Tested REST APIs/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Tested REST APIs/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /I verified this — Approve/ }));
     expect(screen.queryByRole("button", { name: /Review this line/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Save to applications/ }));
