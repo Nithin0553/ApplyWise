@@ -50,7 +50,13 @@ function useRoute(): [RouteId, (next: RouteId) => void] {
   return [route, go];
 }
 
-export function Shell() {
+export interface ShellAccount {
+  fullName: string;
+  email: string;
+  logout: () => void;
+}
+
+export function Shell({ account }: { account?: ShellAccount } = {}) {
   const [route, go] = useRoute();
   const [jobDescription, setJobDescription] = useState("");
   const [approvedIds, setApprovedIds] = useState<string[]>(approvableIds().slice(0, 2));
@@ -78,7 +84,30 @@ export function Shell() {
     return (
       <ApprovalContext.Provider value={approvals}>
         <div className="sf sf--job-entry">
-          <header><h1 className="sf-jd-brand">ApplyWise</h1></header>
+          <header className="sf-jd-header">
+            <h1 className="sf-jd-brand">ApplyWise</h1>
+            {account && (
+              <div className="sf-jd-header-actions">
+                <span className="sf-jd-avatar" aria-hidden="true">
+                  {(account.fullName.trim().split(/\\s+/).slice(0, 2).map((part) => part.charAt(0)).join("") || "?").toUpperCase()}
+                </span>
+                <details className="sf-jd-profile">
+                  <summary>Profile</summary>
+                  <div className="sf-jd-profile-popover">
+                    <strong>{account.fullName}</strong>
+                    <span>{account.email}</span>
+                  </div>
+                </details>
+                <span className="sf-jd-header-separator" aria-hidden="true" />
+                <button type="button" className="sf-jd-logout" onClick={() => {
+                  window.location.hash = "";
+                  account.logout();
+                }}>
+                  Log out
+                </button>
+              </div>
+            )}
+          </header>
           <JobDescriptionEntryPage
             onContinue={(description) => {
               setJobDescription(description);
