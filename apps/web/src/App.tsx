@@ -1,51 +1,52 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthProvider, LoginForm, RegisterForm, useAuth } from "./features/auth";
-import { Shell } from "./prototype/Shell";
+import { GuidedJourney } from "./features/journey/GuidedJourney";
+import "./features/journey/journey.css";
+import "./prototype/softly.css";
 
 function AuthGate() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, token, isLoading, logout } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [intro, setIntro] = useState(true);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    const move = window.setTimeout(() => setLeaving(true), 1400);
+    const done = window.setTimeout(() => setIntro(false), 2050);
+    return () => {
+      window.clearTimeout(move);
+      window.clearTimeout(done);
+    };
+  }, []);
+
+  if (intro) {
+    return <main className={`aw-splash ${leaving ? "is-leaving" : ""}`} aria-label="ApplyWise welcome">
+      <strong>ApplyWise</strong>
+    </main>;
+  }
 
   if (isLoading) {
-    return (
-      <div className="sf sf-auth">
-        <p className="sf-muted">Loading…</p>
-      </div>
-    );
+    return <div className="sf sf-auth"><p className="sf-muted">Loading…</p></div>;
   }
 
-  // Signed in: the feature shell takes over. Signed out: F01 owns the screen.
-  if (user) {
-    return <Shell account={{ fullName: user.full_name, email: user.email, logout }} />;
+  if (user && token) {
+    return <GuidedJourney user={user} token={token} logout={logout} />;
   }
 
-  // F01 owns the form itself. The frame around it belongs to the shell, so the
-  // signed-out screen is themed without reaching into another feature's code.
-  return (
-    <div className="sf sf-auth">
-      <div className="sf-auth-card">
-        <div className="sf-logo sf-auth-brand">
-          <span className="sf-logo-dot" />
-          ApplyWise
-        </div>
-        <p className="sf-auth-tagline">
-          Resume tailoring, grounded in what you actually did.
-        </p>
-        {mode === "login" ? (
-          <LoginForm onSwitchToRegister={() => setMode("register")} />
-        ) : (
-          <RegisterForm onSwitchToLogin={() => setMode("login")} />
-        )}
+  return <div className="sf sf-auth aw-auth-enter">
+    <div className="sf-auth-card">
+      <div className="sf-logo sf-auth-brand">
+        <span className="sf-logo-dot" aria-hidden="true" />ApplyWise
       </div>
+      <p className="sf-auth-tagline">Resume tailoring, grounded in what you actually did.</p>
+      {mode === "login"
+        ? <LoginForm onSwitchToRegister={() => setMode("register")} />
+        : <RegisterForm onSwitchToLogin={() => setMode("login")} />}
     </div>
-  );
+  </div>;
 }
 
 export function App() {
-  return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
-  );
+  return <AuthProvider><AuthGate /></AuthProvider>;
 }
