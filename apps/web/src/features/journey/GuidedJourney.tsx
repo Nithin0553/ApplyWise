@@ -312,50 +312,106 @@ export function GuidedJourney({ user, token, logout }: Props) {
           onClick={() => void generateResume()}>Generate resume →</button>
       </div>
     </main>}
-    {stage === "generating" && <Spinner title="Preparing your resume…" description="Generating candidate statements from your approved evidence. No claims are automatically approved." />}
-
-    {(stage === "resume" || stage === "exporting") && <main className={`aw-resume-stage aw-fade ${stage === "exporting" ? "aw-exporting" : ""}`}>
-      <div className="aw-eyebrow">RESUME STUDIO</div>
-      <h2>Make every line yours.</h2>
-      <p className="aw-muted">Select a highlighted statement to see its evidence. Approve or deny each candidate.</p>
-      <article className={`aw-document ${selectedId ? "aw-document-dim" : ""}`}>
-        <header><h3>{user.full_name}</h3><p>{role}{company ? ` · ${company}` : ""}</p></header>
-        <div className="aw-document-rule" />
-        <h4>Relevant experience</h4>
-        {activeCandidates.map((item, index) => {
-          const approved = approvedIds.includes(item.statement_id);
-          const selected = selectedId === item.statement_id;
-          const citations = evidence.filter((record) => item.evidence_ids.includes(record.id));
-          return <div key={item.statement_id}
-            className={`aw-document-line ${approved ? "is-approved" : "needs-review"} ${selected ? "is-selected" : ""}`}
-            style={{ animationDelay: `${index * 165}ms` }}>
-            {approved ? <p className="aw-approved-line">✓ {item.text}</p> :
-              <button type="button" className="aw-line-preview" aria-expanded={selected}
-                onClick={() => setSelectedId(selected ? null : item.statement_id)}>
-                <span>{item.text}</span><small>{selected ? "Close" : "Review this line ↗"}</small>
-              </button>}
-            {selected && !approved && <div className="aw-line-detail">
-              <p><strong>Evidence used</strong></p>
-              {citations.map((ev) => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
-              <p className="aw-review-note">Verify every claim yourself. Automatic F08 verification is not available.</p>
-              <div className="aw-review-actions">
-                <button type="button" onClick={() => { setDeniedIds((a) => [...a, item.statement_id]); setSelectedId(null); }}>Deny</button>
-                <button type="button" onClick={() => { setApprovedIds((a) => [...a, item.statement_id]); setSelectedId(null); }}>I verified this — Approve</button>
-              </div>
-            </div>}
-          </div>;
-        })}
-        {!activeCandidates.length && <p>No statements left. Return to analysis to generate another version.</p>}
-      </article>
-      <div className="aw-section-bottom">
-        <button className="aw-link" type="button" onClick={() => changeStage("analysis")}>← Back to job analysis</button>
-        <p className="aw-muted">{pendingCount} statements awaiting review · {approvedIds.length} approved</p>
-        <button type="button" className="aw-primary"
-          disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
-          onClick={() => void exportReviewed()}>
-          Save to applications & download →</button>
-        <p className="aw-muted">Downloads a reviewed text resume (.txt) and saves an F13 snapshot. Formal F08 verification and PDF/Word export are not yet integrated.</p>
+    {stage === "generating" && <main className="aw-resume-generating aw-fade" role="status">
+      <div className="aw-center-heading">
+        <div className="aw-eyebrow">TAILORED RESUME CREATION</div>
+        <h2>Building your resume...</h2>
+        <p className="aw-muted">Grounding statements in the evidence you approved.</p>
       </div>
+      <div className="aw-generating-layout">
+        <div className="aw-generating-paper" aria-hidden="true">
+          <h3>{user.full_name}</h3><p>{role}</p><hr />
+          <div className="aw-gen-heading">PROFESSIONAL SUMMARY</div>
+          <i/><i/><i className="short"/><div className="aw-gen-heading">EXPERIENCE</div>
+          <i/><i/><i/><i className="short"/>
+          <div className="aw-gen-heading">SKILLS</div><i/><i className="short"/>
+        </div>
+        <aside className="aw-panel aw-generating-checklist">
+          <div className="aw-gen-icon">✧</div><h3>Writing with evidence</h3>
+          <p className="aw-muted">Every statement is drafted using your approved career information.</p>
+          <ul><li>✓ Reading job requirements</li><li>✓ Selecting relevant experience</li>
+            <li>◌ Building resume structure</li><li>◌ Writing candidate statements</li></ul>
+          <div className="aw-gen-progress"><span /></div>
+          <small>Preparing your review</small>
+        </aside>
+      </div>
+    </main>}
+
+    {(stage === "resume" || stage === "exporting") && <main className={`aw-resume-stage aw-fade aw-storyboard-resume ${stage === "exporting" ? "aw-exporting" : ""}`}>
+      <div className="aw-storyboard-resume-head">
+        <div><div className="aw-eyebrow">REVIEW &amp; APPROVAL</div>
+          <h2>{pendingCount ? "Review claims before exporting" : "Ready when you are."}</h2></div>
+        <span className={pendingCount ? "aw-review-count" : "aw-review-count is-done"}>
+          {pendingCount ? pendingCount + " claims need attention" : "All statements reviewed"}
+        </span>
+      </div>
+      <div className="aw-resume-layout">
+        <article className={`aw-document ${selectedId ? "aw-document-dim" : ""}`}>
+          <header><h3>{user.full_name}</h3><strong>{role || profile.career}</strong>
+            <p>{user.email}{company ? "  ·  " + company : ""}</p></header>
+          <h4>Professional summary</h4>
+          <p className="aw-resume-summary">Career focus: {profile.career}. The experience below is selected from approved evidence for this role.</p>
+          <h4>Relevant experience</h4>
+          {activeCandidates.map((item, index) => {
+            const approved = approvedIds.includes(item.statement_id);
+            const selected = selectedId === item.statement_id;
+            const citations = evidence.filter(record => item.evidence_ids.includes(record.id));
+            return <div key={item.statement_id}
+              className={`aw-document-line ${approved ? "is-approved" : "needs-review"} ${selected ? "is-selected" : ""}`}
+              style={{ animationDelay: (index * 145) + "ms" }}>
+              {approved ? <p className="aw-approved-line">✓ {item.text}</p> :
+                <button type="button" className="aw-line-preview" aria-expanded={selected}
+                  onClick={() => setSelectedId(selected ? null : item.statement_id)}>
+                  <span>• {item.text}</span><small>{selected ? "Hide evidence ↑" : "Needs approval · Review ↗"}</small>
+                </button>}
+              {selected && !approved && <div className="aw-line-detail">
+                <div className="aw-line-detail-title"><strong>Evidence review · Experience claim</strong><span>Needs approval</span></div>
+                <p className="aw-claim-text">{item.text}</p>
+                <div className="aw-source-evidence"><strong>Your source evidence</strong>
+                  {citations.map(ev => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
+                </div>
+                <p className="aw-review-note">Check this claim against your actual experience. Automatic verification is not yet integrated.</p>
+                <div className="aw-review-actions">
+                  <button type="button" onClick={() => { setDeniedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Deny claim</button>
+                  <button type="button" onClick={() => { setApprovedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Approve claim ✓</button>
+                </div>
+              </div>}
+            </div>;
+          })}
+          {!activeCandidates.length && <p className="aw-muted">All candidate statements have been denied. Go back to matching to generate a different draft.</p>}
+          {profile.focus.length > 0 && <><h4>Technical skills</h4>
+            <p className="aw-skill-line">{profile.focus.join(" · ")}</p></>}
+          {approvedEvidence.length > 0 && <><h4>Evidence sources</h4>
+            <p className="aw-source-list">{approvedEvidence.slice(0,6).map(e => e.title).join(" · ")}</p></>}
+        </article>
+        <aside className="aw-resume-sidebar">
+          <section className="aw-panel">
+            {pendingCount ? <>
+              <h3>Verification queue</h3>
+              <p className="aw-muted">Select any highlighted statement to inspect its supporting evidence.</p>
+              {activeCandidates.filter(item => !approvedIds.includes(item.statement_id)).map((item,index) =>
+                <button className="aw-queue-item" type="button" key={item.statement_id}
+                  onClick={() => setSelectedId(item.statement_id)}>
+                  <strong>Statement {index+1}</strong><small>{item.text}</small><span>● Needs approval</span>
+                </button>)}
+              <div className="aw-queue-note">◇ Unsupported claims must be denied, never exported.</div>
+            </> : <>
+              <div className="aw-done-circle aw-review-complete" aria-hidden="true">✓</div>
+              <h3>Review complete</h3>
+              <p className="aw-muted">Every remaining candidate has been reviewed by you. Automated verification is not yet available.</p>
+            </>}
+          </section>
+          {deniedIds.length > 0 && <div className="aw-reflow-message" role="status">
+            ✓ {deniedIds.length} {deniedIds.length === 1 ? "claim removed" : "claims removed"} · Document layout adjusted
+          </div>}
+          <button className="aw-link aw-back-review" type="button" onClick={() => changeStage("match")}>← Back to evidence</button>
+          <button type="button" className="aw-primary aw-export-button"
+            disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
+            onClick={() => void exportReviewed()}>Export reviewed resume →</button>
+          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a version under Applications. PDF/DOCX export and F08 verification are not yet available.</p>
+        </aside>
+      </div>
+      {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}
     </main>}
 
     {stage === "applications" && <main className="aw-workspace aw-fade">
