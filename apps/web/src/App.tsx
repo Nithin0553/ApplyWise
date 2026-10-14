@@ -5,6 +5,7 @@ import { GuidedJourney } from "./features/journey/GuidedJourney";
 import "./features/journey/journey.css";
 import "./prototype/softly.css";
 import "./features/auth/auth-theme.css";
+import "./features/journey/storyboard.css";
 
 function AuthGate() {
   const { user, token, isLoading, logout } = useAuth();
