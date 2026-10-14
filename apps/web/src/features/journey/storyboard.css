@@ -41,12 +41,13 @@
 }
 .aw-splash {
   overflow: hidden;
+  isolation: isolate;
   background: radial-gradient(ellipse at 12% 92%,#f0f8ff,transparent 55%),
               radial-gradient(ellipse at 92% 86%,#effef9,transparent 55%), white;
 }
 .aw-splash::before, .aw-splash::after {
   content: ""; position: absolute; width: 130%; height: 180px; left: -15%;
-  top: calc(50% - 62px); z-index: -1; border-top: 2px solid transparent;
+  top: calc(50% - 62px); z-index: 0; border-top: 2px solid transparent;
   border-radius: 50%; filter: drop-shadow(0 0 10px #44cbb668); pointer-events:none;
   background: linear-gradient(92deg,#0488ff00,#0574ff4b 37%,#20ceaa44 68%,#10b88100) top/100% 2px no-repeat;
   animation: aw-wave-float 5s ease-in-out infinite alternate;
