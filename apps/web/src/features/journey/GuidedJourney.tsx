@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import {
@@ -8,19 +8,11 @@ import {
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
+import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "generating" | "resume" | "exporting" | "applications";
-interface Profile {
-  career: string; years: string; arrangement: string; focus: string[];
-  experience: string; resumeName: string;
-}
-const INITIAL: Profile = { career: "", years: "", arrangement: "", focus: [], experience: "", resumeName: "" };
-const CAREERS = ["Software Engineer", "Data Analyst", "QA / Test Engineer", "Product Manager", "Designer", "Business Analyst", "Other"];
-const YEARS = ["Student / New graduate", "0–2 years", "3–5 years", "6–10 years", "10+ years"];
-const ARRANGEMENTS = ["Remote", "Hybrid", "On-site", "Open to any"];
-const FOCUS = ["Python", "JavaScript", "SQL", "Testing", "Cloud", "Design", "Leadership", "Research"];
+  "match" | "generating" | "resume" | "exporting" | "applications";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -32,106 +24,6 @@ function readProfile(id: string): Profile | null {
 }
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
-function Onboarding({
-  profile, setProfile, finish, busy,
-}: {
-  profile: Profile;
-  setProfile: (next: Profile) => void;
-  finish: () => void;
-  busy: boolean;
-}) {
-  const [question, setQuestion] = useState(0);
-  const [customRole, setCustomRole] = useState("");
-  const liveRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (question > 0 && liveRef.current && "scrollIntoView" in liveRef.current) {
-      liveRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [question]);
-  const valid = [
-    !!profile.career, !!profile.years, !!profile.arrangement, profile.focus.length > 0,
-    !!profile.experience.trim(), true,
-  ];
-  const prompts = [
-    "What kind of role are you looking for?",
-    "How much professional experience do you have?",
-    "How would you like to work?",
-    "What are your strongest skills?",
-    "Tell us what you've actually done.",
-    "Finally, select your previous resume.",
-  ];
-  function set<K extends keyof Profile>(key: K, value: Profile[K]) {
-    setProfile({ ...profile, [key]: value });
-  }
-  return (
-    <main className="aw-onboarding">
-      <div className="aw-eyebrow">A LITTLE ABOUT YOU</div>
-      <h2>Your story comes first.</h2>
-      <p className="aw-muted">Answer a few questions. Each answer helps shape your workspace.</p>
-      <div className="aw-progress"><span style={{ width: `${(question + 1) / 6 * 100}%` }} /></div>
-      {prompts.slice(0, question + 1).map((prompt, i) => (
-        <section className={`aw-question ${i === question ? "is-current" : "is-complete"}`}
-          key={prompt} ref={i === question ? liveRef : undefined}>
-          <div className="aw-question-count">0{i + 1} / 06</div>
-          <h3>{prompt}</h3>
-          {i < question ? (
-            <p className="aw-answer-summary">
-              {i === 0 ? profile.career : i === 1 ? profile.years : i === 2 ? profile.arrangement :
-                i === 3 ? profile.focus.join(", ") : i === 4 ? profile.experience : profile.resumeName || "Not selected"}
-            </p>
-          ) : (
-            <>
-              {i === 0 && <>
-                <div className="aw-choices">{CAREERS.map((value) =>
-                  <button type="button" key={value}
-                    className={profile.career === value ? "selected" : ""}
-                    onClick={() => set("career", value)}>{value}</button>)}</div>
-                {profile.career === "Other" && <input className="aw-text-field" aria-label="Your target role"
-                  placeholder="Your target role" value={customRole}
-                  onChange={(event) => setCustomRole(event.target.value)} />}
-              </>}
-              {i === 1 && <div className="aw-choices">{YEARS.map((value) =>
-                <button key={value} type="button" className={profile.years === value ? "selected" : ""}
-                  onClick={() => set("years", value)}>{value}</button>)}</div>}
-              {i === 2 && <div className="aw-choices">{ARRANGEMENTS.map((value) =>
-                <button key={value} type="button" className={profile.arrangement === value ? "selected" : ""}
-                  onClick={() => set("arrangement", value)}>{value}</button>)}</div>}
-              {i === 3 && <div className="aw-choices">{FOCUS.map((value) =>
-                <button key={value} type="button" className={profile.focus.includes(value) ? "selected" : ""}
-                  aria-pressed={profile.focus.includes(value)}
-                  onClick={() => set("focus", profile.focus.includes(value)
-                    ? profile.focus.filter((skill) => skill !== value) : [...profile.focus, value])}>{value}</button>)}</div>}
-              {i === 4 && <>
-                <p className="aw-muted">Describe a project, job, or accomplishment in your own words. You will review it as evidence before it can be used.</p>
-                <textarea className="aw-text-field" aria-label="Your real experience" rows={4}
-                  placeholder="For example: Developed API tests in Python for an internship project..."
-                  value={profile.experience} onChange={(event) => set("experience", event.target.value)} />
-              </>}
-              {i === 5 && <>
-                <label className="aw-file-select" htmlFor="aw-resume-upload">
-                  <span aria-hidden="true">↑</span> {profile.resumeName || "Choose resume file"}
-                  <input id="aw-resume-upload" type="file" accept=".pdf,.doc,.docx,.txt"
-                    onChange={(event) => set("resumeName", event.target.files?.[0]?.name ?? "")} />
-                </label>
-                <p className="aw-muted">Optional. The file stays on your device; resume importing is not yet connected. We record only its name in this browser.</p>
-              </>}
-              <button className="aw-primary aw-next" type="button"
-                disabled={busy || !valid[i] || (i === 0 && profile.career === "Other" && !customRole.trim())}
-                onClick={() => {
-                  if (i === 0 && profile.career === "Other") set("career", customRole.trim());
-                  if (i < 5) setQuestion(i + 1);
-                  else finish();
-                }}>
-                {i === 5 ? "Finish setup" : "Continue"} <span aria-hidden="true">→</span>
-              </button>
-            </>
-          )}
-        </section>
-      ))}
-    </main>
-  );
-}
-
 function Spinner({ title, description }: { title: string; description: string }) {
   return <main className="aw-center-state aw-fade" role="status">
     <div className="aw-spinner" aria-hidden="true" />
@@ -141,7 +33,7 @@ function Spinner({ title, description }: { title: string; description: string })
 
 export function GuidedJourney({ user, token, logout }: Props) {
   const stored = readProfile(user.id);
-  const [profile, setProfile] = useState<Profile>(stored ?? INITIAL);
+  const [profile, setProfile] = useState<Profile>(stored ?? EMPTY_PROFILE);
   const [stage, setStage] = useState<Stage>(stored ? "paste" : "setup");
   const [job, setJob] = useState("");
   const [role, setRole] = useState("");
@@ -293,11 +185,15 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
-    {stage === "setup" && <Onboarding profile={profile} setProfile={setProfile} finish={() => void finishSetup()} busy={busy} />}
-    {stage === "preparing" && <Spinner title="Preparing your workspace…" description="Saving the experience you shared as evidence for your review." />}
+    {stage === "setup" && <StoryboardOnboarding profile={profile} setProfile={setProfile} finish={() => void finishSetup()} busy={busy} />}
+    {stage === "preparing" && <main className="aw-center-state aw-fade aw-processing" role="status">
+      <div className="aw-spinner" aria-hidden="true" />
+      <h2>Setting up your workspace...</h2><p>Turning your experience into an evidence-based profile.</p>
+      <div className="aw-process-steps"><span>✓ Saving your answers</span><span>✓ Recording your experience</span><span>◌ Preparing your profile</span></div>
+    </main>}
     {stage === "ready" && <main className="aw-center-state aw-fade" role="status">
       <div className="aw-done-circle" aria-hidden="true">✓</div>
-      <h2>All set.</h2><p>Your workspace is ready.</p>
+      <h2>All set!</h2><p>Your profile is ready. Let’s find your next opportunity.</p><button type="button" className="aw-primary" onClick={() => changeStage("paste")}>Continue →</button>
     </main>}
 
     {stage === "paste" && <main className="aw-paste aw-fade">
