@@ -215,62 +215,101 @@ export function GuidedJourney({ user, token, logout }: Props) {
     </main>}
     {stage === "analyzing" && <Spinner title="Reading the job description…" description="Finding requirements and comparing them with approved evidence." />}
 
-    {stage === "analysis" && <main className="aw-workspace aw-fade">
-      <div className="aw-eyebrow">JOB ANALYSIS</div>
-      <h2>Here's what the role asks for.</h2>
-      <p className="aw-muted">Requirements are extracted from your posting with a simple text parser. Please review them.</p>
-      <div className="aw-edit-job">
-        <label>Job title<input value={role} onChange={(e) => setRole(e.target.value)} maxLength={200} /></label>
-        <label>Company<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company name (optional)" maxLength={200} /></label>
+    {stage === "analysis" && <main className="aw-workspace aw-fade aw-storyboard-workspace">
+      <div className="aw-flow-steps" aria-label="Application progress">
+        <span className="is-active"><b>1</b> Analyze job</span><i />
+        <span><b>2</b> Match evidence</span><i />
+        <span><b>3</b> Tailor &amp; verify</span>
       </div>
-      <div className="aw-analysis-grid">
-        <section className="aw-panel aw-stagger">
-          <h3>Job details</h3>
-          <p className="aw-muted">{requirements.length} extracted requirements</p>
-          {requirements.length ? requirements.map((r, i) =>
-            <div className="aw-result-row" key={i} style={{ animationDelay: `${i * 100}ms` }}>
-              <span className="aw-small-index">{String(i + 1).padStart(2, "0")}</span>{r}
-            </div>) : <p>No distinct requirements were found. You can still use the full posting for generation.</p>}
+      <div className="aw-center-heading"><div className="aw-eyebrow">JOB DESCRIPTION ANALYSIS</div>
+        <h2>Here's what the role requires.</h2>
+        <p className="aw-muted">Details identified from your posting. Please review them before continuing.</p></div>
+      <div className="aw-analysis-grid aw-analysis-only">
+        <section className="aw-panel">
+          <h3>Position overview</h3>
+          <label className="aw-overview-row">Job title<input value={role} onChange={e => setRole(e.target.value)} maxLength={200} aria-label="Job title" /></label>
+          <label className="aw-overview-row">Company<input value={company} onChange={e => setCompany(e.target.value)} maxLength={200} placeholder="Not specified" aria-label="Company name" /></label>
+          <div className="aw-overview-row"><span>Posting length</span><strong>{job.trim().length.toLocaleString()} characters</strong></div>
+          <div className="aw-overview-row"><span>Requirements found</span><strong>{requirements.length}</strong></div>
+          <p className="aw-card-footnote">Job details are derived from your own text, not an external verified posting.</p>
         </section>
-        <section className="aw-panel aw-stagger">
-          <h3>Evidence match</h3>
-          <div className="aw-match-circle" style={{ "--percent": `${match.percentage}%` } as CSSProperties}>
-            <strong>{match.percentage}%</strong>
-          </div>
-          <p className="aw-muted aw-center">Estimated keyword overlap only — not a verified match or ATS score.</p>
-          <div className="aw-evidence-list">
-            {evidence.length ? evidence.map((item) =>
-              <article className="aw-evidence-row" key={item.id}>
-                <div><strong>{item.title}</strong><small>{item.description || item.role || "Evidence item"}</small></div>
-                {item.status === "approved" ? <span className="aw-approved">Approved</span> :
-                  <button type="button" disabled={busy} onClick={() => void approve(item)}>Review & approve</button>}
-              </article>) : <p className="aw-muted">No evidence saved yet. Add an example of your own work below.</p>}
-          </div>
-          <details className="aw-add-evidence"><summary>+ Add your own evidence</summary>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const form = e.currentTarget;
-              const data = new FormData(form);
-              const summary = String(data.get("summary") ?? "").trim();
-              const title = String(data.get("title") ?? "").trim();
-              if (!summary || !title) return;
-              setBusy(true); setError("");
-              try { const item = await addEvidence(token, title, role, summary); setEvidence((current) => [...current, item]); form.reset(); }
-              catch (err) { setError(err instanceof Error ? err.message : "Could not add evidence."); }
-              finally { setBusy(false); }
-            }}>
-              <input name="title" required maxLength={200} placeholder="Project or experience title" aria-label="Evidence title" />
-              <textarea name="summary" required placeholder="What did you actually do?" aria-label="Evidence description" />
-              <button type="submit" disabled={busy}>Add for review</button>
-            </form>
-          </details>
+        <section className="aw-panel">
+          <h3>Top requirements</h3>
+          {requirements.length ? requirements.slice(0, 8).map((value, i) =>
+            <div className="aw-skill-requirement" key={i} style={{animationDelay:(i * 75)+"ms"}}>
+              <span>{value}</span><small>Identified</small>
+            </div>) : <p className="aw-muted">No distinct bullet requirements were detected. You can still continue with the full description.</p>}
         </section>
       </div>
-      <div className="aw-section-bottom"><button className="aw-primary" type="button"
-        onClick={() => void generateResume()} disabled={approvedEvidence.length === 0}>
-        Generate resume →</button>
-        {!approvedEvidence.length && <p className="aw-muted">Approve at least one real evidence item before generating.</p>}
-        <p className="aw-muted">Generation uses the scripted grounded provider. Every line remains a candidate until you review it.</p>
+      <div className="aw-summary-bar">
+        <div className="aw-chips"><span className="aw-chip is-blue">{requirements.length} extracted requirements</span>
+          <span className="aw-chip is-green">Your posting</span><span className="aw-chip">Review before tailoring</span></div>
+        <button type="button" className="aw-primary" onClick={() => changeStage("match")}>Match with my profile →</button>
+      </div>
+    </main>}
+
+    {stage === "match" && <main className="aw-workspace aw-fade aw-storyboard-workspace">
+      <div className="aw-flow-steps" aria-label="Application progress">
+        <button type="button" onClick={() => changeStage("analysis")}><b>✓</b> Analyze job</button><i />
+        <span className="is-active"><b>2</b> Match evidence</span><i />
+        <span><b>3</b> Tailor &amp; verify</span>
+      </div>
+      <div className="aw-center-heading"><div className="aw-eyebrow">YOUR EVIDENCE MATCH</div>
+        <h2>You're making a grounded match.</h2>
+        <p className="aw-muted">Each match is based on words found in approved career evidence.</p></div>
+      <div className="aw-match-layout">
+        <section className="aw-panel aw-match-overview">
+          <h3>Overall match</h3>
+          <div className="aw-match-circle" style={{"--percent": match.percentage + "%"} as CSSProperties}>
+            <strong>{match.percentage}%</strong></div>
+          <p className="aw-center aw-muted">Estimated keyword overlap</p>
+          <div className="aw-match-key">
+            <span><i className="is-found"/> Requirements with overlap <strong>{match.matched.filter(x => x.matches.length).length}</strong></span>
+            <span><i className="is-missing"/> No keyword overlap <strong>{match.matched.filter(x => !x.matches.length).length}</strong></span>
+          </div>
+          <p className="aw-card-footnote">This is not a validated ATS or hiring-success score.</p>
+        </section>
+        <section className="aw-panel aw-match-evidence">
+          <h3>Evidence from your career profile</h3>
+          <p className="aw-muted">Requirements are compared only to your approved evidence.</p>
+          {match.matched.length ? match.matched.map((item,i) =>
+            <div className="aw-match-requirement" key={i} style={{animationDelay:(i * 75)+"ms"}}>
+              <div><strong>{item.text}</strong><small>{item.matches.length ? item.matches.join(", ") : "No matching keywords in approved evidence"}</small></div>
+              <span className={item.matches.length ? "aw-approved" : "aw-missing"}>{item.matches.length ? "Keyword match" : "Not found"}</span>
+            </div>) : <p className="aw-muted">No separate requirements were detected in this posting.</p>}
+        </section>
+      </div>
+      <section className="aw-panel aw-evidence-review">
+        <div className="aw-panel-heading"><h3>Review your evidence</h3><span>{approvedEvidence.length} approved</span></div>
+        <p className="aw-muted">Only evidence you approve can be used to generate resume statements.</p>
+        {evidence.length ? <div className="aw-evidence-list">{evidence.map(item =>
+          <article className="aw-evidence-row" key={item.id}>
+            <div><strong>{item.title}</strong><small>{item.description || item.role || "Evidence item"}</small></div>
+            {item.status === "approved" ? <span className="aw-approved">✓ Approved</span> :
+              <button type="button" disabled={busy} onClick={() => void approve(item)}>Review &amp; approve</button>}
+          </article>)}</div> : <p className="aw-muted">No evidence saved yet. Add an example of your own work below.</p>}
+        <details className="aw-add-evidence"><summary>+ Add your own evidence</summary>
+          <form onSubmit={async e => {
+            e.preventDefault();
+            const form=e.currentTarget, data=new FormData(form);
+            const title=String(data.get("title") ?? "").trim();
+            const summary=String(data.get("summary") ?? "").trim();
+            if (!title || !summary) return;
+            setBusy(true); setError("");
+            try { const item=await addEvidence(token,title,role,summary); setEvidence(current=>[...current,item]); form.reset(); }
+            catch(err) { setError(err instanceof Error ? err.message : "Could not add evidence."); }
+            finally { setBusy(false); }
+          }}>
+            <input name="title" required maxLength={200} placeholder="Project or experience title" aria-label="Evidence title" />
+            <textarea name="summary" required placeholder="What did you actually do?" aria-label="Evidence description" />
+            <button type="submit" disabled={busy}>Add for review</button>
+          </form>
+        </details>
+      </section>
+      <div className="aw-summary-bar">
+        <p className="aw-muted">Every generated claim must be supported by evidence you approved.</p>
+        <button type="button" className="aw-primary" disabled={!approvedEvidence.length}
+          onClick={() => void generateResume()}>Generate resume →</button>
       </div>
     </main>}
     {stage === "generating" && <Spinner title="Preparing your resume…" description="Generating candidate statements from your approved evidence. No claims are automatically approved." />}
