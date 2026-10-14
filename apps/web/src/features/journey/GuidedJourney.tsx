@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import {
@@ -8,19 +8,11 @@ import {
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
+import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "generating" | "resume" | "exporting" | "applications";
-interface Profile {
-  career: string; years: string; arrangement: string; focus: string[];
-  experience: string; resumeName: string;
-}
-const INITIAL: Profile = { career: "", years: "", arrangement: "", focus: [], experience: "", resumeName: "" };
-const CAREERS = ["Software Engineer", "Data Analyst", "QA / Test Engineer", "Product Manager", "Designer", "Business Analyst", "Other"];
-const YEARS = ["Student / New graduate", "0–2 years", "3–5 years", "6–10 years", "10+ years"];
-const ARRANGEMENTS = ["Remote", "Hybrid", "On-site", "Open to any"];
-const FOCUS = ["Python", "JavaScript", "SQL", "Testing", "Cloud", "Design", "Leadership", "Research"];
+  "match" | "generating" | "resume" | "exporting" | "applications";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -32,106 +24,6 @@ function readProfile(id: string): Profile | null {
 }
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
-function Onboarding({
-  profile, setProfile, finish, busy,
-}: {
-  profile: Profile;
-  setProfile: (next: Profile) => void;
-  finish: () => void;
-  busy: boolean;
-}) {
-  const [question, setQuestion] = useState(0);
-  const [customRole, setCustomRole] = useState("");
-  const liveRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (question > 0 && liveRef.current && "scrollIntoView" in liveRef.current) {
-      liveRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [question]);
-  const valid = [
-    !!profile.career, !!profile.years, !!profile.arrangement, profile.focus.length > 0,
-    !!profile.experience.trim(), true,
-  ];
-  const prompts = [
-    "What kind of role are you looking for?",
-    "How much professional experience do you have?",
-    "How would you like to work?",
-    "What are your strongest skills?",
-    "Tell us what you've actually done.",
-    "Finally, select your previous resume.",
-  ];
-  function set<K extends keyof Profile>(key: K, value: Profile[K]) {
-    setProfile({ ...profile, [key]: value });
-  }
-  return (
-    <main className="aw-onboarding">
-      <div className="aw-eyebrow">A LITTLE ABOUT YOU</div>
-      <h2>Your story comes first.</h2>
-      <p className="aw-muted">Answer a few questions. Each answer helps shape your workspace.</p>
-      <div className="aw-progress"><span style={{ width: `${(question + 1) / 6 * 100}%` }} /></div>
-      {prompts.slice(0, question + 1).map((prompt, i) => (
-        <section className={`aw-question ${i === question ? "is-current" : "is-complete"}`}
-          key={prompt} ref={i === question ? liveRef : undefined}>
-          <div className="aw-question-count">0{i + 1} / 06</div>
-          <h3>{prompt}</h3>
-          {i < question ? (
-            <p className="aw-answer-summary">
-              {i === 0 ? profile.career : i === 1 ? profile.years : i === 2 ? profile.arrangement :
-                i === 3 ? profile.focus.join(", ") : i === 4 ? profile.experience : profile.resumeName || "Not selected"}
-            </p>
-          ) : (
-            <>
-              {i === 0 && <>
-                <div className="aw-choices">{CAREERS.map((value) =>
-                  <button type="button" key={value}
-                    className={profile.career === value ? "selected" : ""}
-                    onClick={() => set("career", value)}>{value}</button>)}</div>
-                {profile.career === "Other" && <input className="aw-text-field" aria-label="Your target role"
-                  placeholder="Your target role" value={customRole}
-                  onChange={(event) => setCustomRole(event.target.value)} />}
-              </>}
-              {i === 1 && <div className="aw-choices">{YEARS.map((value) =>
-                <button key={value} type="button" className={profile.years === value ? "selected" : ""}
-                  onClick={() => set("years", value)}>{value}</button>)}</div>}
-              {i === 2 && <div className="aw-choices">{ARRANGEMENTS.map((value) =>
-                <button key={value} type="button" className={profile.arrangement === value ? "selected" : ""}
-                  onClick={() => set("arrangement", value)}>{value}</button>)}</div>}
-              {i === 3 && <div className="aw-choices">{FOCUS.map((value) =>
-                <button key={value} type="button" className={profile.focus.includes(value) ? "selected" : ""}
-                  aria-pressed={profile.focus.includes(value)}
-                  onClick={() => set("focus", profile.focus.includes(value)
-                    ? profile.focus.filter((skill) => skill !== value) : [...profile.focus, value])}>{value}</button>)}</div>}
-              {i === 4 && <>
-                <p className="aw-muted">Describe a project, job, or accomplishment in your own words. You will review it as evidence before it can be used.</p>
-                <textarea className="aw-text-field" aria-label="Your real experience" rows={4}
-                  placeholder="For example: Developed API tests in Python for an internship project..."
-                  value={profile.experience} onChange={(event) => set("experience", event.target.value)} />
-              </>}
-              {i === 5 && <>
-                <label className="aw-file-select" htmlFor="aw-resume-upload">
-                  <span aria-hidden="true">↑</span> {profile.resumeName || "Choose resume file"}
-                  <input id="aw-resume-upload" type="file" accept=".pdf,.doc,.docx,.txt"
-                    onChange={(event) => set("resumeName", event.target.files?.[0]?.name ?? "")} />
-                </label>
-                <p className="aw-muted">Optional. The file stays on your device; resume importing is not yet connected. We record only its name in this browser.</p>
-              </>}
-              <button className="aw-primary aw-next" type="button"
-                disabled={busy || !valid[i] || (i === 0 && profile.career === "Other" && !customRole.trim())}
-                onClick={() => {
-                  if (i === 0 && profile.career === "Other") set("career", customRole.trim());
-                  if (i < 5) setQuestion(i + 1);
-                  else finish();
-                }}>
-                {i === 5 ? "Finish setup" : "Continue"} <span aria-hidden="true">→</span>
-              </button>
-            </>
-          )}
-        </section>
-      ))}
-    </main>
-  );
-}
-
 function Spinner({ title, description }: { title: string; description: string }) {
   return <main className="aw-center-state aw-fade" role="status">
     <div className="aw-spinner" aria-hidden="true" />
@@ -141,7 +33,7 @@ function Spinner({ title, description }: { title: string; description: string })
 
 export function GuidedJourney({ user, token, logout }: Props) {
   const stored = readProfile(user.id);
-  const [profile, setProfile] = useState<Profile>(stored ?? INITIAL);
+  const [profile, setProfile] = useState<Profile>(stored ?? EMPTY_PROFILE);
   const [stage, setStage] = useState<Stage>(stored ? "paste" : "setup");
   const [job, setJob] = useState("");
   const [role, setRole] = useState("");
@@ -231,7 +123,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       setStage("resume");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resume generation could not complete.");
-      setStage("analysis");
+      setStage("match");
     }
   }
 
@@ -293,11 +185,15 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
-    {stage === "setup" && <Onboarding profile={profile} setProfile={setProfile} finish={() => void finishSetup()} busy={busy} />}
-    {stage === "preparing" && <Spinner title="Preparing your workspace…" description="Saving the experience you shared as evidence for your review." />}
+    {stage === "setup" && <StoryboardOnboarding profile={profile} setProfile={setProfile} finish={() => void finishSetup()} busy={busy} />}
+    {stage === "preparing" && <main className="aw-center-state aw-fade aw-processing" role="status">
+      <div className="aw-spinner" aria-hidden="true" />
+      <h2>Setting up your workspace...</h2><p>Turning your experience into an evidence-based profile.</p>
+      <div className="aw-process-steps"><span>✓ Saving your answers</span><span>✓ Recording your experience</span><span>◌ Preparing your profile</span></div>
+    </main>}
     {stage === "ready" && <main className="aw-center-state aw-fade" role="status">
       <div className="aw-done-circle" aria-hidden="true">✓</div>
-      <h2>All set.</h2><p>Your workspace is ready.</p>
+      <h2>All set!</h2><p>Your profile is ready. Let’s find your next opportunity.</p><button type="button" className="aw-primary" onClick={() => changeStage("paste")}>Continue →</button>
     </main>}
 
     {stage === "paste" && <main className="aw-paste aw-fade">
@@ -319,122 +215,239 @@ export function GuidedJourney({ user, token, logout }: Props) {
     </main>}
     {stage === "analyzing" && <Spinner title="Reading the job description…" description="Finding requirements and comparing them with approved evidence." />}
 
-    {stage === "analysis" && <main className="aw-workspace aw-fade">
-      <div className="aw-eyebrow">JOB ANALYSIS</div>
-      <h2>Here's what the role asks for.</h2>
-      <p className="aw-muted">Requirements are extracted from your posting with a simple text parser. Please review them.</p>
-      <div className="aw-edit-job">
-        <label>Job title<input value={role} onChange={(e) => setRole(e.target.value)} maxLength={200} /></label>
-        <label>Company<input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company name (optional)" maxLength={200} /></label>
+    {stage === "analysis" && <main className="aw-workspace aw-fade aw-storyboard-workspace">
+      <div className="aw-flow-steps" aria-label="Application progress">
+        <span className="is-active"><b>1</b> Analyze job</span><i />
+        <span><b>2</b> Match evidence</span><i />
+        <span><b>3</b> Tailor &amp; verify</span>
       </div>
-      <div className="aw-analysis-grid">
-        <section className="aw-panel aw-stagger">
-          <h3>Job details</h3>
-          <p className="aw-muted">{requirements.length} extracted requirements</p>
-          {requirements.length ? requirements.map((r, i) =>
-            <div className="aw-result-row" key={i} style={{ animationDelay: `${i * 100}ms` }}>
-              <span className="aw-small-index">{String(i + 1).padStart(2, "0")}</span>{r}
-            </div>) : <p>No distinct requirements were found. You can still use the full posting for generation.</p>}
+      <div className="aw-center-heading"><div className="aw-eyebrow">JOB DESCRIPTION ANALYSIS</div>
+        <h2>Here's what the role requires.</h2>
+        <p className="aw-muted">Details identified from your posting. Please review them before continuing.</p></div>
+      <div className="aw-analysis-grid aw-analysis-only">
+        <section className="aw-panel">
+          <h3>Position overview</h3>
+          <label className="aw-overview-row">Job title<input value={role} onChange={e => setRole(e.target.value)} maxLength={200} aria-label="Job title" /></label>
+          <label className="aw-overview-row">Company<input value={company} onChange={e => setCompany(e.target.value)} maxLength={200} placeholder="Not specified" aria-label="Company name" /></label>
+          <div className="aw-overview-row"><span>Posting length</span><strong>{job.trim().length.toLocaleString()} characters</strong></div>
+          <div className="aw-overview-row"><span>Requirements found</span><strong>{requirements.length}</strong></div>
+          <p className="aw-card-footnote">Job details are derived from your own text, not an external verified posting.</p>
         </section>
-        <section className="aw-panel aw-stagger">
-          <h3>Evidence match</h3>
-          <div className="aw-match-circle" style={{ "--percent": `${match.percentage}%` } as CSSProperties}>
-            <strong>{match.percentage}%</strong>
-          </div>
-          <p className="aw-muted aw-center">Estimated keyword overlap only — not a verified match or ATS score.</p>
-          <div className="aw-evidence-list">
-            {evidence.length ? evidence.map((item) =>
-              <article className="aw-evidence-row" key={item.id}>
-                <div><strong>{item.title}</strong><small>{item.description || item.role || "Evidence item"}</small></div>
-                {item.status === "approved" ? <span className="aw-approved">Approved</span> :
-                  <button type="button" disabled={busy} onClick={() => void approve(item)}>Review & approve</button>}
-              </article>) : <p className="aw-muted">No evidence saved yet. Add an example of your own work below.</p>}
-          </div>
-          <details className="aw-add-evidence"><summary>+ Add your own evidence</summary>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const form = e.currentTarget;
-              const data = new FormData(form);
-              const summary = String(data.get("summary") ?? "").trim();
-              const title = String(data.get("title") ?? "").trim();
-              if (!summary || !title) return;
-              setBusy(true); setError("");
-              try { const item = await addEvidence(token, title, role, summary); setEvidence((current) => [...current, item]); form.reset(); }
-              catch (err) { setError(err instanceof Error ? err.message : "Could not add evidence."); }
-              finally { setBusy(false); }
-            }}>
-              <input name="title" required maxLength={200} placeholder="Project or experience title" aria-label="Evidence title" />
-              <textarea name="summary" required placeholder="What did you actually do?" aria-label="Evidence description" />
-              <button type="submit" disabled={busy}>Add for review</button>
-            </form>
-          </details>
+        <section className="aw-panel">
+          <h3>Top requirements</h3>
+          {requirements.length ? requirements.slice(0, 8).map((value, i) =>
+            <div className="aw-skill-requirement" key={i} style={{animationDelay:(i * 75)+"ms"}}>
+              <span>{value}</span><small>Identified</small>
+            </div>) : <p className="aw-muted">No distinct bullet requirements were detected. You can still continue with the full description.</p>}
         </section>
       </div>
-      <div className="aw-section-bottom"><button className="aw-primary" type="button"
-        onClick={() => void generateResume()} disabled={approvedEvidence.length === 0}>
-        Generate resume →</button>
-        {!approvedEvidence.length && <p className="aw-muted">Approve at least one real evidence item before generating.</p>}
-        <p className="aw-muted">Generation uses the scripted grounded provider. Every line remains a candidate until you review it.</p>
-      </div>
-    </main>}
-    {stage === "generating" && <Spinner title="Preparing your resume…" description="Generating candidate statements from your approved evidence. No claims are automatically approved." />}
-
-    {(stage === "resume" || stage === "exporting") && <main className={`aw-resume-stage aw-fade ${stage === "exporting" ? "aw-exporting" : ""}`}>
-      <div className="aw-eyebrow">RESUME STUDIO</div>
-      <h2>Make every line yours.</h2>
-      <p className="aw-muted">Select a highlighted statement to see its evidence. Approve or deny each candidate.</p>
-      <article className={`aw-document ${selectedId ? "aw-document-dim" : ""}`}>
-        <header><h3>{user.full_name}</h3><p>{role}{company ? ` · ${company}` : ""}</p></header>
-        <div className="aw-document-rule" />
-        <h4>Relevant experience</h4>
-        {activeCandidates.map((item, index) => {
-          const approved = approvedIds.includes(item.statement_id);
-          const selected = selectedId === item.statement_id;
-          const citations = evidence.filter((record) => item.evidence_ids.includes(record.id));
-          return <div key={item.statement_id}
-            className={`aw-document-line ${approved ? "is-approved" : "needs-review"} ${selected ? "is-selected" : ""}`}
-            style={{ animationDelay: `${index * 165}ms` }}>
-            {approved ? <p className="aw-approved-line">✓ {item.text}</p> :
-              <button type="button" className="aw-line-preview" aria-expanded={selected}
-                onClick={() => setSelectedId(selected ? null : item.statement_id)}>
-                <span>{item.text}</span><small>{selected ? "Close" : "Review this line ↗"}</small>
-              </button>}
-            {selected && !approved && <div className="aw-line-detail">
-              <p><strong>Evidence used</strong></p>
-              {citations.map((ev) => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
-              <p className="aw-review-note">Verify every claim yourself. Automatic F08 verification is not available.</p>
-              <div className="aw-review-actions">
-                <button type="button" onClick={() => { setDeniedIds((a) => [...a, item.statement_id]); setSelectedId(null); }}>Deny</button>
-                <button type="button" onClick={() => { setApprovedIds((a) => [...a, item.statement_id]); setSelectedId(null); }}>I verified this — Approve</button>
-              </div>
-            </div>}
-          </div>;
-        })}
-        {!activeCandidates.length && <p>No statements left. Return to analysis to generate another version.</p>}
-      </article>
-      <div className="aw-section-bottom">
-        <button className="aw-link" type="button" onClick={() => changeStage("analysis")}>← Back to job analysis</button>
-        <p className="aw-muted">{pendingCount} statements awaiting review · {approvedIds.length} approved</p>
-        <button type="button" className="aw-primary"
-          disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
-          onClick={() => void exportReviewed()}>
-          Save to applications & download →</button>
-        <p className="aw-muted">Downloads a reviewed text resume (.txt) and saves an F13 snapshot. Formal F08 verification and PDF/Word export are not yet integrated.</p>
+      <div className="aw-summary-bar">
+        <div className="aw-chips"><span className="aw-chip is-blue">{requirements.length} extracted requirements</span>
+          <span className="aw-chip is-green">Your posting</span><span className="aw-chip">Review before tailoring</span></div>
+        <button type="button" className="aw-primary" onClick={() => changeStage("match")}>Match with my profile →</button>
       </div>
     </main>}
 
-    {stage === "applications" && <main className="aw-workspace aw-fade">
-      <div className="aw-eyebrow">YOUR WORKSPACE</div>
-      <h2>Applications</h2>
-      <p className="aw-muted">Saved applications and historical reviewed resume versions.</p>
-      <div className="aw-applications">
-        {savedApplications.length ? savedApplications.map((item) => <article key={item.id} className="aw-application-card">
-          <div><h3>{item.role_title}</h3><p>{item.company_name}</p></div>
-          <div className="aw-application-meta"><span>{item.status}</span>
-            <span>{versionCounts[item.id] ?? "—"} resume versions</span></div>
-        </article>) : <p className="aw-muted">No saved applications yet. Create a resume to add your first application.</p>}
+    {stage === "match" && <main className="aw-workspace aw-fade aw-storyboard-workspace">
+      <div className="aw-flow-steps" aria-label="Application progress">
+        <button type="button" onClick={() => changeStage("analysis")}><b>✓</b> Analyze job</button><i />
+        <span className="is-active"><b>2</b> Match evidence</span><i />
+        <span><b>3</b> Tailor &amp; verify</span>
       </div>
-      <button className="aw-primary" onClick={newJob}>Start another application →</button>
+      <div className="aw-center-heading"><div className="aw-eyebrow">YOUR EVIDENCE MATCH</div>
+        <h2>You're making a grounded match.</h2>
+        <p className="aw-muted">Each match is based on words found in approved career evidence.</p></div>
+      <div className="aw-match-layout">
+        <section className="aw-panel aw-match-overview">
+          <h3>Overall match</h3>
+          <div className="aw-match-circle" style={{"--percent": match.percentage + "%"} as CSSProperties}>
+            <strong>{match.percentage}%</strong></div>
+          <p className="aw-center aw-muted">Estimated keyword overlap</p>
+          <div className="aw-match-key">
+            <span><i className="is-found"/> Requirements with overlap <strong>{match.matched.filter(x => x.matches.length).length}</strong></span>
+            <span><i className="is-missing"/> No keyword overlap <strong>{match.matched.filter(x => !x.matches.length).length}</strong></span>
+          </div>
+          <p className="aw-card-footnote">This is not a validated ATS or hiring-success score.</p>
+        </section>
+        <section className="aw-panel aw-match-evidence">
+          <h3>Evidence from your career profile</h3>
+          <p className="aw-muted">Requirements are compared only to your approved evidence.</p>
+          {match.matched.length ? match.matched.map((item,i) =>
+            <div className="aw-match-requirement" key={i} style={{animationDelay:(i * 75)+"ms"}}>
+              <div><strong>{item.text}</strong><small>{item.matches.length ? item.matches.join(", ") : "No matching keywords in approved evidence"}</small></div>
+              <span className={item.matches.length ? "aw-approved" : "aw-missing"}>{item.matches.length ? "Keyword match" : "Not found"}</span>
+            </div>) : <p className="aw-muted">No separate requirements were detected in this posting.</p>}
+        </section>
+      </div>
+      <section className="aw-panel aw-evidence-review">
+        <div className="aw-panel-heading"><h3>Review your evidence</h3><span>{approvedEvidence.length} approved</span></div>
+        <p className="aw-muted">Only evidence you approve can be used to generate resume statements.</p>
+        {evidence.length ? <div className="aw-evidence-list">{evidence.map(item =>
+          <article className="aw-evidence-row" key={item.id}>
+            <div><strong>{item.title}</strong><small>{item.description || item.role || "Evidence item"}</small></div>
+            {item.status === "approved" ? <span className="aw-approved">✓ Approved</span> :
+              <button type="button" disabled={busy} onClick={() => void approve(item)}>Review &amp; approve</button>}
+          </article>)}</div> : <p className="aw-muted">No evidence saved yet. Add an example of your own work below.</p>}
+        <details className="aw-add-evidence"><summary>+ Add your own evidence</summary>
+          <form onSubmit={async e => {
+            e.preventDefault();
+            const form=e.currentTarget, data=new FormData(form);
+            const title=String(data.get("title") ?? "").trim();
+            const summary=String(data.get("summary") ?? "").trim();
+            if (!title || !summary) return;
+            setBusy(true); setError("");
+            try { const item=await addEvidence(token,title,role,summary); setEvidence(current=>[...current,item]); form.reset(); }
+            catch(err) { setError(err instanceof Error ? err.message : "Could not add evidence."); }
+            finally { setBusy(false); }
+          }}>
+            <input name="title" required maxLength={200} placeholder="Project or experience title" aria-label="Evidence title" />
+            <textarea name="summary" required placeholder="What did you actually do?" aria-label="Evidence description" />
+            <button type="submit" disabled={busy}>Add for review</button>
+          </form>
+        </details>
+      </section>
+      <div className="aw-summary-bar">
+        <p className="aw-muted">Every generated claim must be supported by evidence you approved.</p>
+        <button type="button" className="aw-primary" disabled={!approvedEvidence.length}
+          onClick={() => void generateResume()}>Generate resume →</button>
+      </div>
     </main>}
+    {stage === "generating" && <main className="aw-resume-generating aw-fade" role="status">
+      <div className="aw-center-heading">
+        <div className="aw-eyebrow">TAILORED RESUME CREATION</div>
+        <h2>Building your resume...</h2>
+        <p className="aw-muted">Grounding statements in the evidence you approved.</p>
+      </div>
+      <div className="aw-generating-layout">
+        <div className="aw-generating-paper" aria-hidden="true">
+          <h3>{user.full_name}</h3><p>{role}</p><hr />
+          <div className="aw-gen-heading">PROFESSIONAL SUMMARY</div>
+          <i/><i/><i className="short"/><div className="aw-gen-heading">EXPERIENCE</div>
+          <i/><i/><i/><i className="short"/>
+          <div className="aw-gen-heading">SKILLS</div><i/><i className="short"/>
+        </div>
+        <aside className="aw-panel aw-generating-checklist">
+          <div className="aw-gen-icon">✧</div><h3>Writing with evidence</h3>
+          <p className="aw-muted">Every statement is drafted using your approved career information.</p>
+          <ul><li>✓ Reading job requirements</li><li>✓ Selecting relevant experience</li>
+            <li>◌ Building resume structure</li><li>◌ Writing candidate statements</li></ul>
+          <div className="aw-gen-progress"><span /></div>
+          <small>Preparing your review</small>
+        </aside>
+      </div>
+    </main>}
+
+    {(stage === "resume" || stage === "exporting") && <main className={`aw-resume-stage aw-fade aw-storyboard-resume ${stage === "exporting" ? "aw-exporting" : ""}`}>
+      <div className="aw-storyboard-resume-head">
+        <div><div className="aw-eyebrow">REVIEW &amp; APPROVAL</div>
+          <h2>{pendingCount ? "Review claims before exporting" : "Ready when you are."}</h2></div>
+        <span className={pendingCount ? "aw-review-count" : "aw-review-count is-done"}>
+          {pendingCount ? pendingCount + " claims need attention" : "All statements reviewed"}
+        </span>
+      </div>
+      <div className="aw-resume-layout">
+        <article className={`aw-document ${selectedId ? "aw-document-dim" : ""}`}>
+          <header><h3>{user.full_name}</h3><strong>{role || profile.career}</strong>
+            <p>{user.email}{company ? "  ·  " + company : ""}</p></header>
+          <h4>Professional summary</h4>
+          <p className="aw-resume-summary">Career focus: {profile.career}. The experience below is selected from approved evidence for this role.</p>
+          <h4>Relevant experience</h4>
+          {activeCandidates.map((item, index) => {
+            const approved = approvedIds.includes(item.statement_id);
+            const selected = selectedId === item.statement_id;
+            const citations = evidence.filter(record => item.evidence_ids.includes(record.id));
+            return <div key={item.statement_id}
+              className={`aw-document-line ${approved ? "is-approved" : "needs-review"} ${selected ? "is-selected" : ""}`}
+              style={{ animationDelay: (index * 145) + "ms" }}>
+              {approved ? <p className="aw-approved-line">✓ {item.text}</p> :
+                <button type="button" className="aw-line-preview" aria-expanded={selected}
+                  onClick={() => setSelectedId(selected ? null : item.statement_id)}>
+                  <span>• {item.text}</span><small>{selected ? "Hide evidence ↑" : "Needs approval · Review ↗"}</small>
+                </button>}
+              {selected && !approved && <div className="aw-line-detail">
+                <div className="aw-line-detail-title"><strong>Evidence review · Experience claim</strong><span>Needs approval</span></div>
+                <p className="aw-claim-text">{item.text}</p>
+                <div className="aw-source-evidence"><strong>Your source evidence</strong>
+                  {citations.map(ev => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
+                </div>
+                <p className="aw-review-note">Check this claim against your actual experience. Automatic verification is not yet integrated.</p>
+                <div className="aw-review-actions">
+                  <button type="button" onClick={() => { setDeniedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Deny claim</button>
+                  <button type="button" onClick={() => { setApprovedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Approve claim ✓</button>
+                </div>
+              </div>}
+            </div>;
+          })}
+          {!activeCandidates.length && <p className="aw-muted">All candidate statements have been denied. Go back to matching to generate a different draft.</p>}
+          {profile.focus.length > 0 && <><h4>Technical skills</h4>
+            <p className="aw-skill-line">{profile.focus.join(" · ")}</p></>}
+          {approvedEvidence.length > 0 && <><h4>Evidence sources</h4>
+            <p className="aw-source-list">{approvedEvidence.slice(0,6).map(e => e.title).join(" · ")}</p></>}
+        </article>
+        <aside className="aw-resume-sidebar">
+          <section className="aw-panel">
+            {pendingCount ? <>
+              <h3>Verification queue</h3>
+              <p className="aw-muted">Select any highlighted statement to inspect its supporting evidence.</p>
+              {activeCandidates.filter(item => !approvedIds.includes(item.statement_id)).map((item,index) =>
+                <button className="aw-queue-item" type="button" key={item.statement_id}
+                  onClick={() => setSelectedId(item.statement_id)}>
+                  <strong>Statement {index+1}</strong><small>{item.text}</small><span>● Needs approval</span>
+                </button>)}
+              <div className="aw-queue-note">◇ Unsupported claims must be denied, never exported.</div>
+            </> : <>
+              <div className="aw-done-circle aw-review-complete" aria-hidden="true">✓</div>
+              <h3>Review complete</h3>
+              <p className="aw-muted">Every remaining candidate has been reviewed by you. Automated verification is not yet available.</p>
+            </>}
+          </section>
+          {deniedIds.length > 0 && <div className="aw-reflow-message" role="status">
+            ✓ {deniedIds.length} {deniedIds.length === 1 ? "claim removed" : "claims removed"} · Document layout adjusted
+          </div>}
+          <button className="aw-link aw-back-review" type="button" onClick={() => changeStage("match")}>← Back to evidence</button>
+          <button type="button" className="aw-primary aw-export-button"
+            disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
+            onClick={() => void exportReviewed()}>Export reviewed resume →</button>
+          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a version under Applications. PDF/DOCX export and F08 verification are not yet available.</p>
+        </aside>
+      </div>
+      {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}
+    </main>}
+
+    {stage === "applications" && <main className="aw-app-workspace aw-fade">
+      <aside className="aw-app-sidebar">
+        <strong>Workspace</strong>
+        <button type="button" onClick={newJob}>▦ Dashboard</button>
+        <span className="is-selected">▢ My Applications</span>
+        <button type="button" onClick={() => changeStage("setup")}>♙ My Profile</button>
+        <button type="button" onClick={newJob}>＋ New job</button>
+      </aside>
+      <div className="aw-app-content">
+        <div className="aw-app-header">
+          <div><div className="aw-eyebrow">YOUR APPLICATION WORKSPACE</div>
+            <h2>My Applications</h2>
+            <p className="aw-muted">Keep every job, reviewed resume, and application status in one place.</p></div>
+          <button className="aw-primary" type="button" onClick={newJob}>New application →</button>
+        </div>
+        <div className="aw-app-stats">
+          <div><span>Total applications</span><strong>{savedApplications.length}</strong></div>
+          <div><span>Drafts</span><strong>{savedApplications.filter(item => item.status.toLowerCase() === "draft").length}</strong></div>
+          <div><span>Saved resume versions</span><strong>{Object.values(versionCounts).reduce((a,b)=>a+b,0)}</strong></div>
+        </div>
+        <section className="aw-app-list">
+          {savedApplications.length ? savedApplications.map(item =>
+            <article key={item.id} className="aw-app-list-row">
+              <div className="aw-app-doc-icon" aria-hidden="true">▤</div>
+              <div><h3>{item.role_title}</h3><p>{item.company_name}</p></div>
+              <span className="aw-app-status">{item.status}</span>
+              <span className="aw-app-version-count">{versionCounts[item.id] ?? 0} resume {versionCounts[item.id] === 1 ? "version" : "versions"}</span>
+              <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleDateString()}</time>
+            </article>) : <div className="aw-app-empty"><p>No saved applications yet.</p>
+              <button type="button" className="aw-primary" onClick={newJob}>Start your first application →</button></div>}
+        </section>
+        <p className="aw-app-disclosure">Application records and resume versions reflect saved data in your workspace.</p>
+      </div>
+    </main>}
+
   </div>;
 }
