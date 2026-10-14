@@ -123,7 +123,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       setStage("resume");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resume generation could not complete.");
-      setStage("analysis");
+      setStage("match");
     }
   }
 
@@ -414,18 +414,40 @@ export function GuidedJourney({ user, token, logout }: Props) {
       {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}
     </main>}
 
-    {stage === "applications" && <main className="aw-workspace aw-fade">
-      <div className="aw-eyebrow">YOUR WORKSPACE</div>
-      <h2>Applications</h2>
-      <p className="aw-muted">Saved applications and historical reviewed resume versions.</p>
-      <div className="aw-applications">
-        {savedApplications.length ? savedApplications.map((item) => <article key={item.id} className="aw-application-card">
-          <div><h3>{item.role_title}</h3><p>{item.company_name}</p></div>
-          <div className="aw-application-meta"><span>{item.status}</span>
-            <span>{versionCounts[item.id] ?? "—"} resume versions</span></div>
-        </article>) : <p className="aw-muted">No saved applications yet. Create a resume to add your first application.</p>}
+    {stage === "applications" && <main className="aw-app-workspace aw-fade">
+      <aside className="aw-app-sidebar">
+        <strong>Workspace</strong>
+        <button type="button" onClick={newJob}>▦ Dashboard</button>
+        <span className="is-selected">▢ My Applications</span>
+        <button type="button" onClick={() => changeStage("setup")}>♙ My Profile</button>
+        <button type="button" onClick={newJob}>＋ New job</button>
+      </aside>
+      <div className="aw-app-content">
+        <div className="aw-app-header">
+          <div><div className="aw-eyebrow">YOUR APPLICATION WORKSPACE</div>
+            <h2>My Applications</h2>
+            <p className="aw-muted">Keep every job, reviewed resume, and application status in one place.</p></div>
+          <button className="aw-primary" type="button" onClick={newJob}>New application →</button>
+        </div>
+        <div className="aw-app-stats">
+          <div><span>Total applications</span><strong>{savedApplications.length}</strong></div>
+          <div><span>Drafts</span><strong>{savedApplications.filter(item => item.status.toLowerCase() === "draft").length}</strong></div>
+          <div><span>Saved resume versions</span><strong>{Object.values(versionCounts).reduce((a,b)=>a+b,0)}</strong></div>
+        </div>
+        <section className="aw-app-list">
+          {savedApplications.length ? savedApplications.map(item =>
+            <article key={item.id} className="aw-app-list-row">
+              <div className="aw-app-doc-icon" aria-hidden="true">▤</div>
+              <div><h3>{item.role_title}</h3><p>{item.company_name}</p></div>
+              <span className="aw-app-status">{item.status}</span>
+              <span className="aw-app-version-count">{versionCounts[item.id] ?? 0} resume {versionCounts[item.id] === 1 ? "version" : "versions"}</span>
+              <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleDateString()}</time>
+            </article>) : <div className="aw-app-empty"><p>No saved applications yet.</p>
+              <button type="button" className="aw-primary" onClick={newJob}>Start your first application →</button></div>}
+        </section>
+        <p className="aw-app-disclosure">Application records and resume versions reflect saved data in your workspace.</p>
       </div>
-      <button className="aw-primary" onClick={newJob}>Start another application →</button>
     </main>}
+
   </div>;
 }
