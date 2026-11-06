@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { ResumeVersionHistory } from "./ResumeVersionHistory";
 import {
   ALLOWED_STATUS_CHANGES, APPLICATION_STATUSES,
   changeApplicationStatus, updateApplicationDetails,
@@ -29,6 +30,7 @@ export function ApplicationWorkspace({
   token, applications, versionCounts, onChange, onNewJob, onEditProfile,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -124,6 +126,15 @@ export function ApplicationWorkspace({
                 <div><span>Next action</span><strong>{formatDate(item.next_action_on)}</strong></div>
                 <div><span>Resume versions</span><strong>{versionCounts[item.id] ?? 0}</strong></div>
               </div>
+              <div className="aw-history-action-row">
+                <button type="button" aria-expanded={historyOpenId === item.id}
+                  className="aw-app-expand"
+                  onClick={() => setHistoryOpenId(current => current === item.id ? null : item.id)}>
+                  {historyOpenId === item.id ? "Hide resume history" : "View resume history"}
+                </button>
+              </div>
+              {historyOpenId === item.id && <ResumeVersionHistory
+                key={item.id} token={token} applicationId={item.id} />}
               <div className="aw-app-detail-cols">
                 <form key={item.id + ":" + (item.notes ?? "") + ":" + (item.job_url ?? "") + ":" + (item.next_action_on ?? "")}
                   onSubmit={event => void saveDetails(event, item.id)}>
