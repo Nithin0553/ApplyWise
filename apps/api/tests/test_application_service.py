@@ -20,6 +20,7 @@ from app.modules.applications.schemas import (
     ApplicationUpdate,
     ApprovalSnapshotStatus,
     EvidenceSnapshotItem,
+    ProvenanceOrigin,
     ProvenanceSnapshotItem,
     ResumeVersionContent,
     VerificationSnapshotStatus,
@@ -92,6 +93,19 @@ def make_resume_content(
             ),
         ),
     )
+
+
+def test_legacy_provenance_defaults_to_untrusted_draft_origin() -> None:
+    legacy = {
+        "statement_id": str(uuid4()),
+        "text": "Legacy snapshot from user input",
+        "evidence_ids": [],
+        "verification_status": "VERIFIED",
+        "approval_status": "APPROVED",
+    }
+    statement = ProvenanceSnapshotItem.model_validate(legacy)
+    assert statement.origin == ProvenanceOrigin.DRAFT_USER_REVIEWED
+    assert statement.model_dump(mode="json")["origin"] == "DRAFT_USER_REVIEWED"
 
 
 def test_applications_are_created_and_listed_only_for_owner(session: Session) -> None:
@@ -219,6 +233,30 @@ def test_resume_version_numbers_increment_per_application(session: Session) -> N
     assert first.snapshot.resume_version_id == first.id
     assert first.snapshot.application_id == first_application.id
     assert first.snapshot.user_id == user_id
+
+
+def test_count_resume_versions_aggregates_only_owned_versions(session: Session) -> None:
+    service = ApplicationService(session)
+    owner = uuid4()
+    other = uuid4()
+    first = create_application(service, owner)
+    second = create_application(service, owner, company_name="Second Example")
+    foreign = create_application(service, other, company_name="Foreign Example")
+
+    service.save_resume_version(
+        user_id=owner, application_id=first.id, content=make_resume_content("First"),
+    )
+    service.save_resume_version(
+        user_id=owner, application_id=first.id, content=make_resume_content("Second"),
+    )
+    service.save_resume_version(
+        user_id=other, application_id=foreign.id, content=make_resume_content("Foreign"),
+    )
+    session.commit()
+
+    assert service.count_resume_versions(user_id=owner) == {str(first.id): 2}
+    assert service.count_resume_versions(user_id=other) == {str(foreign.id): 1}
+    assert str(second.id) not in service.count_resume_versions(user_id=owner)
 
 
 def test_saved_resume_versions_preserve_historical_snapshot(session: Session) -> None:

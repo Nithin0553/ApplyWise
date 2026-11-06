@@ -9,6 +9,21 @@ export interface ShareGrantSummary {
   revokedAt?: string | null;
 }
 
+export interface ShareableResumeVersion {
+  id: string;
+  applicationId: string;
+  versionNumber: number;
+  createdAt: string;
+  label: string;
+}
+
+export interface SharedResumeReference {
+  shareId: string;
+  resumeVersionId: string;
+  createdAt: string;
+  expiresAt?: string | null;
+}
+
 export interface PeerFeedbackSummary {
   id: string;
   reviewerLabel: string;

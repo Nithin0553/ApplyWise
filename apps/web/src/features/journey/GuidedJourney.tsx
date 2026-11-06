@@ -1,19 +1,21 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
+import { SharingPage } from "../sharing";
 import {
   addEvidence, downloadReviewedText, estimateOverlap,
-  generateCandidates, getApplications, getEvidence, getVersions,
+  generateCandidates, getApplications, getEvidence, getVersionCounts,
   readRequirements, saveReviewedResume,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
+import { ApplicationWorkspace } from "./ApplicationWorkspace";
 import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
 import { EvidenceManager } from "../evidence/EvidenceProfilePage";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "match" | "generating" | "resume" | "exporting" | "applications" | "evidence";
+  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -147,14 +149,17 @@ export function GuidedJourney({ user, token, logout }: Props) {
   async function openApplications() {
     setError(""); setStage("applications");
     try {
-      const apps = await getApplications(token);
+      const [apps, counts] = await Promise.all([
+        getApplications(token),
+        getVersionCounts(token),
+      ]);
       setSavedApplications(apps.slice().reverse());
-      const totals = await Promise.all(apps.slice(-15).map(async (app) => {
-        try { return [app.id, (await getVersions(token, app.id)).length] as const; }
-        catch { return [app.id, 0] as const; }
-      }));
-      setVersionCounts(Object.fromEntries(totals));
+      setVersionCounts(counts);
     } catch (err) { setError(err instanceof Error ? err.message : "Could not load applications."); }
+  }
+
+  function onApplicationChanged(updated: JourneyApplication) {
+    setSavedApplications(current => current.map(item => item.id === updated.id ? updated : item));
   }
 
   async function exportReviewed() {
@@ -186,6 +191,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
+        <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
         <details className="aw-account"><summary>Profile</summary>
           <div className="aw-account-popup"><strong>{user.full_name}</strong><span>{user.email}</span>
@@ -197,6 +203,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
+    {stage === "sharing" && <main className="aw-f14-workspace aw-fade" aria-label="Peer review sharing workspace">
+      <SharingPage />
+    </main>}
     {stage === "evidence" && <main className="aw-evidence-workspace aw-fade">
       <div className="aw-evidence-header">
         <button type="button" className="aw-link" onClick={() => void closeEvidence()}>← Back to application</button>
@@ -417,40 +426,13 @@ export function GuidedJourney({ user, token, logout }: Props) {
       {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}
     </main>}
 
-    {stage === "applications" && <main className="aw-app-workspace aw-fade">
-      <aside className="aw-app-sidebar">
-        <strong>Workspace</strong>
-        <button type="button" onClick={newJob}>▦ Dashboard</button>
-        <span className="is-selected">▢ My Applications</span>
-        <button type="button" onClick={() => changeStage("setup")}>♙ My Profile</button>
-        <button type="button" onClick={newJob}>＋ New job</button>
-      </aside>
-      <div className="aw-app-content">
-        <div className="aw-app-header">
-          <div><div className="aw-eyebrow">YOUR APPLICATION WORKSPACE</div>
-            <h2>My Applications</h2>
-            <p className="aw-muted">Keep every job, reviewed resume, and application status in one place.</p></div>
-          <button className="aw-primary" type="button" onClick={newJob}>New application →</button>
-        </div>
-        <div className="aw-app-stats">
-          <div><span>Total applications</span><strong>{savedApplications.length}</strong></div>
-          <div><span>Drafts</span><strong>{savedApplications.filter(item => item.status.toLowerCase() === "draft").length}</strong></div>
-          <div><span>Saved resume versions</span><strong>{Object.values(versionCounts).reduce((a,b)=>a+b,0)}</strong></div>
-        </div>
-        <section className="aw-app-list">
-          {savedApplications.length ? savedApplications.map(item =>
-            <article key={item.id} className="aw-app-list-row">
-              <div className="aw-app-doc-icon" aria-hidden="true">▤</div>
-              <div><h3>{item.role_title}</h3><p>{item.company_name}</p></div>
-              <span className="aw-app-status">{item.status}</span>
-              <span className="aw-app-version-count">{versionCounts[item.id] ?? 0} resume {versionCounts[item.id] === 1 ? "version" : "versions"}</span>
-              <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleDateString()}</time>
-            </article>) : <div className="aw-app-empty"><p>No saved applications yet.</p>
-              <button type="button" className="aw-primary" onClick={newJob}>Start your first application →</button></div>}
-        </section>
-        <p className="aw-app-disclosure">Application records and resume versions reflect saved data in your workspace.</p>
-      </div>
-    </main>}
-
+    {stage === "applications" && <ApplicationWorkspace
+      token={token}
+      applications={savedApplications}
+      versionCounts={versionCounts}
+      onChange={onApplicationChanged}
+      onNewJob={newJob}
+      onEditProfile={() => changeStage("setup")}
+    />}
   </div>;
 }

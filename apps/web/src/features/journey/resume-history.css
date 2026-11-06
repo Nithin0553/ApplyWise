@@ -1,0 +1,36 @@
+/* Read-only F13 historical version viewer inside the approved ApplyWise UI. */
+.aw-history-action-row { margin: 0 0 18px; }
+.aw-history { margin: 0 0 24px; background: #f9fcff; border: 1px solid #dceaf7; border-radius: 16px; padding: 22px; }
+.aw-history-header h4 { font-size: 17px; color: #213758; margin: 0 0 6px; }
+.aw-history-header p, .aw-history-disclosure { font-size: 12px; line-height: 1.6; color: #73859a; margin: 0 0 17px; }
+.aw-history-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-bottom: 18px; }
+.aw-history-controls label { font-size: 12px; font-weight: 650; color: #526984; }
+.aw-history-controls select { display:block; margin-top:7px; width:100%; min-width:0; border: 1px solid #cddfec; background:#fff;
+  border-radius:9px; padding:10px; color:#293d57; font-size:12px; }
+.aw-history-controls select:focus-visible { outline: 2px solid #075bd9; outline-offset: 2px; }
+.aw-history-snapshot { border: 1px solid #e0eaf3; border-radius: 13px; background: #fff; padding: 20px; }
+.aw-history-snapshot-title { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding-bottom:12px; }
+.aw-history-snapshot-title strong { color:#203856; font-size:15px; }
+.aw-history-snapshot-title span { font-size:11px; color:#7890a8; }
+.aw-history-statements { list-style: decimal; padding: 0 0 0 19px; margin: 0; }
+.aw-history-statement { padding: 12px 4px; border-top: 1px solid #edf2f7; }
+.aw-history-statement-body p { color:#253a55; font-size:13px; line-height:1.6; margin:0 0 9px; overflow-wrap:anywhere; }
+.aw-history-statement-body small { font-size:11px; color:#78899f; }
+.aw-history-statement-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.aw-history-tag { background:#edf3f9; color:#5f7288; padding:4px 8px; border-radius:12px; font-size:10px; }
+.aw-history-tag.is-added { background:#e4f9ef; color:#058057; }
+.aw-history-comparison { margin-top:20px; border-top:1px solid #dbe8f4; padding-top:15px; }
+.aw-history-comparison h5 { font-size:14px; margin:0 0 9px; color:#233e5b; }
+.aw-history-comparison p, .aw-history-comparison small { font-size:12px; line-height:1.6; color:#698097; }
+.aw-history-removed { padding:12px; margin:10px 0; background:#fff6f3; border-radius:10px; border:1px solid #f2dbd3; }
+.aw-history-removed strong { font-size:12px; color:#9b5441; }
+.aw-history-removed ul { margin:8px 0 0; padding-left:20px; font-size:12px; line-height:1.6; color:#85493e; }
+.aw-history-error { padding: 14px; background: #fff7f5; border: 1px solid #f1d0c9; color: #a23c30; border-radius:10px; }
+.aw-history-error p { margin: 0 0 10px; }
+.aw-history-error button { border: 1px solid #cb9089; background: white; color:#a23c30; padding:8px 12px; border-radius:9px; }
+.aw-history-empty { color:#768ba2; font-size:13px; }
+@media (max-width:700px) {
+  .aw-history { padding:14px; }
+  .aw-history-controls { grid-template-columns: 1fr; }
+  .aw-history-snapshot { padding:14px; }
+}

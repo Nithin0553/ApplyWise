@@ -9,10 +9,12 @@ import {
 interface ShareManagerProps {
   shares: readonly ShareGrantSummary[];
   newShareUrl?: string | null;
+  selectedShareId?: string | null;
   now?: Date;
   onCreateShare?: () => void;
   onCopyShareUrl?: (shareUrl: string) => void;
   onRevokeShare?: (shareId: string) => void;
+  onSelectShare?: (shareId: string) => void;
 }
 
 const STATUS_LABELS: Record<ShareGrantStatus, string> = {
@@ -33,10 +35,12 @@ function formatDate(value?: string | null): string {
 export function ShareManager({
   shares,
   newShareUrl,
+  selectedShareId,
   now = new Date(),
   onCreateShare,
   onCopyShareUrl,
   onRevokeShare,
+  onSelectShare,
 }: ShareManagerProps) {
   return (
     <section className="sharing-manager" aria-labelledby="sharing-manager-heading">
@@ -75,7 +79,11 @@ export function ShareManager({
           shares.map((share) => {
             const status = getShareGrantStatus(share, now);
             return (
-              <article className="sharing-manager__share" key={share.id}>
+              <article
+                className="sharing-manager__share"
+                data-selected={share.id === selectedShareId}
+                key={share.id}
+              >
                 <div>
                   <h3>{share.resumeVersionLabel}</h3>
                   <p>Created {formatDate(share.createdAt)}</p>
@@ -83,6 +91,11 @@ export function ShareManager({
                 </div>
                 <div className="sharing-manager__actions">
                   <span data-status={status}>{STATUS_LABELS[status]}</span>
+                  {onSelectShare ? (
+                    <button type="button" onClick={() => onSelectShare(share.id)}>
+                      View feedback
+                    </button>
+                  ) : null}
                   {status === "active" && onRevokeShare ? (
                     <button
                       type="button"

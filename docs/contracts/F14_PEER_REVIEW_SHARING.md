@@ -9,9 +9,16 @@ A share grant is owner-scoped and references exactly one saved F13 resume versio
 a grant generates a high-entropy opaque secret. Only its SHA-256 digest is persisted; the raw
 secret is returned once to the caller so an API/UI layer can build the share link.
 
-Reviewer lookup accepts the raw secret, hashes it, and resolves only an active grant. Missing,
-expired, and revoked grants all produce the same domain-level not-found result. This prevents
-the sharing boundary from revealing whether an old or invalid share ever existed.
+Reviewer lookup accepts the raw secret, hashes it, and resolves only an active grant. The raw
+secret must not be carried in an API URL path or query string. Reviewer resolution and feedback
+submission use authenticated `POST` requests with the secret in the JSON request body so normal
+server/proxy access logs do not capture it as part of the request target. Browser-facing share
+links should likewise keep the secret in a client-only URL fragment until the reviewer UI sends
+it in the authenticated request body.
+
+Missing, expired, revoked, and otherwise invalid share secrets all produce the same domain-level
+not-found result. This prevents the sharing boundary from revealing whether an old or invalid
+share ever existed.
 
 The reviewer-facing `SharedResumeAccess` contract contains only the share identifier, immutable
 resume-version identifier, creation time, and optional expiration. It deliberately excludes the
@@ -33,8 +40,9 @@ F01 is responsible for authentication and role authorization at the HTTP/API bou
 implemented F14 routes:
 
 1. require a `JOB_SEEKER` for owner-only share creation, listing, revocation, and feedback-history operations;
-2. require an authenticated `REVIEWER` before resolving a share for review or submitting feedback; and
-3. pass only the resolved user UUIDs into `SharingService`.
+2. require an authenticated `REVIEWER` before resolving a share for review or submitting feedback;
+3. accept reviewer share secrets only in the JSON bodies of `/api/shares/reviewer/resolve` and `/api/shares/reviewer/feedback`; and
+4. pass only the resolved user UUIDs into `SharingService`.
 
 F14 does not create temporary users, roles, sessions, headers, or bypass credentials. Missing or
 foreign-owned owner resources continue to map to the same not-found response.

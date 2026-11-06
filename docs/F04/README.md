@@ -1,5 +1,7 @@
 # F04 Job Description Analysis
 
+Public contract: [F04 Job Description Analysis Contract](../contracts/F04_JOB_ANALYSIS_CONTRACT.md).
+
 Owner: Sampreet Ajjanagouda Patil (@Sampreet26)
 Branch: `feat/F04-job-analysis`
 Submission: initial contract and deterministic parser prototype
