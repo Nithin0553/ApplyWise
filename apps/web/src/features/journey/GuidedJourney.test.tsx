@@ -39,6 +39,28 @@ describe("ApplyWise guided journey", () => {
     expect(screen.getByText("Anything else we should know?")).toBeInTheDocument();
   });
 
+  it("opens the real F02 evidence manager and refreshes evidence on return", async () => {
+    window.localStorage.setItem(
+      `applywise.journey.profile.${user.id}`,
+      JSON.stringify({ career: "Software Engineer", years: "2–3 years",
+        focus: ["Python"], experience: "Built Python tests.", resumeName: "" }),
+    );
+    vi.stubGlobal("scrollTo", vi.fn());
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<GuidedJourney user={user} token="test-token" logout={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
+    expect(await screen.findByRole("heading", { name: "Career evidence" })).toBeInTheDocument();
+    expect(screen.getByText("No career evidence yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "← Back to application" }));
+    expect(await screen.findByRole("textbox", { name: "Paste your job description to ApplyWise" }))
+      .toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/evidence/", expect.objectContaining({
+      headers: expect.any(Headers),
+    }));
+  });
+
   it("transfers the user's own posting to an evidence review without inventing results", async () => {
     window.localStorage.setItem(
       `applywise.journey.profile.${user.id}`,
