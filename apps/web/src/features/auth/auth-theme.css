@@ -1,0 +1,235 @@
+/*
+ * ApplyWise authentication surface.
+ * The forms remain owned by F01; these scoped styles only align their look
+ * with the signed-in guided journey. No auth requests or validation change.
+ */
+.sf.sf-auth.aw-auth-shell {
+  --aw-auth-blue: #075bd9;
+  --aw-auth-green: #08b879;
+  --aw-auth-ink: #353b4e;
+  --aw-auth-muted: #687386;
+  --aw-auth-border: #dfe6ed;
+  min-height: 100dvh;
+  padding: 44px 20px;
+  background: #ffffff;
+  color: var(--aw-auth-ink);
+}
+
+.aw-auth-shell .sf-auth-card {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  width: 100%;
+  max-width: 470px;
+  padding: clamp(30px, 4vw, 46px);
+  border: 1px solid #e4eaf0;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 20px 68px rgba(20, 43, 73, 0.07), 0 2px 8px rgba(20, 43, 73, 0.035);
+}
+
+/* Quiet accent detail without turning the card into a glowing box. */
+.aw-auth-shell .sf-auth-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 48px;
+  right: 48px;
+  height: 2px;
+  border-radius: 0 0 20px 20px;
+  background: linear-gradient(90deg, #075bd9, #22a9d5, #08b879);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.aw-auth-shell .aw-auth-wordmark {
+  margin: 0 0 12px;
+  line-height: 1.12;
+  font-size: clamp(32px, 4.5vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+
+.aw-auth-shell .aw-auth-wordmark-light {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+  background: linear-gradient(95deg, #075bd9 0%, #0878ea 35%, #13b6c0 66%, #08a96e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* The pale streak moves inside the letterforms, left -> right. */
+.aw-auth-shell .aw-auth-wordmark-light::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  background: linear-gradient(
+    100deg,
+    transparent 36%,
+    rgba(167, 242, 250, 0.26) 44%,
+    rgba(247, 255, 255, 0.99) 50%,
+    rgba(98, 244, 197, 0.29) 56%,
+    transparent 64%
+  );
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  pointer-events: none;
+  animation: aw-auth-text-light 5.5s linear infinite;
+}
+
+@keyframes aw-auth-text-light {
+  0%, 12% { background-position: 100% 50%; }
+  74%, 100% { background-position: 0% 50%; }
+}
+
+.aw-auth-shell .sf-auth-tagline {
+  color: var(--aw-auth-muted);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0 0 32px;
+}
+
+.aw-auth-shell .auth-form {
+  gap: 11px;
+}
+
+.aw-auth-shell .auth-form h2 {
+  margin: 0 0 14px;
+  color: var(--aw-auth-ink);
+  font-size: clamp(23px, 3.8vw, 29px);
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+}
+
+.aw-auth-shell .auth-form label {
+  margin: 9px 0 0;
+  color: #5d6879;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+  text-transform: none;
+}
+
+.aw-auth-shell .auth-form input {
+  min-height: 50px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid var(--aw-auth-border);
+  border-radius: 13px;
+  font-size: 15px;
+  color: #293346;
+  box-shadow: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.aw-auth-shell .auth-form input:hover {
+  border-color: #bac9d9;
+}
+
+.aw-auth-shell .auth-form input:focus,
+.aw-auth-shell .auth-form input:focus-visible {
+  outline: none;
+  border-color: #1675e5;
+  box-shadow: 0 0 0 3px rgba(22, 117, 229, 0.12);
+}
+
+/* Chromium autofill should still look like a white ApplyWise field. */
+.aw-auth-shell .auth-form input:-webkit-autofill,
+.aw-auth-shell .auth-form input:-webkit-autofill:hover,
+.aw-auth-shell .auth-form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #293346;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 9999s ease-out;
+}
+
+.aw-auth-shell .auth-form button[type="submit"] {
+  margin-top: 18px;
+  min-height: 52px;
+  border: 0;
+  border-radius: 999px;
+  padding: 13px 24px;
+  color: #ffffff;
+  background: #075bd9;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 8px 22px rgba(7, 91, 217, 0.18);
+  transition: background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.aw-auth-shell .auth-form button[type="submit"]:not(:disabled):hover {
+  background: #034bb6;
+  transform: translateY(-1px);
+  box-shadow: 0 11px 26px rgba(7, 91, 217, 0.24);
+}
+.aw-auth-shell .auth-form button[type="submit"]:disabled {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.aw-auth-shell .auth-form__reveal {
+  color: #075bd9;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  right: 7px;
+}
+.aw-auth-shell .auth-form__reveal:hover {
+  background: #eaf4ff;
+}
+
+.aw-auth-shell .auth-form__hint {
+  color: var(--aw-auth-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.aw-auth-shell .auth-form__error {
+  color: #a52c2c;
+  background: #fff2f2;
+  border: 1px solid #fad6d6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.aw-auth-shell .auth-form__switch {
+  margin: 18px 0 0;
+  color: var(--aw-auth-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.aw-auth-shell .link-button {
+  color: #0866d9;
+  font-weight: 700;
+  text-decoration: none;
+}
+.aw-auth-shell .link-button:hover { text-decoration: underline; }
+
+.aw-auth-shell :is(button, input):focus-visible {
+  outline: 3px solid rgba(7, 91, 217, 0.68);
+  outline-offset: 3px;
+}
+.aw-auth-shell .auth-form input:focus-visible { outline: none; }
+
+@media (max-width: 520px) {
+  .sf.sf-auth.aw-auth-shell { padding: 20px 16px; }
+  .aw-auth-shell .sf-auth-card {
+    padding: 28px 22px;
+    border-radius: 20px;
+  }
+  .aw-auth-shell .sf-auth-tagline { margin-bottom: 25px; }
+  .aw-auth-shell .auth-form h2 { font-size: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aw-auth-shell .aw-auth-wordmark-light::after { animation: none; display: none; }
+  .aw-auth-shell .auth-form input,
+  .aw-auth-shell .auth-form button[type="submit"] {
+    transition: none;
+  }
+}

@@ -5,7 +5,11 @@
 
 import type { AuthResponse, LoginInput, RegisterInput, User } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+// A production frontend uses its own origin, where the hosting proxy forwards
+// /auth requests to the private API. Only local development uses port 8000.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 export class ApiError extends Error {
   readonly status: number;
