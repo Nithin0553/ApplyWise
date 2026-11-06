@@ -136,37 +136,38 @@ export async function saveReviewedResume(
   evidence: JourneyEvidence[],
   approved: CandidateStatement[],
 ) {
-  const app = await api<JourneyApplication>(token, "/api/applications/", {
+  if (!approved.length) throw new Error("No approved statements to save.");
+  const ids = new Set(
+    evidence.filter(item => item.status === "approved" && item.approved_at)
+      .map(item => item.id),
+  );
+  if (approved.some(statement => !statement.evidence_ids.length ||
+    statement.evidence_ids.some(id => !ids.has(id)))) {
+    throw new Error("A statement references evidence that is no longer approved.");
+  }
+
+  // Send the user's explicit review decisions, not self-asserted evidence
+  // snapshots or VERIFIED labels. The server resolves F02 records and
+  // atomically saves an INFERRED historical draft with its application.
+  const result = await api<{
+    application: JourneyApplication;
+    resume_version: JourneyResumeVersion;
+  }>(token, "/api/applications/reviewed-drafts", {
     method: "POST",
     body: JSON.stringify({
-      company_name: details.company.trim() || "Company not specified",
-      role_title: details.role.trim() || "Target position",
-      notes: `Draft created from a user-supplied job description. ${details.description.slice(0, 240)}`,
+      application: {
+        company_name: details.company.trim() || "Company not specified",
+        role_title: details.role.trim() || "Target position",
+        notes: `Draft created from a user-supplied job description. ${details.description.slice(0, 240)}`,
+      },
+      statements: approved.map(statement => ({
+        statement_id: statement.statement_id,
+        text: statement.text,
+        evidence_ids: statement.evidence_ids,
+      })),
     }),
   });
-
-  const usedIds = new Set(approved.flatMap((item) => item.evidence_ids));
-  const selectedEvidence = evidence.filter((item) => item.status === "approved" && usedIds.has(item.id));
-  const snapshot = {
-    evidence: selectedEvidence.map((item) => ({
-      evidence_id: item.id,
-      evidence_type: item.evidence_type,
-      title: item.title,
-      organization: item.organization,
-      role: item.role,
-      description: item.description,
-      approved_at: item.approved_at,
-    })),
-    statements: approved.map((item) => ({
-      statement_id: item.statement_id, text: item.text, evidence_ids: item.evidence_ids,
-      verification_status: "INFERRED", approval_status: "APPROVED",
-    })),
-  };
-  await api<JourneyResumeVersion>(
-    token, `/api/applications/${encodeURIComponent(app.id)}/resume-versions`,
-    { method: "POST", body: JSON.stringify(snapshot) },
-  );
-  return app;
+  return result.application;
 }
 
 /** Rule-based excerpting, not the unmounted F04 backend prototype. */
