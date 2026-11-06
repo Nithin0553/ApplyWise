@@ -20,6 +20,7 @@ from app.modules.applications.schemas import (
     ApplicationUpdate,
     ApprovalSnapshotStatus,
     EvidenceSnapshotItem,
+    ProvenanceOrigin,
     ProvenanceSnapshotItem,
     ResumeVersionContent,
     VerificationSnapshotStatus,
@@ -92,6 +93,19 @@ def make_resume_content(
             ),
         ),
     )
+
+
+def test_legacy_provenance_defaults_to_untrusted_draft_origin() -> None:
+    legacy = {
+        "statement_id": str(uuid4()),
+        "text": "Legacy snapshot from user input",
+        "evidence_ids": [],
+        "verification_status": "VERIFIED",
+        "approval_status": "APPROVED",
+    }
+    statement = ProvenanceSnapshotItem.model_validate(legacy)
+    assert statement.origin == ProvenanceOrigin.DRAFT_USER_REVIEWED
+    assert statement.model_dump(mode="json")["origin"] == "DRAFT_USER_REVIEWED"
 
 
 def test_applications_are_created_and_listed_only_for_owner(session: Session) -> None:
