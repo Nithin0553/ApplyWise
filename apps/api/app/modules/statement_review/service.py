@@ -46,7 +46,11 @@ class StatementReviewService:
 
     def _verified(self, *, user_id: UUID, statement_id: UUID) -> CurrentVerifiedStatement:
         candidate = self.verifier.get_current(user_id=user_id, statement_id=statement_id)
-        if candidate is None or candidate.user_id != user_id or candidate.statement_id != statement_id:
+        if (
+            candidate is None
+            or candidate.user_id != user_id
+            or candidate.statement_id != statement_id
+        ):
             raise ReviewNotFoundError("Statement not found")
         return candidate
 
