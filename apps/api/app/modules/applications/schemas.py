@@ -150,3 +150,46 @@ class ResumeVersionView(BaseModel):
     version_number: int = Field(gt=0)
     snapshot: ResumeVersionSnapshot
     created_at: datetime
+
+
+class DraftStatementCreate(BaseModel):
+    """Human-reviewed statement input; NEVER a server-verified claim."""
+
+    model_config = ConfigDict(frozen=True)
+
+    statement_id: UUID
+    text: str = Field(min_length=1, max_length=500)
+    evidence_ids: tuple[UUID, ...] = Field(min_length=1, max_length=20)
+
+    @model_validator(mode="after")
+    def validate_ids(self) -> Self:
+        if len(set(self.evidence_ids)) != len(self.evidence_ids):
+            raise ValueError("Duplicate evidence IDs are not allowed")
+        if not self.text.strip():
+            raise ValueError("Statement text cannot be blank")
+        return self
+
+
+class ReviewedDraftCreate(BaseModel):
+    """Atomic draft save: authoritative evidence resolved server-side.
+
+    This is explicitly NOT the F08/F09/F10 trusted finalization endpoint.
+    """
+
+    application: ApplicationCreate
+    statements: tuple[DraftStatementCreate, ...] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def check_unique_statements(self) -> Self:
+        if len({item.statement_id for item in self.statements}) != len(self.statements):
+            raise ValueError("Duplicate statement IDs are not allowed")
+        if self.application.status != ApplicationStatus.DRAFT:
+            raise ValueError("Reviewed drafts must start with draft application status")
+        return self
+
+
+class ReviewedDraftView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    application: ApplicationView
+    resume_version: ResumeVersionView
