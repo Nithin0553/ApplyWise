@@ -16,6 +16,11 @@ export interface JourneyApplication {
   role_title: string;
   status: string;
   created_at: string;
+  notes?: string | null;
+  job_url?: string | null;
+  applied_on?: string | null;
+  next_action_on?: string | null;
+  closed_on?: string | null;
 }
 export interface JourneyResumeVersion {
   id: string;
@@ -83,6 +88,33 @@ export function generateCandidates(
 
 export function getApplications(token: string) {
   return api<JourneyApplication[]>(token, "/api/applications/");
+}
+
+export const APPLICATION_STATUSES = ["draft", "applied", "interviewing", "offer", "accepted", "rejected", "withdrawn"] as const;
+export type JourneyApplicationStatus = typeof APPLICATION_STATUSES[number];
+
+export const ALLOWED_STATUS_CHANGES: Record<JourneyApplicationStatus, readonly JourneyApplicationStatus[]> = {
+  draft: ["applied", "interviewing", "offer", "accepted", "rejected", "withdrawn"],
+  applied: ["interviewing", "offer", "accepted", "rejected", "withdrawn"],
+  interviewing: ["offer", "accepted", "rejected", "withdrawn"],
+  offer: ["accepted", "rejected", "withdrawn"],
+  accepted: [], rejected: [], withdrawn: [],
+};
+
+export function updateApplicationDetails(token: string, id: string, patch: {
+  notes?: string | null;
+  job_url?: string | null;
+  next_action_on?: string | null;
+}) {
+  return api<JourneyApplication>(token, `/api/applications/${encodeURIComponent(id)}`, {
+    method: "PATCH", body: JSON.stringify(patch),
+  });
+}
+
+export function changeApplicationStatus(token: string, id: string, status: JourneyApplicationStatus) {
+  return api<JourneyApplication>(token, `/api/applications/${encodeURIComponent(id)}/status`, {
+    method: "POST", body: JSON.stringify({ status }),
+  });
 }
 
 export function getVersions(token: string, applicationId: string) {
