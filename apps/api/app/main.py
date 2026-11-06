@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.modules.applications.router import router as applications_router
 from app.modules.auth import auth_router
 from app.modules.evidence.router import router as evidence_router
+from app.modules.generation.interview_router import router as interview_router
 from app.modules.generation.router import router as generation_router
 from app.modules.sharing.router import router as sharing_router
 from app.modules.statement_review.router import router as statement_review_router
@@ -26,6 +27,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(evidence_router)
 app.include_router(generation_router)
+app.include_router(interview_router)
 app.include_router(applications_router)
 app.include_router(sharing_router)
 app.include_router(statement_review_router)
