@@ -187,13 +187,17 @@ def _norm_heading(line: str) -> str:
 
 
 def _parse_date(token: str, *, end: bool) -> date | None:
+    """Parse one side of a date range.
+
+    Returns None for "Present"/"Current" or an unrecognized month word. Raises ValueError
+    when the text names a date that cannot exist, such as year 0000 or month 13.
+    """
     token = token.strip().rstrip(".")
     if token.lower() in {"present", "current"}:
         return None
     if "/" in token:
         month, year = token.split("/")
-        month_n, year_n = int(month), int(year)
-        return date(year_n, month_n, 1) if 1 <= month_n <= 12 else None
+        return date(int(year), int(month), 1)
     parts = token.replace(".", "").split()
     if len(parts) == 2:
         month_n = _MONTHS.get(parts[0].lower())
@@ -206,15 +210,25 @@ def _parse_date(token: str, *, end: bool) -> date | None:
 
 
 def _split_dates(line: str) -> tuple[str, date | None, date | None]:
+    """Split a date range off a line.
+
+    Dates are kept only when the whole range is valid. If either side is impossible, or the
+    range ends before it starts, both dates are left empty: keeping just one would invent
+    meaning (an empty end date reads as "Present"). The entry is still imported, unconfirmed,
+    so the owner can enter the right dates before approving it.
+    """
     match = _RANGE.search(line)
-    if match:
+    if not match:
+        return line, None, None
+    rest = (line[: match.start()] + " " + line[match.end() :]).strip(" |,-–—()")
+    try:
         start = _parse_date(match.group("start"), end=False)
         end = _parse_date(match.group("end"), end=True)
-        rest = (line[: match.start()] + " " + line[match.end() :]).strip(" |,-–—()")
-        if start and end and end < start:
-            end = None
-        return rest, start, end
-    return line, None, None
+    except ValueError:
+        return rest, None, None
+    if start and end and end < start:
+        return rest, None, None
+    return rest, start, end
 
 
 def _sections(text: str) -> dict[str, list[str]]:

@@ -87,6 +87,64 @@ def test_import_only_copies_text_from_the_file() -> None:
     assert job.description == "Made coffee."
 
 
+# Lines whose dates cannot be valid. The entry is still imported, with no dates, so the
+# owner can correct it before approval (Req-Func-Sw-16).
+IMPOSSIBLE_DATE_LINES = [
+    "Barista - Cafe Uno | 0000 - 2020",
+    "Barista - Cafe Uno | 2020 - 0000",
+    "Barista - Cafe Uno | Jan 0000 - Feb 2020",
+    "Barista - Cafe Uno | 01/0000 - 02/2020",
+    "Barista - Cafe Uno | 13/2020 - 2021",
+    "Barista - Cafe Uno | 2022 - 2020",
+]
+
+
+@pytest.mark.parametrize("line", IMPOSSIBLE_DATE_LINES)
+def test_impossible_dates_are_left_empty_and_the_entry_is_kept(line: str) -> None:
+    proposed = propose_evidence(f"Experience\n{line}\n- Made coffee.")
+
+    assert len(proposed) == 1
+    job = proposed[0]
+    assert (job.title, job.organization) == ("Barista", "Cafe Uno")
+    assert job.description == "Made coffee."
+    # Both dates are dropped: keeping only one would make "2020 - 0000" look like a current job.
+    assert job.start_date is None
+    assert job.end_date is None
+
+
+def test_day_numbers_never_produce_an_impossible_date() -> None:
+    proposed = propose_evidence("Experience\nBarista - Cafe Uno | February 31 2020 - 2021")
+
+    assert len(proposed) == 1
+    assert proposed[0].title == "Barista"
+
+
+def _lines_with_impossible_years() -> list[str]:
+    return [
+        "Experience",
+        "Barista - Cafe Uno | 0000 - 2020",
+        "- Made coffee.",
+        "Cashier - Corner Shop | 2020 - 0000",
+        "- Ran the till.",
+        "Software Engineer Intern - Coastal Analytics | Jun 2025 - Aug 2025",
+        "Education",
+        "B.S. Computer Science, Texas A&M University-Corpus Christi, 0000 - 2020",
+    ]
+
+
+@pytest.mark.parametrize("builder,name", [(build_docx, "r.docx"), (build_pdf, "r.pdf")])
+def test_resume_with_impossible_years_imports_without_error(builder, name) -> None:
+    proposed = read_resume(name, builder(_lines_with_impossible_years())).proposed
+    by_title = {item.title: item for item in proposed}
+
+    for title in ("Barista", "Cashier", "B.S. Computer Science"):
+        assert by_title[title].start_date is None
+        assert by_title[title].end_date is None
+    # Valid dates elsewhere in the same resume are kept.
+    assert by_title["Software Engineer Intern"].start_date == date(2025, 6, 1)
+    assert by_title["Software Engineer Intern"].end_date == date(2025, 8, 1)
+
+
 def test_text_without_resume_sections_is_rejected() -> None:
     with pytest.raises(UnreadableResumeError):
         propose_evidence("Dear hiring manager, this is just a letter with no sections.")
@@ -141,6 +199,19 @@ def test_import_creates_unconfirmed_records_owned_by_the_user(client: TestClient
     assert len(listed) == len(body["records"])
     # Imported evidence cannot be used for generation until the user approves it.
     assert client.get("/api/evidence/approved", headers=headers).json() == []
+
+
+def test_import_route_accepts_a_resume_with_impossible_years(client: TestClient) -> None:
+    headers = _register(client, "alex@example.com")
+
+    response = _upload(client, headers, "resume.docx", build_docx(_lines_with_impossible_years()))
+
+    assert response.status_code == 201
+    records = {r["title"]: r for r in response.json()["records"]}
+    for title in ("Barista", "Cashier", "B.S. Computer Science"):
+        assert records[title]["status"] == "unconfirmed"
+        assert records[title]["start_date"] is None
+        assert records[title]["end_date"] is None
 
 
 def test_imported_record_can_be_corrected_then_approved(client: TestClient) -> None:
