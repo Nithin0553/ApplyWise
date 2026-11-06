@@ -38,6 +38,15 @@ def _resume_not_found(exc: Exception) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume version not found")
 
 
+@router.get("/resume-version-counts", response_model=dict[str, int])
+def count_resume_versions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+) -> dict[str, int]:
+    """Return owned per-application version counts without exposing snapshots."""
+    return ApplicationService(db).count_resume_versions(user_id=current_user.id)
+
+
 @router.get("/resume-versions/{resume_version_id}", response_model=ResumeVersionView)
 def get_resume_version(
     resume_version_id: UUID,
