@@ -1,4 +1,9 @@
 from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
+from app.modules.applications.service import ApplicationService
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
@@ -177,6 +182,116 @@ def test_resume_version_count_endpoint_is_owner_scoped(
         "/api/applications/resume-version-counts",
         headers=_headers(reviewer),
     ).status_code == 403
+
+
+def test_reviewed_draft_atomic_save_uses_authoritative_approved_evidence(
+    client: TestClient,
+) -> None:
+    owner = _register(client, "draft.owner@example.com")
+    other = _register(client, "draft.other@example.com")
+    owner_token, other_token = owner["access_token"], other["access_token"]
+
+    created_evidence = client.post(
+        "/api/evidence/",
+        headers=_headers(owner_token),
+        json={"evidence_type": "project", "title": "Real API testing",
+              "description": "Built REST API tests in Python."},
+    )
+    assert created_evidence.status_code == 201
+    evidence_id = created_evidence.json()["id"]
+
+    payload = {
+        "application": {"company_name": "Example", "role_title": "QA Engineer"},
+        "statements": [{
+            "statement_id": str(uuid4()),
+            "text": "Built REST API tests in Python.",
+            "evidence_ids": [evidence_id],
+        }],
+    }
+
+    # Cannot create a draft using evidence that was never approved.
+    unconfirmed = client.post(
+        "/api/applications/reviewed-drafts",
+        headers=_headers(owner_token),
+        json=payload,
+    )
+    assert unconfirmed.status_code == 404
+    assert client.get("/api/applications/", headers=_headers(owner_token)).json() == []
+
+    approve = client.post(
+        f"/api/evidence/{evidence_id}/approve",
+        headers=_headers(owner_token),
+    )
+    assert approve.status_code == 200
+
+    saved = client.post(
+        "/api/applications/reviewed-drafts",
+        headers=_headers(owner_token),
+        json=payload,
+    )
+    assert saved.status_code == 201
+    result = saved.json()
+    application = result["application"]
+    snapshot = result["resume_version"]["snapshot"]
+    assert application["status"] == "draft"
+    assert snapshot["statements"][0]["verification_status"] == "INFERRED"
+    assert snapshot["statements"][0]["approval_status"] == "APPROVED"
+    assert snapshot["evidence"][0]["title"] == approve.json()["title"]
+    assert snapshot["evidence"][0]["description"] == approve.json()["description"]
+    assert snapshot["evidence"][0]["approved_at"] == approve.json()["approved_at"]
+    assert snapshot["application_id"] == application["id"]
+    assert len(client.get("/api/applications/", headers=_headers(owner_token)).json()) == 1
+
+    # Same IDs and content from a foreign owner must not succeed.
+    foreign = client.post(
+        "/api/applications/reviewed-drafts",
+        headers=_headers(other_token),
+        json=payload,
+    )
+    assert foreign.status_code == 404
+    assert client.get("/api/applications/", headers=_headers(other_token)).json() == []
+
+    duplicate = {**payload, "statements": payload["statements"] * 2}
+    assert client.post(
+        "/api/applications/reviewed-drafts",
+        headers=_headers(owner_token),
+        json=duplicate,
+    ).status_code == 422
+    assert len(client.get("/api/applications/", headers=_headers(owner_token)).json()) == 1
+    assert client.post("/api/applications/reviewed-drafts", json=payload).status_code == 401
+
+
+def test_reviewed_draft_save_rolls_back_application_on_version_failure(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = _register(client, "draft.rollback@example.com")
+    token = owner["access_token"]
+    evidence = client.post(
+        "/api/evidence/",
+        headers=_headers(token),
+        json={"evidence_type": "project", "title": "Synthetic data",
+              "description": "Completed testing work."},
+    ).json()
+    assert client.post(
+        f"/api/evidence/{evidence['id']}/approve", headers=_headers(token),
+    ).status_code == 200
+
+    def fail_version(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("Simulated version persistence failure")
+
+    monkeypatch.setattr(ApplicationService, "save_resume_version", fail_version)
+    with pytest.raises(RuntimeError, match="Simulated version"):
+        client.post(
+            "/api/applications/reviewed-drafts",
+            headers=_headers(token),
+            json={"application": {"company_name": "Test", "role_title": "QA"},
+                  "statements": [{
+                      "statement_id": str(uuid4()), "text": "Completed testing work.",
+                      "evidence_ids": [evidence["id"]],
+                  }]},
+        )
+    assert client.get("/api/applications/", headers=_headers(token)).json() == []
 
 
 def test_sharing_api_enforces_job_seeker_and_reviewer_roles(
