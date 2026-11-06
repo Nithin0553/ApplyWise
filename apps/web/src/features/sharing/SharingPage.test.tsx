@@ -125,6 +125,7 @@ describe("ReviewerSharePage", () => {
     window.location.hash = `share=${secret}`;
 
     render(<ReviewerSharePage />);
+    expect(window.location.hash).toBe("");
 
     expect(await screen.findByText("version-1-12345678")).toBeInTheDocument();
     expect(mocks.resolveShare).toHaveBeenCalledWith("synthetic-token", secret);
