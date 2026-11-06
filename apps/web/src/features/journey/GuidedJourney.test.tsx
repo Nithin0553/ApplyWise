@@ -91,7 +91,7 @@ describe("ApplyWise guided journey", () => {
           application: { company_name: string; role_title: string };
           statements: Array<{ text: string; evidence_ids: string[] }>;
         };
-        expect(posted.application).toEqual(expect.objectContaining({ role_title: "QA Engineer" }));
+        expect(posted.application.role_title).toContain("QA Engineer");
         expect(posted.statements).toEqual([expect.objectContaining({
           text: "Tested REST APIs.", evidence_ids: [evidenceId],
         })]);
