@@ -7,6 +7,7 @@ import type { PeerFeedbackSummary } from "./types";
 interface PeerFeedbackPanelProps {
   resumeVersionLabel: string;
   feedback: readonly PeerFeedbackSummary[];
+  historyHeading?: string;
   onSubmitFeedback?: (comment: string) => void;
 }
 
@@ -18,6 +19,7 @@ function formatDate(value: string): string {
 export function PeerFeedbackPanel({
   resumeVersionLabel,
   feedback,
+  historyHeading = "Feedback history",
   onSubmitFeedback,
 }: PeerFeedbackPanelProps) {
   const [comment, setComment] = useState("");
@@ -56,7 +58,7 @@ export function PeerFeedbackPanel({
       ) : null}
 
       <div className="peer-feedback__history" aria-label="Peer feedback history">
-        <h3>Feedback history</h3>
+        <h3>{historyHeading}</h3>
         {feedback.length === 0 ? (
           <p>No peer feedback has been submitted yet.</p>
         ) : (
