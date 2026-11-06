@@ -92,4 +92,57 @@ describe("EvidenceManager", () => {
     expect(screen.getByRole("note")).toHaveTextContent("return it to unconfirmed status");
     expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
   });
+
+  it("deletes an evidence record after confirmation", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/api/evidence/") && (!init?.method || init.method === "GET")) {
+        return jsonResponse([UNCONFIRMED]);
+      }
+      if (url.endsWith(`/api/evidence/${UNCONFIRMED.id}`) && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<EvidenceManager token="opaque-token" />);
+
+    expect(await screen.findByText("ApplyWise capstone")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    // Nothing is deleted until the user confirms.
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm delete" }));
+
+    expect(await screen.findByText("No career evidence yet")).toBeInTheDocument();
+    expect(screen.queryByText("ApplyWise capstone")).not.toBeInTheDocument();
+  });
+
+  it("shows imported records as unconfirmed in the profile", async () => {
+    const IMPORTED = { ...UNCONFIRMED, id: "33333333-3333-3333-3333-333333333333", title: "Imported job", source: "resume_import" };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/api/evidence/") && (!init?.method || init.method === "GET")) {
+        return jsonResponse([]);
+      }
+      if (url.endsWith("/api/evidence/import") && init?.method === "POST") {
+        return jsonResponse({ filename: "resume.pdf", records: [IMPORTED] }, 201);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<EvidenceManager token="opaque-token" />);
+
+    expect(await screen.findByText("No career evidence yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Import resume" }));
+    fireEvent.change(screen.getByLabelText(/resume file/i), {
+      target: { files: [new File(["x"], "resume.pdf")] },
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Import resume" })[1]);
+
+    expect(await screen.findByText("Imported job")).toBeInTheDocument();
+    expect(screen.getByText("Unconfirmed")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Unconfirmed \(1\)/ })).toBeInTheDocument();
+  });
 });
