@@ -27,7 +27,14 @@ export interface JourneyResumeVersion {
   version_number: number;
   created_at: string;
   snapshot: {
-    statements: Array<{ statement_id: string; text: string; verification_status: string; approval_status: string }>;
+    statements: Array<{
+      statement_id: string;
+      text: string;
+      evidence_ids: string[];
+      verification_status: "VERIFIED" | "INFERRED" | "UNSUPPORTED";
+      approval_status: "UNREVIEWED" | "APPROVED" | "REJECTED";
+      origin?: "DRAFT_USER_REVIEWED" | "F09_APPROVED";
+    }>;
   };
 }
 
