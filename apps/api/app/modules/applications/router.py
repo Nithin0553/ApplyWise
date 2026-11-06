@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
+from app.modules.evidence.service import EvidenceService
 
 from .models import ApplicationStatus
 from .schemas import (
@@ -17,6 +18,12 @@ from .schemas import (
     ApplicationView,
     ResumeVersionContent,
     ResumeVersionView,
+    ReviewedDraftCreate,
+    ReviewedDraftView,
+    EvidenceSnapshotItem,
+    ProvenanceSnapshotItem,
+    VerificationSnapshotStatus,
+    ApprovalSnapshotStatus,
 )
 from .service import (
     ApplicationNotFoundError,
@@ -36,6 +43,85 @@ def _application_not_found(exc: Exception) -> HTTPException:
 
 def _resume_not_found(exc: Exception) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume version not found")
+
+
+@router.post(
+    "/reviewed-drafts",
+    response_model=ReviewedDraftView,
+    status_code=status.HTTP_201_CREATED,
+)
+def save_reviewed_draft(
+    payload: ReviewedDraftCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+) -> ReviewedDraftView:
+    """Atomically save an unverified historical draft and its application.
+
+    F02 is authoritative for approved evidence content. Client statements are
+    explicit human-reviewed INFERRED drafts, never F08 VERIFIED results.
+    This route is not eligible for F10 finalization/export.
+    """
+    evidence_ids = list(dict.fromkeys(
+        evidence_id
+        for statement in payload.statements
+        for evidence_id in statement.evidence_ids
+    ))
+    approved = {
+        item.id: item
+        for item in EvidenceService(db).list_approved(user_id=current_user.id)
+    }
+    if any(evidence_id not in approved for evidence_id in evidence_ids):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Approved evidence not found",
+        )
+    if any(approved[evidence_id].approved_at is None for evidence_id in evidence_ids):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Approved evidence is incomplete",
+        )
+
+    content = ResumeVersionContent(
+        evidence=tuple(
+            EvidenceSnapshotItem(
+                evidence_id=evidence_id,
+                evidence_type=approved[evidence_id].evidence_type,
+                title=approved[evidence_id].title,
+                organization=approved[evidence_id].organization,
+                role=approved[evidence_id].role,
+                description=approved[evidence_id].description,
+                approved_at=approved[evidence_id].approved_at,
+            )
+            for evidence_id in evidence_ids
+        ),
+        statements=tuple(
+            ProvenanceSnapshotItem(
+                statement_id=item.statement_id,
+                text=item.text,
+                evidence_ids=item.evidence_ids,
+                verification_status=VerificationSnapshotStatus.INFERRED,
+                approval_status=ApprovalSnapshotStatus.APPROVED,
+            )
+            for item in payload.statements
+        ),
+    )
+
+    service = ApplicationService(db)
+    try:
+        application = service.create_application(
+            user_id=current_user.id,
+            data=payload.application,
+        )
+        version = service.save_resume_version(
+            user_id=current_user.id,
+            application_id=application.id,
+            content=content,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return ReviewedDraftView(application=application, resume_version=version)
 
 
 @router.get("/resume-version-counts", response_model=dict[str, int])
