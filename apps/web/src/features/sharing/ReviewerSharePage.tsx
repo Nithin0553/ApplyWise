@@ -33,6 +33,16 @@ export function ReviewerSharePage({ secret }: ReviewerSharePageProps) {
     () => secret ?? readReviewerShareSecret(),
     [secret],
   );
+  // Also protect standalone embeddings (outside App's root fragment
+  // consumer): clear the capability URL once copied into component memory.
+  useEffect(() => {
+    if (secret || !linkedSecret || readReviewerShareSecret() !== linkedSecret) return;
+    window.history.replaceState(
+      window.history.state, "",
+      window.location.pathname + window.location.search,
+    );
+  }, [secret, linkedSecret]);
+
   const [secretInput, setSecretInput] = useState(linkedSecret ?? "");
   const [resolvedSecret, setResolvedSecret] = useState<string | null>(null);
   const [share, setShare] = useState<SharedResumeReference | null>(null);

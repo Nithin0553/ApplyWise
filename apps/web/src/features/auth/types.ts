@@ -1,7 +1,7 @@
 // F01: shared types for the auth feature. Keep in sync with the backend
 // contracts in apps/api/app/modules/auth/schemas.py.
 
-export type UserRole = "job_seeker" | "administrator";
+export type UserRole = "job_seeker" | "reviewer" | "administrator";
 
 export interface User {
   id: string;
