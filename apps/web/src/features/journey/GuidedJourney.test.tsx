@@ -99,6 +99,8 @@ describe("ApplyWise guided journey", () => {
       } else if (path === "/api/applications/") {
         payload = [{ id: "33333333-3333-4333-8333-333333333333",
           role_title: "QA Engineer", company_name: "Company", status: "draft" }];
+      } else if (path === "/api/applications/resume-version-counts") {
+        payload = { "33333333-3333-4333-8333-333333333333": 1 };
       } else if (path.includes("resume-versions")) {
         payload = [{ id: "version", version_number: 1 }];
       } else { throw Error(`Unexpected request ${path}`); }
