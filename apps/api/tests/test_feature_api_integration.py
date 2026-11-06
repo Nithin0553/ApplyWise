@@ -136,6 +136,49 @@ def test_application_api_scopes_versions_to_authenticated_owner(client: TestClie
     assert versions.json()[0]["id"] == version_id
 
 
+def test_resume_version_count_endpoint_is_owner_scoped(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    owner = _register(client, "count.owner@example.com")
+    other = _register(client, "count.other@example.com")
+    owner_token = owner["access_token"]
+    other_token = other["access_token"]
+
+    first_id, _ = _application_and_version(client, owner_token)
+    second_id, _ = _application_and_version(client, owner_token)
+    other_id, _ = _application_and_version(client, other_token)
+
+    response = client.post(
+        f"/api/applications/{first_id}/resume-versions",
+        headers=_headers(owner_token),
+        json={"evidence": [], "statements": []},
+    )
+    assert response.status_code == 201
+
+    counts = client.get(
+        "/api/applications/resume-version-counts",
+        headers=_headers(owner_token),
+    )
+    assert counts.status_code == 200
+    assert counts.json() == {first_id: 2, second_id: 1}
+    assert other_id not in counts.json()
+
+    other_counts = client.get(
+        "/api/applications/resume-version-counts",
+        headers=_headers(other_token),
+    )
+    assert other_counts.status_code == 200
+    assert other_counts.json() == {other_id: 1}
+
+    assert client.get("/api/applications/resume-version-counts").status_code == 401
+    reviewer = _reviewer_token(client, db_session)
+    assert client.get(
+        "/api/applications/resume-version-counts",
+        headers=_headers(reviewer),
+    ).status_code == 403
+
+
 def test_sharing_api_enforces_job_seeker_and_reviewer_roles(
     client: TestClient,
     db_session: Session,
