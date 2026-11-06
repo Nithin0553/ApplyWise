@@ -65,7 +65,7 @@ export function ResumeVersionHistory({ token, applicationId }: Props) {
       if (!active) return;
       const ordered = records.slice().sort((a, b) => a.version_number - b.version_number);
       setVersions(ordered);
-      setSelectedId(ordered.at(-1)?.id ?? "");
+      setSelectedId(ordered[ordered.length - 1]?.id ?? "");
     }).catch(cause => {
       if (!active) return;
       setError(cause instanceof Error ? cause.message : "Could not load resume version history.");
