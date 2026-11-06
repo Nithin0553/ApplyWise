@@ -20,7 +20,7 @@ from app.modules.applications.schemas import (
     VerificationSnapshotStatus,
 )
 from app.modules.applications.service import ApplicationService
-from app.modules.sharing.models import ResumeShareRecord
+from app.modules.sharing.models import PeerFeedbackRecord, ResumeShareRecord
 from app.modules.sharing.schemas import PeerFeedbackCreate, ShareCreate
 from app.modules.sharing.service import (
     InvalidShareExpiryError,
@@ -257,11 +257,22 @@ def test_peer_feedback_is_append_only_and_version_scoped(session: Session) -> No
         data=PeerFeedbackCreate(comment="The structure is easy to scan."),
     )
 
+    # Force the exact clock-tie that exposed the Windows failure. Ordering must
+    # remain append order even when created_at cannot distinguish the rows.
+    tied_at = datetime(2026, 10, 6, 12, 0, 0, tzinfo=UTC)
+    first_record = session.get(PeerFeedbackRecord, first.id)
+    second_record = session.get(PeerFeedbackRecord, second.id)
+    assert first_record is not None and second_record is not None
+    first_record.created_at = tied_at
+    second_record.created_at = tied_at
+    session.flush()
+
     feedback = sharing.list_feedback(
         owner_user_id=owner_id,
         share_id=created.grant.id,
     )
     assert [item.id for item in feedback] == [first.id, second.id]
+    assert [first_record.position, second_record.position] == [1, 2]
     assert all(item.resume_version_id == version.id for item in feedback)
 
     reloaded = ApplicationService(session).get_resume_version(

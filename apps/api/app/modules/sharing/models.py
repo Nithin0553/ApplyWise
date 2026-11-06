@@ -3,7 +3,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKeyConstraint, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import (
+    DateTime,
+    ForeignKeyConstraint,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -63,6 +71,11 @@ class PeerFeedbackRecord(Base):
             name="fk_peer_feedback_share_version",
             ondelete="RESTRICT",
         ),
+        UniqueConstraint(
+            "share_id",
+            "position",
+            name="uq_peer_feedback_share_position",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -73,6 +86,9 @@ class PeerFeedbackRecord(Base):
         index=True,
         nullable=False,
     )
+    # Stable append order within one share. Timestamps are display/audit data,
+    # not an insertion-order primitive: two writes can legitimately tie.
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
