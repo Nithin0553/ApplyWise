@@ -10,7 +10,7 @@ every module, not just auth's own routes.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -55,7 +55,7 @@ def get_current_user(
     return user
 
 
-def require_role(*allowed_roles: UserRole) -> Iterable[UserRole]:
+def require_role(*allowed_roles: UserRole) -> Callable[..., User]:
     """Return a FastAPI dependency restricting a route to the given roles.
 
     Usage: ``Depends(require_role(UserRole.ADMINISTRATOR))``. Ownership
