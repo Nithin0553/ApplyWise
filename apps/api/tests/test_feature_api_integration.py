@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -236,7 +237,15 @@ def test_reviewed_draft_atomic_save_uses_authoritative_approved_evidence(
     assert snapshot["statements"][0]["approval_status"] == "APPROVED"
     assert snapshot["evidence"][0]["title"] == approve.json()["title"]
     assert snapshot["evidence"][0]["description"] == approve.json()["description"]
-    assert snapshot["evidence"][0]["approved_at"] == approve.json()["approved_at"]
+    # SQLite loses timezone metadata on readback; compare the timestamp values
+    # without assuming whether JSON serialization includes the UTC suffix.
+    snapshot_approval = datetime.fromisoformat(
+        snapshot["evidence"][0]["approved_at"].replace("Z", "+00:00")
+    )
+    source_approval = datetime.fromisoformat(
+        approve.json()["approved_at"].replace("Z", "+00:00")
+    )
+    assert snapshot_approval.replace(tzinfo=None) == source_approval.replace(tzinfo=None)
     assert snapshot["application_id"] == application["id"]
     assert len(client.get("/api/applications/", headers=_headers(owner_token)).json()) == 1
 
