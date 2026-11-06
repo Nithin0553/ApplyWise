@@ -9,10 +9,11 @@ import {
 } from "./api";
 import "./journey.css";
 import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
+import { EvidenceManager } from "../evidence/EvidenceProfilePage";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "match" | "generating" | "resume" | "exporting" | "applications";
+  "match" | "generating" | "resume" | "exporting" | "applications" | "evidence";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -48,6 +49,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [versionCounts, setVersionCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [evidenceReturnStage, setEvidenceReturnStage] = useState<"paste" | "match">("paste");
 
   useEffect(() => {
     if (stage !== "ready") return;
@@ -133,6 +135,22 @@ export function GuidedJourney({ user, token, logout }: Props) {
     changeStage("paste");
   }
 
+  function openEvidence() {
+    setEvidenceReturnStage(stage === "match" ? "match" : "paste");
+    changeStage("evidence");
+  }
+
+  async function closeEvidence() {
+    setError("");
+    try {
+      // Invalidate the match-stage cache after F02 edits/approvals.
+      setEvidence(await getEvidence(token));
+      changeStage(evidenceReturnStage);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not refresh approved evidence.");
+    }
+  }
+
   async function openApplications() {
     setError(""); setStage("applications");
     try {
@@ -173,6 +191,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <button className="aw-logo" type="button" onClick={() => changeStage("paste")}>ApplyWise</button>
       <nav className="aw-toplinks" aria-label="Your workspace">
         <button type="button" onClick={newJob}>New job</button>
+        <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
         <details className="aw-account"><summary>Profile</summary>
@@ -185,6 +204,12 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
+    {stage === "evidence" && <main className="aw-evidence-workspace aw-fade">
+      <div className="aw-evidence-header">
+        <button type="button" className="aw-link" onClick={() => void closeEvidence()}>← Back to application</button>
+      </div>
+      <EvidenceManager token={token} />
+    </main>}
     {stage === "setup" && <StoryboardOnboarding profile={profile} setProfile={setProfile} finish={() => void finishSetup()} busy={busy} />}
     {stage === "preparing" && <main className="aw-center-state aw-fade aw-processing" role="status">
       <div className="aw-spinner" aria-hidden="true" />
