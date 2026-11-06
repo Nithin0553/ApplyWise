@@ -22,6 +22,17 @@ class ApprovalSnapshotStatus(StrEnum):
     REJECTED = "REJECTED"
 
 
+class ProvenanceOrigin(StrEnum):
+    """Source of review, distinct from verification and export eligibility.
+
+    Legacy snapshots default to the untrusted user-reviewed draft origin.
+    F09_APPROVED is reserved for a future server-controlled F09 flow.
+    """
+
+    DRAFT_USER_REVIEWED = "DRAFT_USER_REVIEWED"
+    F09_APPROVED = "F09_APPROVED"
+
+
 class EvidenceSnapshotItem(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -42,6 +53,7 @@ class ProvenanceSnapshotItem(BaseModel):
     evidence_ids: tuple[UUID, ...] = ()
     verification_status: VerificationSnapshotStatus
     approval_status: ApprovalSnapshotStatus
+    origin: ProvenanceOrigin = ProvenanceOrigin.DRAFT_USER_REVIEWED
 
 
 def _validate_snapshot_links(
