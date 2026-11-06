@@ -52,7 +52,8 @@ describe("F13 read-only version history", () => {
     render(<ResumeVersionHistory token="synthetic-token" applicationId={applicationId} />);
     expect(screen.getByRole("status")).toHaveTextContent("Loading saved versions");
     expect(await screen.findByText("Added automated API tests.")).toBeInTheDocument();
-    expect(getVersions).toHaveBeenCalledExactlyOnceWith("synthetic-token", applicationId);
+    expect(getVersions).toHaveBeenCalledTimes(1);
+    expect(getVersions).toHaveBeenCalledWith("synthetic-token", applicationId);
     expect(screen.getByText("Resume version 2")).toBeInTheDocument();
     expect(screen.getAllByText("DRAFT_USER_REVIEWED")).toHaveLength(2);
     expect(screen.getByText(/not an export approval/i)).toBeInTheDocument();
