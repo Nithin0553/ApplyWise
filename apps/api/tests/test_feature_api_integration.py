@@ -461,6 +461,22 @@ def test_alembic_chain_has_one_head_rooted_after_f01() -> None:
     config.set_main_option("script_location", str(api_root / "migrations"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == ["20261006_0004"]
+    heads = scripts.get_heads()
+    assert len(heads) == 1
+
+    # Each migration extends a single chain from F01, rather than pinning
+    # the test to yesterday's head and breaking every time a migration lands.
+    revisions: list[str] = []
+    revision = scripts.get_revision(heads[0])
+    while revision is not None:
+        revisions.append(revision.revision)
+        if revision.down_revision is None:
+            break
+        assert isinstance(revision.down_revision, str)
+        revision = scripts.get_revision(revision.down_revision)
+
+    assert revisions[-1] == "0001"
+    assert "20261006_0004" in revisions
+    assert "20261106_0005" in revisions
     assert scripts.get_revision("20261006_0004").down_revision == "20261001_0003"
     assert scripts.get_revision("20260921_0001").down_revision == "0001"
