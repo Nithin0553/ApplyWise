@@ -38,6 +38,37 @@ describe("F13 application workspace", () => {
     expect(screen.getByText(/Historical resume snapshots are never changed/)).toBeInTheDocument();
   });
 
+  it("loads immutable version history only after a user requests it", async () => {
+    const id = "123e4567-e89b-42d3-a456-426614174000";
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => [{
+        id: "stored-v1", version_number: 1, created_at: "2026-11-06T12:00:00Z",
+        snapshot: { statements: [{
+          statement_id: id,
+          text: "Built a synthetic workflow.",
+          evidence_ids: ["evidence-id"],
+          verification_status: "INFERRED", approval_status: "APPROVED",
+          origin: "DRAFT_USER_REVIEWED",
+        }] },
+      }],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderWorkspace();
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Manage" }));
+    expect(fetchMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "View resume history" }));
+    expect(await screen.findByText("Built a synthetic workflow.")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/applications/${base.id}/resume-versions`,
+      expect.objectContaining({ headers: expect.any(Headers) }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Hide resume history" }));
+    expect(screen.queryByText("Built a synthetic workflow.")).not.toBeInTheDocument();
+  });
+
   it("saves job link, follow-up date and notes through the owned F13 PATCH endpoint", async () => {
     const updated = {
       ...base, job_url: "https://example.org/jobs/123", next_action_on: "2026-12-01", notes: "Contact recruiter",
