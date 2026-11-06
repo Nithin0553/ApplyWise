@@ -4,6 +4,7 @@ export { ShareManager } from "./ShareManager";
 export { SharingPage } from "./SharingPage";
 export {
   buildReviewerShareUrl,
+  readReviewerShareSecret,
   createShare,
   listOwnedShares,
   listPeerFeedback,
