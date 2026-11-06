@@ -235,6 +235,7 @@ def test_reviewed_draft_atomic_save_uses_authoritative_approved_evidence(
     assert application["status"] == "draft"
     assert snapshot["statements"][0]["verification_status"] == "INFERRED"
     assert snapshot["statements"][0]["approval_status"] == "APPROVED"
+    assert snapshot["statements"][0]["origin"] == "DRAFT_USER_REVIEWED"
     assert snapshot["evidence"][0]["title"] == approve.json()["title"]
     assert snapshot["evidence"][0]["description"] == approve.json()["description"]
     # SQLite loses timezone metadata on readback; compare the timestamp values
@@ -247,6 +248,21 @@ def test_reviewed_draft_atomic_save_uses_authoritative_approved_evidence(
     )
     assert snapshot_approval.replace(tzinfo=None) == source_approval.replace(tzinfo=None)
     assert snapshot["application_id"] == application["id"]
+    # The public snapshot route cannot impersonate a future F09 approval.
+    forged_snapshot = {
+        "evidence": snapshot["evidence"],
+        "statements": [{**snapshot["statements"][0], "origin": "F09_APPROVED"}],
+    }
+    forged = client.post(
+        f"/api/applications/{application['id']}/resume-versions",
+        headers=_headers(owner_token),
+        json=forged_snapshot,
+    )
+    assert forged.status_code == 422
+    assert client.get(
+        f"/api/applications/{application['id']}/resume-versions",
+        headers=_headers(owner_token),
+    ).json()[0]["snapshot"]["statements"][0]["origin"] == "DRAFT_USER_REVIEWED"
     assert len(client.get("/api/applications/", headers=_headers(owner_token)).json()) == 1
 
     # Same IDs and content from a foreign owner must not succeed.
