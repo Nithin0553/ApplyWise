@@ -104,8 +104,8 @@ export function ApplicationWorkspace({
       <section className="aw-app-list" aria-label="Saved applications">
         {applications.length ? applications.map(item => {
           const expanded = expandedId === item.id;
-          const valid = isKnownStatus(item.status);
-          const statusOptions = valid ? ALLOWED_STATUS_CHANGES[item.status] : [];
+          const statusOptions: readonly JourneyApplicationStatus[] = isKnownStatus(item.status)
+            ? ALLOWED_STATUS_CHANGES[item.status as JourneyApplicationStatus] : [];
           return <article key={item.id} className="aw-app-entry">
             <div className="aw-app-list-row">
               <div className="aw-app-doc-icon" aria-hidden="true">▤</div>
@@ -155,7 +155,7 @@ export function ApplicationWorkspace({
                         if (isKnownStatus(next)) void changeStatus(item.id, next);
                       }}>
                       <option value="" disabled>Choose next status</option>
-                      {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
+                      {statusOptions.map((status: JourneyApplicationStatus) => <option key={status} value={status}>{status}</option>)}
                     </select>
                   </label> :
                     <p className="aw-muted">This is a final status. Reopening is not supported by the application lifecycle.</p>}
