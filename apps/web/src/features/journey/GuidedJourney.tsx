@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
+import { SharingPage } from "../sharing";
 import {
   addEvidence, approveEvidenceItem, downloadReviewedText, estimateOverlap,
   generateCandidates, getApplications, getEvidence, getVersions,
@@ -12,7 +13,7 @@ import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardO
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "match" | "generating" | "resume" | "exporting" | "applications";
+  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -174,6 +175,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <nav className="aw-toplinks" aria-label="Your workspace">
         <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
+        <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
         <details className="aw-account"><summary>Profile</summary>
           <div className="aw-account-popup"><strong>{user.full_name}</strong><span>{user.email}</span>
@@ -185,6 +187,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
+    {stage === "sharing" && <main className="aw-f14-workspace aw-fade" aria-label="Peer review sharing workspace">
+      <SharingPage />
+    </main>}
     {stage === "setup" && <StoryboardOnboarding profile={profile} setProfile={setProfile} finish={() => void finishSetup()} busy={busy} />}
     {stage === "preparing" && <main className="aw-center-state aw-fade aw-processing" role="status">
       <div className="aw-spinner" aria-hidden="true" />
