@@ -1,9 +1,9 @@
-# STD Appendix — TC-9: Share Resume for Review
+# Supplemental / Deferred STD Case — Original TC-9: Share Resume for Review
 
-**Test case:** TC-9 | **Issue:** #39 | **Responsible author:** @Nithin0553 | **Execution status:** Prepared, not executed  
+**Test case:** Original TC-9 (deferred; excluded from the eight-case STD submission) | **Issue:** #39 | **Responsible author:** @Nithin0553 | **Execution status:** Prepared, not executed  
 **Feature:** F14 Peer Review and Sharing; immutable F13 version handoff; F01 role-based access  
 **Traceability:** `docs/contracts/F14_PEER_REVIEW_SHARING.md`, `docs/contracts/F13_SNAPSHOT_CONTRACT.md`, F14 service, router, and integration tests.  
-**Approved SRS requirement IDs:** Pending reconciliation with the approved SRS. Do not invent IDs.  
+**Approved SRS traceability:** PVD/SRS version 3.0 (09/25/2026), Appendix A: Req-Func-Sw-78–84 (F14), Req-Qual-Sec-1, Req-Qual-Sec-2, Req-Qual-Sec-5, plus Req-Func-Sw-1–5 (F01 reviewer authentication and role access). Confirm exact citation formatting in the final professor STD template.  
 **Duration estimate:** 35–55 minutes plus environment setup.  
 **Target application version:** Record git commit SHA/URL and API version at execution.  
 **Test hardware/software:** Record OS, browser/version, RAM/device, API service build and isolated database details at execution; no unverified test environment is claimed.  
@@ -31,10 +31,12 @@
 
 ## API contract gate
 
-At the current `main` baseline, reviewer operations are `GET /api/shares/resolve/{secret}` and `POST /api/shares/resolve/{secret}/feedback` with separate comment payload. **Security PR #24** changes them to `POST /api/shares/reviewer/resolve` and `POST /api/shares/reviewer/feedback` with the secret in a validated request body; **F14 UI PR #19 depends on #24**. At execution, use **only the endpoints actually deployed**, document that API version, and prefer testing after #24 is reviewed and merged. The reviewer test must not leak secrets into logs or screenshots.
+PR #24 is merged into `main`; the active reviewer operations are `POST /api/shares/reviewer/resolve` and `POST /api/shares/reviewer/feedback` with the 20–200-character secret in the validated JSON request body, not the URL. PR #19's sharing UI was subsequently merged. At execution, verify the installed build and use **only its deployed endpoints**. Never expose a share secret in screenshots, URLs or logs.
+
+**Submission mapping:** The approved reduced eight-case STD selection uses original cases 1, 2, 4, 5, 7, 11, 13 and 16. Original case 9 is **not selected**; keep this as a supplemental F14/issue #39 test plan, not as one of the eight executed case records.
 
 **Blocked/not yet full product coverage:** The final F10-rendered resume reviewer view is not integrated, so a metadata-only reviewer resolution is not proof of a complete document-sharing UX.
 
 ## Test evidence / closure requirements
 
-Capture test data identifiers, redacted HTTP transcripts, review role status, versions/grants, immutable version comparison, timestamps, defects, environment, actual elapsed time, and reviewer sign-off. Resolve approved SRS IDs and the professor STD-template metadata before marking this appendix ready for submission. **No Pass/Fail outcomes are asserted without execution.**
+Capture test data identifiers, redacted HTTP transcripts, review role status, versions/grants, immutable version comparison, timestamps, defects, environment, actual elapsed time, and reviewer sign-off. Verify the requirement mapping, deferred-case designation and professor STD-template metadata before marking this appendix ready for submission. **No Pass/Fail outcomes are asserted without execution.**
