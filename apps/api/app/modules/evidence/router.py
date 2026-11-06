@@ -2,14 +2,26 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
 
-from .schemas import ApprovedEvidence, EvidenceCreate, EvidenceUpdate, EvidenceView
+from .resume_import import (
+    MAX_UPLOAD_BYTES,
+    ResumeImportError,
+    ResumeTooLargeError,
+    UnsupportedResumeFormatError,
+)
+from .schemas import (
+    ApprovedEvidence,
+    EvidenceCreate,
+    EvidenceUpdate,
+    EvidenceView,
+    ResumeImportResult,
+)
 from .service import EvidenceNotFoundError, EvidenceService, InvalidEvidenceTransitionError
 
 router = APIRouter(prefix="/api/evidence", tags=["evidence"])
@@ -43,6 +55,36 @@ def create_evidence(
     current_user: User = Depends(_job_seeker),
 ) -> EvidenceView:
     result = EvidenceService(db).create(user_id=current_user.id, data=payload)
+    db.commit()
+    return result
+
+
+@router.post("/import", response_model=ResumeImportResult, status_code=status.HTTP_201_CREATED)
+async def import_resume(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+) -> ResumeImportResult:
+    """F03: import a PDF or Word resume as proposed, UNCONFIRMED evidence records."""
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    try:
+        result = EvidenceService(db).import_resume(
+            user_id=current_user.id,
+            filename=file.filename or "",
+            data=data,
+        )
+    except UnsupportedResumeFormatError as exc:
+        raise HTTPException(
+            status_code=415, detail=exc.message
+        ) from exc
+    except ResumeTooLargeError as exc:
+        raise HTTPException(
+            status_code=413, detail=exc.message
+        ) from exc
+    except ResumeImportError as exc:
+        raise HTTPException(
+            status_code=422, detail=exc.message
+        ) from exc
     db.commit()
     return result
 
@@ -108,3 +150,16 @@ def unconfirm_evidence(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     db.commit()
     return result
+
+
+@router.delete("/{evidence_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_evidence(
+    evidence_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+) -> None:
+    try:
+        EvidenceService(db).delete_owned(user_id=current_user.id, evidence_id=evidence_id)
+    except EvidenceNotFoundError as exc:
+        raise _not_found(exc) from exc
+    db.commit()

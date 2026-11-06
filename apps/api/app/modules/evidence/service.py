@@ -7,12 +7,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import EvidenceRecord, EvidenceStatus
+from .resume_import import read_resume
 from .schemas import (
     ApprovedEvidence,
     EvidenceCreate,
     EvidenceGroundingContext,
     EvidenceUpdate,
     EvidenceView,
+    ResumeImportResult,
 )
 
 
@@ -89,6 +91,25 @@ class EvidenceService:
 
         self.session.flush()
         return EvidenceView.model_validate(record)
+
+    def import_resume(self, *, user_id: UUID, filename: str, data: bytes) -> ResumeImportResult:
+        """F03: save the evidence proposed from an uploaded resume as UNCONFIRMED records.
+
+        Raises ResumeImportError (nothing is saved) if the file cannot be processed.
+        """
+        outcome = read_resume(filename, data)
+        records = [self.create(user_id=user_id, data=item) for item in outcome.proposed]
+        return ResumeImportResult(filename=filename, records=records)
+
+    def delete_owned(self, *, user_id: UUID, evidence_id: UUID) -> None:
+        """Delete one of the user's evidence records (Req-Func-Sw-9).
+
+        Saved resume versions keep their own immutable snapshot of the evidence they
+        used, so deleting the live record never rewrites version history.
+        """
+        record = self._get_owned_record(user_id=user_id, evidence_id=evidence_id)
+        self.session.delete(record)
+        self.session.flush()
 
     def approve(self, *, user_id: UUID, evidence_id: UUID) -> ApprovedEvidence:
         record = self._get_owned_record(user_id=user_id, evidence_id=evidence_id)

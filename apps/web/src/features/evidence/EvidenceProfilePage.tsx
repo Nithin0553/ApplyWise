@@ -5,10 +5,12 @@ import {
   EvidenceApiError,
   approveEvidence,
   createEvidence,
+  deleteEvidence,
   listEvidence,
   unconfirmEvidence,
   updateEvidence,
 } from "./api";
+import { ResumeImport } from "../import/ResumeImport";
 import { EvidenceForm } from "./EvidenceForm";
 import "./evidence.css";
 import { evidenceTypeLabel, toEvidenceFormValues } from "./types";
@@ -41,13 +43,17 @@ function EvidenceCard({
   onEdit,
   onApprove,
   onUnconfirm,
+  onDelete,
 }: {
   item: EvidenceItem;
   busy: boolean;
   onEdit: (item: EvidenceItem) => void;
   onApprove: (item: EvidenceItem) => void;
   onUnconfirm: (item: EvidenceItem) => void;
+  onDelete: (item: EvidenceItem) => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   return (
     <article className="evidence-card">
       <div className="evidence-card__header">
@@ -134,6 +140,27 @@ function EvidenceCard({
             Approve evidence
           </button>
         )}
+        {confirmingDelete ? (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmingDelete(false);
+                onDelete(item);
+              }}
+              disabled={busy}
+            >
+              Confirm delete
+            </button>
+            <button type="button" onClick={() => setConfirmingDelete(false)} disabled={busy}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => setConfirmingDelete(true)} disabled={busy}>
+            Delete
+          </button>
+        )}
       </div>
     </article>
   );
@@ -148,6 +175,7 @@ export function EvidenceManager({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [editingItem, setEditingItem] = useState<EvidenceItem | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const loadEvidence = useCallback(async () => {
     setIsLoading(true);
@@ -237,8 +265,35 @@ export function EvidenceManager({ token }: { token: string }) {
     }
   }
 
+  async function handleDelete(item: EvidenceItem) {
+    setBusyEvidenceId(item.id);
+    setError(null);
+    try {
+      await deleteEvidence(token, item.id);
+      setItems((current) => current.filter((existing) => existing.id !== item.id));
+      setEditingItem((current) => (current?.id === item.id ? null : current));
+    } catch (deleteError) {
+      setError(errorMessage(deleteError));
+    } finally {
+      setBusyEvidenceId(null);
+    }
+  }
+
+  function handleImported(imported: EvidenceItem[]) {
+    setItems((current) => [...current, ...imported]);
+    setFilter("unconfirmed");
+  }
+
+  function beginImport() {
+    setIsCreating(false);
+    setEditingItem(null);
+    setIsImporting(true);
+    setError(null);
+  }
+
   function beginCreate() {
     setEditingItem(null);
+    setIsImporting(false);
     setIsCreating(true);
     setError(null);
   }
@@ -265,9 +320,14 @@ export function EvidenceManager({ token }: { token: string }) {
             unconfirmed until you explicitly approve it.
           </p>
         </div>
-        <button type="button" onClick={beginCreate} disabled={isSaving || isCreating}>
-          Add evidence
-        </button>
+        <div className="evidence-profile__header-actions">
+          <button type="button" onClick={beginImport} disabled={isSaving || isImporting}>
+            Import resume
+          </button>
+          <button type="button" onClick={beginCreate} disabled={isSaving || isCreating}>
+            Add evidence
+          </button>
+        </div>
       </header>
 
       <div className="evidence-profile__filters" aria-label="Filter career evidence">
@@ -301,6 +361,21 @@ export function EvidenceManager({ token }: { token: string }) {
             Reload
           </button>
         </div>
+      ) : null}
+
+      {isImporting ? (
+        <section className="evidence-editor" aria-labelledby="import-resume-heading">
+          <h3 id="import-resume-heading">Import a resume</h3>
+          <p>
+            Everything imported starts as unconfirmed. Correct or delete the proposed records,
+            then approve the ones that are accurate.
+          </p>
+          <ResumeImport
+            token={token}
+            onImported={handleImported}
+            onCancel={() => setIsImporting(false)}
+          />
+        </section>
       ) : null}
 
       {isCreating ? (
@@ -352,6 +427,7 @@ export function EvidenceManager({ token }: { token: string }) {
               onEdit={beginEdit}
               onApprove={(value) => void handleApprove(value)}
               onUnconfirm={(value) => void handleUnconfirm(value)}
+              onDelete={(value) => void handleDelete(value)}
             />
           ))}
         </div>

@@ -16,6 +16,8 @@ dependencies = [
   "alembic>=1.14,<2",
   "bcrypt>=4.2,<5",
   "pyjwt>=2.9,<3",
+  "pypdf>=5,<8",
+  "python-multipart>=0.0.20,<1",
 ]
 
 [project.optional-dependencies]
@@ -40,7 +42,7 @@ select = ["E", "F", "I", "B", "UP"]
 # FastAPI's dependency-injection pattern relies on calling Depends()/Query()
 # in argument defaults; this is not the mutable-default-argument bug B008
 # otherwise guards against.
-extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.File"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

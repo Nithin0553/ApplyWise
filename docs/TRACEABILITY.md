@@ -17,7 +17,7 @@ Statuses below reflect repository-visible implementation state. Work in an open 
 | F06 Content Selection Engine | High | 2 Job Analysis | TBD | TBD | Not started in repository |
 | F10 Resume Generation, Templates and Export | High | 4 Usable Application | Issue #5 | Frontend prototype tests | UI prototype in PR #14; document/export work remains |
 | F13 Resume Version Management and Application Tracking | High | model early / stage 4 | Issue #10 / F13 contract | Backend persistence/domain + frontend component tests | Implemented in PR #8; F01 integration in progress |
-| F03 Resume Import and Profile Population | Medium | 5 Extensions | TBD | TBD | Not started in repository |
+| F03 Resume Import and Profile Population | Medium | 5 Extensions | F03 contract (Req-Func-Sw-13 to 17) | Backend import/API tests + frontend component tests | Implemented in this branch; pending review and merge |
 | F12 Resume Formatting and ATS Readability Analysis | Medium | 5 Extensions | TBD | TBD | Not started in repository |
 | F11 Cover Letter Generation | Medium | 5 Extensions | TBD | TBD | Not started in repository |
 | F14 Peer Review and Sharing | Medium | 5 Extensions | Issue #12 / F14 contract | Backend persistence/security + frontend component tests | Foundation in PR #8; F01 role wiring in progress |
