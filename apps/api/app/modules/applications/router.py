@@ -18,6 +18,7 @@ from .schemas import (
     ApplicationView,
     ApprovalSnapshotStatus,
     EvidenceSnapshotItem,
+    ProvenanceOrigin,
     ProvenanceSnapshotItem,
     ResumeVersionContent,
     ResumeVersionView,
@@ -101,6 +102,7 @@ def save_reviewed_draft(
                 evidence_ids=item.evidence_ids,
                 verification_status=VerificationSnapshotStatus.INFERRED,
                 approval_status=ApprovalSnapshotStatus.APPROVED,
+                origin=ProvenanceOrigin.DRAFT_USER_REVIEWED,
             )
             for item in payload.statements
         ),
@@ -257,6 +259,12 @@ def save_resume_version(
     db: Session = Depends(get_db),
     current_user: User = Depends(_job_seeker),
 ) -> ResumeVersionView:
+    # Client-submitted history cannot assert the F09-owned approval origin.
+    if any(item.origin != ProvenanceOrigin.DRAFT_USER_REVIEWED for item in payload.statements):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="F09-approved provenance cannot be claimed through F13",
+        )
     try:
         result = ApplicationService(db).save_resume_version(
             user_id=current_user.id,
