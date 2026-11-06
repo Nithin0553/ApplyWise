@@ -86,16 +86,21 @@ describe("ApplyWise guided journey", () => {
         payload = { statements: [{ statement_id: statementId, text: "Tested REST APIs.",
           evidence_ids: [evidenceId], status: "CANDIDATE", verification_status: "PENDING",
           approval_status: "UNREVIEWED", export_eligible: false }] };
-      } else if (path === "/api/applications/" && init?.method === "POST") {
-        payload = { id: "33333333-3333-4333-8333-333333333333", role_title: "QA Engineer",
-          company_name: "Company", status: "draft", created_at: "2026-10-13T00:00:00Z" };
-      } else if (path.includes("resume-versions") && init?.method === "POST") {
-        const posted = JSON.parse(String(init.body)) as { statements: Array<{ text: string; approval_status: string }> };
+      } else if (path === "/api/applications/reviewed-drafts" && init?.method === "POST") {
+        const posted = JSON.parse(String(init.body)) as {
+          application: { company_name: string; role_title: string };
+          statements: Array<{ text: string; evidence_ids: string[] }>;
+        };
+        expect(posted.application).toEqual(expect.objectContaining({ role_title: "QA Engineer" }));
         expect(posted.statements).toEqual([expect.objectContaining({
-          text: "Tested REST APIs.", approval_status: "APPROVED",
-          verification_status: "INFERRED",
+          text: "Tested REST APIs.", evidence_ids: [evidenceId],
         })]);
-        payload = { id: "version", version_number: 1 };
+        expect(JSON.stringify(posted)).not.toContain("VERIFIED");
+        payload = {
+          application: { id: "33333333-3333-4333-8333-333333333333",
+            role_title: "QA Engineer", company_name: "Company", status: "draft" },
+          resume_version: { id: "version", version_number: 1 },
+        };
       } else if (path === "/api/applications/") {
         payload = [{ id: "33333333-3333-4333-8333-333333333333",
           role_title: "QA Engineer", company_name: "Company", status: "draft" }];
@@ -126,8 +131,8 @@ describe("ApplyWise guided journey", () => {
     expect(screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Export reviewed resume/ }));
     expect(await screen.findByRole("heading", { name: "My Applications" }, { timeout: 6000 })).toBeInTheDocument();
-    expect(requests).toContain("/api/applications/");
-    expect(requests.some((path) => path.includes("resume-versions"))).toBe(true);
+    expect(requests).toContain("/api/applications/reviewed-drafts");
+    expect(requests).toContain("/api/applications/resume-version-counts");
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
     vi.restoreAllMocks();
   }, 10000);
