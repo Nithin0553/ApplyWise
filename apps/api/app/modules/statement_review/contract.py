@@ -11,11 +11,10 @@ default provider raises VerificationUnavailableError and approval fails closed.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing import Self
 
 
 class VerificationStatus(StrEnum):
