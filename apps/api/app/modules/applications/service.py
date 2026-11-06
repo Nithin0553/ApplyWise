@@ -122,6 +122,22 @@ class ApplicationService:
         ).all()
         return [ApplicationView.model_validate(record) for record in records]
 
+    def count_resume_versions(self, *, user_id: UUID) -> dict[str, int]:
+        """Count only versions belonging to the authenticated user.
+
+        One aggregate query avoids a per-application request fanout and does
+        not expose immutable snapshots or foreign-owned identifiers.
+        """
+        results = self.session.execute(
+            select(
+                ResumeVersionRecord.application_id,
+                func.count(ResumeVersionRecord.id),
+            )
+            .where(ResumeVersionRecord.user_id == user_id)
+            .group_by(ResumeVersionRecord.application_id)
+        ).all()
+        return {str(application_id): int(count) for application_id, count in results}
+
     def update_application(
         self,
         *,
