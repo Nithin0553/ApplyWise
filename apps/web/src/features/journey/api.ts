@@ -117,6 +117,10 @@ export function changeApplicationStatus(token: string, id: string, status: Journ
   });
 }
 
+export function getVersionCounts(token: string) {
+  return api<Record<string, number>>(token, "/api/applications/resume-version-counts");
+}
+
 export function getVersions(token: string, applicationId: string) {
   return api<JourneyResumeVersion[]>(token, `/api/applications/${encodeURIComponent(applicationId)}/resume-versions`);
 }
