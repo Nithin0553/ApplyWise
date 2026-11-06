@@ -47,7 +47,7 @@ describe("evidence api", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("http://localhost:8000/api/evidence/");
+    expect(url).toBe("/api/evidence/");
     expect(new Headers(init.headers).get("Authorization")).toBe("Bearer opaque-token");
     expect(result[0]).toMatchObject({
       id: API_RECORD.id,

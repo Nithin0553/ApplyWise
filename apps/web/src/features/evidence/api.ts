@@ -1,6 +1,6 @@
 import type { EvidenceFormValues, EvidenceItem, EvidenceStatus, EvidenceType } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 interface EvidenceApiRecord {
   id: string;

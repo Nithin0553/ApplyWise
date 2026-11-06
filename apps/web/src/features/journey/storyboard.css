@@ -373,3 +373,35 @@
   .aw-app-list-row .aw-app-version-count { display:none; }
   .aw-app-expand { grid-column:3; }
 }
+
+/* F02 evidence management uses the same approved blue-green design language. */
+.aw-evidence-workspace {
+  width:min(1080px,100%); padding:0 24px 70px; margin:26px auto;
+}
+.aw-evidence-header { display:flex; justify-content:flex-start; }
+.aw-evidence-header .aw-link { padding:9px 0; color:#0755d7; }
+.aw-evidence-workspace .evidence-profile__header h2 {
+  color:#142342; font-size:clamp(26px,3.2vw,40px); letter-spacing:-.045em;
+}
+.aw-evidence-workspace .evidence-profile__header p { color:#687991; font-size:14px; line-height:1.6; }
+.aw-evidence-workspace .evidence-profile__eyebrow { color:#1684c7; }
+.aw-evidence-workspace :is(.evidence-card,.evidence-editor) {
+  border:1px solid #deebf8; border-radius:17px; padding:24px; box-shadow:0 8px 25px #1c518c0d;
+}
+.aw-evidence-workspace .evidence-profile__header > button,
+.aw-evidence-workspace .evidence-form__actions button[type="submit"] {
+  color:#fff; background:#0755d7; border:0; border-radius:999px; padding:11px 20px; font-weight:650;
+}
+.aw-evidence-workspace .evidence-profile__header > button:hover:not(:disabled),
+.aw-evidence-workspace .evidence-form__actions button[type="submit"]:hover:not(:disabled) {
+  background:#0646ad; color:white;
+}
+.aw-evidence-workspace .evidence-card__actions button,
+.aw-evidence-workspace .evidence-profile__filters button {
+  border-color:#d1e3f6; border-radius:10px; color:#32608f;
+}
+.aw-evidence-workspace .evidence-status--approved { background:#e5faf2; color:#087d59; }
+.aw-evidence-workspace .evidence-profile__filters button[data-selected="true"] {
+  color:#0755d7; background:#eaf4ff; border-color:#7eb8f1;
+}
+@media (max-width:640px) { .aw-evidence-workspace { padding:0 16px 45px; margin:14px auto; } }

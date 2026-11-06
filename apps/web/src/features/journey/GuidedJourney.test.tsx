@@ -39,6 +39,51 @@ describe("ApplyWise guided journey", () => {
     expect(screen.getByText("Anything else we should know?")).toBeInTheDocument();
   });
 
+  it("opens the real F02 evidence manager and refreshes evidence on return", async () => {
+    window.localStorage.setItem(
+      `applywise.journey.profile.${user.id}`,
+      JSON.stringify({ career: "Software Engineer", years: "2–3 years",
+        focus: ["Python"], experience: "Built Python tests.", resumeName: "" }),
+    );
+    vi.stubGlobal("scrollTo", vi.fn());
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => [] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<GuidedJourney user={user} token="test-token" logout={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
+    expect(await screen.findByRole("heading", { name: "Career evidence" })).toBeInTheDocument();
+    expect(screen.getByText("No career evidence yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "← Back to application" }));
+    expect(await screen.findByRole("textbox", { name: "Paste your job description to ApplyWise" }))
+      .toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/evidence/", expect.objectContaining({
+      headers: expect.any(Headers),
+    }));
+  });
+
+  it("returns from Evidence even when the approved-evidence refresh fails", async () => {
+    window.localStorage.setItem(
+      `applywise.journey.profile.${user.id}`,
+      JSON.stringify({ career: "Software Engineer", years: "2–3 years",
+        focus: ["Python"], experience: "Built Python tests.", resumeName: "" }),
+    );
+    vi.stubGlobal("scrollTo", vi.fn());
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({
+        ok: false, status: 503,
+        json: async () => ({ detail: "Evidence service temporarily unavailable" }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<GuidedJourney user={user} token="test-token" logout={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Evidence" }));
+    expect(await screen.findByRole("heading", { name: "Career evidence" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "← Back to application" }));
+    expect(await screen.findByRole("textbox", { name: "Paste your job description to ApplyWise" }))
+      .toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Evidence service temporarily unavailable");
+  });
+
   it("transfers the user's own posting to an evidence review without inventing results", async () => {
     window.localStorage.setItem(
       `applywise.journey.profile.${user.id}`,
@@ -63,6 +108,10 @@ describe("ApplyWise guided journey", () => {
     expect(screen.getByText("You're making a grounded match.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /generate resume/i })).toBeDisabled();
     expect(screen.getByText(/No evidence saved yet/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Open evidence workspace/ }));
+    expect(await screen.findByRole("heading", { name: "Career evidence" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "← Back to application" }));
+    expect(await screen.findByText("You're making a grounded match.")).toBeInTheDocument();
   }, 6000);
   it("requires human approval, persists a resume version, and downloads only approved text", async () => {
     window.localStorage.setItem(

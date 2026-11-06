@@ -3,7 +3,7 @@ import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import { SharingPage } from "../sharing";
 import {
-  addEvidence, approveEvidenceItem, downloadReviewedText, estimateOverlap,
+  addEvidence, downloadReviewedText, estimateOverlap,
   generateCandidates, getApplications, getEvidence, getVersionCounts,
   readRequirements, saveReviewedResume,
   type JourneyApplication, type JourneyEvidence,
@@ -11,10 +11,11 @@ import {
 import "./journey.css";
 import { ApplicationWorkspace } from "./ApplicationWorkspace";
 import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
+import { EvidenceManager } from "../evidence/EvidenceProfilePage";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing";
+  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -50,6 +51,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [versionCounts, setVersionCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [evidenceReturnStage, setEvidenceReturnStage] = useState<Stage>("paste");
 
   useEffect(() => {
     if (stage !== "ready") return;
@@ -100,15 +102,6 @@ export function GuidedJourney({ user, token, logout }: Props) {
     }
   }
 
-  async function approve(item: JourneyEvidence) {
-    setBusy(true); setError("");
-    try {
-      const result = await approveEvidenceItem(token, item.id);
-      setEvidence((current) => current.map((record) => record.id === item.id ? result : record));
-    } catch (err) { setError(err instanceof Error ? err.message : "Could not approve evidence."); }
-    finally { setBusy(false); }
-  }
-
   async function generateResume() {
     const available = evidence.filter((item) => item.status === "approved");
     if (!available.length) return;
@@ -133,6 +126,24 @@ export function GuidedJourney({ user, token, logout }: Props) {
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
     changeStage("paste");
+  }
+
+  function openEvidence() {
+    setEvidenceReturnStage(stage === "evidence" ? evidenceReturnStage : stage);
+    changeStage("evidence");
+  }
+
+  async function closeEvidence() {
+    try {
+      // Re-read F02 before returning so approvals removed in the evidence
+      // editor cannot remain in the match and generation screens.
+      setEvidence(await getEvidence(token));
+      changeStage(evidenceReturnStage);
+    } catch (err) {
+      // The user must be able to leave even if refreshing fails.
+      changeStage(evidenceReturnStage);
+      setError(err instanceof Error ? err.message : "Could not refresh approved evidence.");
+    }
   }
 
   async function openApplications() {
@@ -178,6 +189,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <button className="aw-logo" type="button" onClick={() => changeStage("paste")}>ApplyWise</button>
       <nav className="aw-toplinks" aria-label="Your workspace">
         <button type="button" onClick={newJob}>New job</button>
+        <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
         <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
@@ -193,6 +205,12 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {stage === "sharing" && <main className="aw-f14-workspace aw-fade" aria-label="Peer review sharing workspace">
       <SharingPage />
+    </main>}
+    {stage === "evidence" && <main className="aw-evidence-workspace aw-fade">
+      <div className="aw-evidence-header">
+        <button type="button" className="aw-link" onClick={() => void closeEvidence()}>← Back to application</button>
+      </div>
+      <EvidenceManager token={token} />
     </main>}
     {stage === "setup" && <StoryboardOnboarding profile={profile} setProfile={setProfile} finish={() => void finishSetup()} busy={busy} />}
     {stage === "preparing" && <main className="aw-center-state aw-fade aw-processing" role="status">
@@ -289,31 +307,16 @@ export function GuidedJourney({ user, token, logout }: Props) {
         </section>
       </div>
       <section className="aw-panel aw-evidence-review">
-        <div className="aw-panel-heading"><h3>Review your evidence</h3><span>{approvedEvidence.length} approved</span></div>
-        <p className="aw-muted">Only evidence you approve can be used to generate resume statements.</p>
+        <div className="aw-panel-heading"><h3>Your career evidence</h3><span>{approvedEvidence.length} approved</span></div>
+        <p className="aw-muted">Manage projects and experience in one evidence workspace. Only evidence you've approved can support generated statements.</p>
         {evidence.length ? <div className="aw-evidence-list">{evidence.map(item =>
           <article className="aw-evidence-row" key={item.id}>
             <div><strong>{item.title}</strong><small>{item.description || item.role || "Evidence item"}</small></div>
-            {item.status === "approved" ? <span className="aw-approved">✓ Approved</span> :
-              <button type="button" disabled={busy} onClick={() => void approve(item)}>Review &amp; approve</button>}
-          </article>)}</div> : <p className="aw-muted">No evidence saved yet. Add an example of your own work below.</p>}
-        <details className="aw-add-evidence"><summary>+ Add your own evidence</summary>
-          <form onSubmit={async e => {
-            e.preventDefault();
-            const form=e.currentTarget, data=new FormData(form);
-            const title=String(data.get("title") ?? "").trim();
-            const summary=String(data.get("summary") ?? "").trim();
-            if (!title || !summary) return;
-            setBusy(true); setError("");
-            try { const item=await addEvidence(token,title,role,summary); setEvidence(current=>[...current,item]); form.reset(); }
-            catch(err) { setError(err instanceof Error ? err.message : "Could not add evidence."); }
-            finally { setBusy(false); }
-          }}>
-            <input name="title" required maxLength={200} placeholder="Project or experience title" aria-label="Evidence title" />
-            <textarea name="summary" required placeholder="What did you actually do?" aria-label="Evidence description" />
-            <button type="submit" disabled={busy}>Add for review</button>
-          </form>
-        </details>
+            <span className={item.status === "approved" ? "aw-approved" : "aw-missing"}>
+              {item.status === "approved" ? "✓ Approved" : "Needs approval"}
+            </span>
+          </article>)}</div> : <p className="aw-muted">No evidence saved yet. Add an example of your own work in the Evidence workspace.</p>}
+        <button type="button" className="aw-link" onClick={openEvidence}>Open evidence workspace →</button>
       </section>
       <div className="aw-summary-bar">
         <p className="aw-muted">Every generated claim must be supported by evidence you approved.</p>
