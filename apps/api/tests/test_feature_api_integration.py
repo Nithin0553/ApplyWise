@@ -2,14 +2,12 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-
-from app.modules.applications.service import ApplicationService
-
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.modules.applications.service import ApplicationService
 from app.modules.auth.models import User, UserRole
 from app.modules.auth.security import hash_password
 
