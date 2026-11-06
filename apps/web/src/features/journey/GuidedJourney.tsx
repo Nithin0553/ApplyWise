@@ -3,7 +3,7 @@ import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import {
   addEvidence, approveEvidenceItem, downloadReviewedText, estimateOverlap,
-  generateCandidates, getApplications, getEvidence, getVersions,
+  generateCandidates, getApplications, getEvidence, getVersionCounts,
   readRequirements, saveReviewedResume,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
@@ -137,13 +137,12 @@ export function GuidedJourney({ user, token, logout }: Props) {
   async function openApplications() {
     setError(""); setStage("applications");
     try {
-      const apps = await getApplications(token);
+      const [apps, counts] = await Promise.all([
+        getApplications(token),
+        getVersionCounts(token),
+      ]);
       setSavedApplications(apps.slice().reverse());
-      const totals = await Promise.all(apps.slice(-15).map(async (app) => {
-        try { return [app.id, (await getVersions(token, app.id)).length] as const; }
-        catch { return [app.id, 0] as const; }
-      }));
-      setVersionCounts(Object.fromEntries(totals));
+      setVersionCounts(counts);
     } catch (err) { setError(err instanceof Error ? err.message : "Could not load applications."); }
   }
 
