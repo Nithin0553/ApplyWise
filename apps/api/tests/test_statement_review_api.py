@@ -209,3 +209,31 @@ def test_only_job_seekers_can_make_decisions(
     enable_test_verifier(f08)
     response = client.get("/api/statement-review/approved", headers=headers)
     assert response.status_code == 403
+
+
+def test_inferred_approval_preserves_classification_and_blocks_stale_revision(
+    client: TestClient,
+) -> None:
+    user_id, headers = register(client, "inferred")
+    statement = uuid4()
+    f08 = VerifiedFixtures()
+    f08.add(user_id, statement, status=VerificationStatus.INFERRED)
+    enable_test_verifier(f08)
+    approved = client.post(
+        f"/api/statement-review/{statement}/decision",
+        headers=headers,
+        json={"decision": "APPROVED", "expected_revision": "verified-version-one"},
+    )
+    assert approved.status_code == 200
+    assert approved.json()["verification_status"] == "INFERRED"
+    assert approved.json()["finalization_eligible"] is True
+    current = client.get("/api/statement-review/approved", headers=headers)
+    assert current.status_code == 200
+    assert current.json()[0]["verification_status"] == "INFERRED"
+
+    f08.add(user_id, statement, status=VerificationStatus.UNSUPPORTED,
+            revision="unsupported-updated-revision")
+    assert client.get("/api/statement-review/approved", headers=headers).json() == []
+    assert client.get(f"/api/statement-review/{statement}", headers=headers).json()[
+        "finalization_eligible"
+    ] is False
