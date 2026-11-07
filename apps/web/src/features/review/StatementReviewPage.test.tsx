@@ -40,7 +40,7 @@ describe("F09 standalone reviewed-statement panel", () => {
     expect(await screen.findByText("Built REST API tests in Python.")).toBeInTheDocument();
     expect(screen.getByText("UNREVIEWED")).toBeInTheDocument();
     expect(screen.getByText(/not authorized for trusted finalization/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Approve verified statement" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve statement" }));
 
     await waitFor(() =>
       expect(decideStatement).toHaveBeenCalledWith(
@@ -50,7 +50,7 @@ describe("F09 standalone reviewed-statement panel", () => {
     expect(readStatementReview).toHaveBeenCalledWith("example-token", statementId);
   });
 
-  it("disables trusted approval of INFERRED claims but permits rejection", async () => {
+  it("allows explicitly approving INFERRED claims with clear classification", async () => {
     vi.mocked(readStatementReview).mockResolvedValue({
       ...payload, verification_status: "INFERRED",
     });
@@ -60,11 +60,23 @@ describe("F09 standalone reviewed-statement panel", () => {
     });
     render(<StatementReviewPage token="example-token" statementId={statementId} />);
     expect(await screen.findByText("INFERRED")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve verified statement" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Reject statement" }));
+    expect(screen.getByText(/not independently VERIFIED/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve statement" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Approve statement" }));
     await waitFor(() => expect(decideStatement).toHaveBeenCalledWith(
-      "example-token", statementId, "REJECTED", "version-one-verified",
+      "example-token", statementId, "APPROVED", "version-one-verified",
     ));
+  });
+
+  it("disables approval for independently UNSUPPORTED claims", async () => {
+    vi.mocked(readStatementReview).mockResolvedValue({
+      ...payload, verification_status: "UNSUPPORTED",
+    });
+    vi.mocked(readReviewHistory).mockResolvedValue([]);
+    render(<StatementReviewPage token="example-token" statementId={statementId} />);
+    expect(await screen.findByText("UNSUPPORTED")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve statement" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reject statement" })).toBeEnabled();
   });
 
   it("fails closed and offers retry when F08 is unavailable", async () => {
@@ -76,7 +88,7 @@ describe("F09 standalone reviewed-statement panel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Claim verification is not available.",
     );
-    expect(screen.queryByRole("button", { name: "Approve verified statement" }))
+    expect(screen.queryByRole("button", { name: "Approve statement" }))
       .not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Refresh review" }));
     expect(await screen.findByText("Built REST API tests in Python.")).toBeInTheDocument();
