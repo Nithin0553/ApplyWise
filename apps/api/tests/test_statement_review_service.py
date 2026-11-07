@@ -149,15 +149,11 @@ def test_changed_text_or_evidence_revision_revokes_eligibility(db_session: Sessi
     )] == [1, 2]
 
 
-@pytest.mark.parametrize(
-    "status",
-    [VerificationStatus.INFERRED, VerificationStatus.UNSUPPORTED],
-)
-def test_unverified_or_unsupported_claim_cannot_gain_approval(
-    db_session: Session, status: VerificationStatus,
+def test_unsupported_claim_cannot_gain_approval(
+    db_session: Session,
 ) -> None:
     f08, owner, statement = FakeF08(), uuid4(), uuid4()
-    f08.set(owner, statement, status=status)
+    f08.set(owner, statement, status=VerificationStatus.UNSUPPORTED)
     service = StatementReviewService(db_session, f08)
     with pytest.raises(ReviewNotEligibleError):
         service.decide(
@@ -218,3 +214,27 @@ def test_source_reclassified_unsupported_revokes_old_approved_status(
             user_id=owner, statement_id=statement,
             decision=ReviewDecision.APPROVED, expected_revision="version-two-invalidated",
         )
+
+
+def test_current_inferred_claim_can_be_explicitly_approved_without_becoming_verified(
+    db_session: Session,
+) -> None:
+    f08, owner, statement = FakeF08(), uuid4(), uuid4()
+    f08.set(owner, statement, status=VerificationStatus.INFERRED)
+    service = StatementReviewService(db_session, f08)
+    approved = service.decide(
+        user_id=owner, statement_id=statement,
+        decision=ReviewDecision.APPROVED, expected_revision="version-one-verified",
+    )
+    db_session.commit()
+    assert approved.verification_status == VerificationStatus.INFERRED
+    assert approved.finalization_eligible
+    listed = service.list_approved_statements(user_id=owner)
+    assert len(listed) == 1
+    assert listed[0].verification_status == "INFERRED"
+    assert listed[0].approval_status == "APPROVED"
+
+    f08.set(owner, statement, revision="inferred-evidence-edited",
+            status=VerificationStatus.INFERRED)
+    assert service.list_approved_statements(user_id=owner) == ()
+    assert not service.get_review(user_id=owner, statement_id=statement).finalization_eligible
