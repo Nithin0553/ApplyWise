@@ -82,7 +82,7 @@ class StatementReviewService:
             current
             and record is not None
             and record.decision == ReviewDecision.APPROVED
-            and item.status == VerificationStatus.VERIFIED
+            and item.status != VerificationStatus.UNSUPPORTED
         )
         return StatementReviewView(
             statement_id=item.statement_id,
@@ -111,8 +111,8 @@ class StatementReviewService:
         current = self._verified(user_id=user_id, statement_id=statement_id)
         if current.revision != expected_revision:
             raise StaleVerificationError("Verification changed. Reload before reviewing.")
-        if decision == ReviewDecision.APPROVED and current.status != VerificationStatus.VERIFIED:
-            raise ReviewNotEligibleError("Only currently VERIFIED statements can be approved.")
+        if decision == ReviewDecision.APPROVED and current.status == VerificationStatus.UNSUPPORTED:
+            raise ReviewNotEligibleError("UNSUPPORTED statements cannot be approved.")
 
         record = self._record(user_id=user_id, statement_id=statement_id, lock=True)
         if record is not None:
@@ -174,7 +174,7 @@ class StatementReviewService:
         saved = {item.statement_id: item for item in owned}
         result: list[ApprovedStatement] = []
         for item in live:
-            if item.user_id != user_id or item.status != VerificationStatus.VERIFIED:
+            if item.user_id != user_id or item.status == VerificationStatus.UNSUPPORTED:
                 continue
             decision = saved.get(item.statement_id)
             if decision is None or decision.verification_revision != item.revision:
@@ -184,7 +184,7 @@ class StatementReviewService:
                     statement_id=item.statement_id,
                     text=item.text,
                     evidence_ids=item.evidence_ids,
-                    verification_status="VERIFIED",
+                    verification_status=item.status.value,
                     approval_status="APPROVED",
                 )
             )
