@@ -29,7 +29,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _require_real_secret_in_production(self) -> "Settings":
         """Fail fast instead of signing tokens with a known or weak key."""
-        if self.app_env.lower() == "production" and (
+        # Normalize once so docs and prototype-only routes use the same environment policy.
+        self.app_env = self.app_env.strip().lower()
+        if self.app_env == "production" and (
             self.app_secret_key == DEFAULT_SECRET_KEY
             or len(self.app_secret_key.encode()) < MIN_SECRET_KEY_BYTES
         ):
