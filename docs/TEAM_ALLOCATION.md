@@ -2,7 +2,7 @@
 
 **Status:** Current ownership (revised from initial development allocation)  
 **Initial date:** 2026-09-15  
-**Ownership update:** 2026-11-06  
+**Ownership update:** 2026-11-07  
 **Project Manager:** Nithin Thirumani (`@Nithin0553`)
 
 This allocation is designed to let all six developers work in parallel while minimizing shared-file ownership and respecting the precedence in the Project Vision Document. The team should not attempt all sixteen features simultaneously. The first development tranche focuses on foundations and early contracts/prototypes.
@@ -41,8 +41,10 @@ Owned areas:
 - `apps/api/app/modules/generation/`
 - `apps/api/app/services/ai/`
 - `apps/web/src/features/tailoring/`
+- `apps/api/app/modules/verification/` (F08)
+- `apps/web/src/features/verification/` (F08)
 
-Responsibilities include the provider abstraction, grounded-generation request/response contract, provenance output contract, and technical review of cross-module interfaces. **Current added coding owner:** F08 Claim Verification (issue #6). F08 should consume server-authoritative approved F02 evidence and F07 candidates, classify VERIFIED/INFERRED/UNSUPPORTED, and supply an authenticated F09-consumable verification contract. Prioritize this core dependency before lower-priority F15.
+Responsibilities include the provider abstraction, grounded-generation request/response contract, provenance output contract, and technical review of cross-module interfaces. **Current added coding owner:** F08 Claim Verification (issue #6). F08 should consume server-authoritative approved F02 evidence and F07 candidates, classify VERIFIED/INFERRED/UNSUPPORTED, and supply an authenticated F09-consumable verification contract. Prioritize this core dependency now. F15 was delivered as a prototype in PR #62 (merged); its production route remains gated until trusted F09 approval is available.
 
 ### Sampreet — F04 job-analysis lane
 
@@ -95,7 +97,7 @@ The following is the planned continuation, subject to review after the first int
 | Owner | Planned follow-on features |
 |---|---|
 | Nithin | F13 full Resume Version Management and Application Tracking; F14 coordination/integration; **F09 persisted Statement Review and Approval** (#58) and F13 trusted finalization (#22) |
-| Niraali | F07 completion; **F08 Claim Verification** (#6) as immediate core priority; F11 Cover Letter Generation; F15 Interview Defensibility Check after core integration |
+| Niraali | F07 completion; **F08 Claim Verification** (#6) as immediate core priority; F11 Cover Letter Generation; F15 Interview Defensibility Check delivered in PR #62 (prototype-gated until F09 integration) |
 | Sampreet | F05 Requirement-to-Evidence Matching and Gap Analysis; F06 Content Selection Engine; support F16 requirement taxonomy |
 | Daniel | F10 completion; F12 Resume Formatting and ATS Readability Analysis |
 | Suraj | **No coding features.** Non-coding QA/test management, STD case documentation, manual test coordination, defect reporting and quality sign-off |
@@ -117,7 +119,7 @@ The project manager has reassigned Suraj's **two remaining coding features** as 
 
 **Branch boundaries:** Niraali works in `feat/F08-claim-verification`, Nithin in `feat/F09-persisted-statement-review`. Agree on ID/status/revision contract first; avoid simultaneous edits to the same verification files. Both submit normal PRs with technical review and CI.
 
-**Scheduling:** F08/F09 and finalization are required for the core trusted resume release. F15 is a separately assigned, lower-priority enhancement; Niraali may use fixtures but must not represent F15 as integrated with approved statements until F09 is available.
+**Scheduling:** F08/F09 and finalization are required for the core trusted resume release. F15 was delivered in PR #62 (backend, UI, contract and tests) but is prototype-gated until F09 supplies trusted approved statements; in production its preview route is unavailable. F08 is the next coding priority. Do not describe F15 as integrated with production approvals or final export.
 
 ## Integration rule
 
