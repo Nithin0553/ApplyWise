@@ -23,3 +23,15 @@ def test_production_rejects_default_or_short_key(key: str) -> None:
 def test_production_accepts_a_strong_key() -> None:
     settings = _settings(app_env="production", app_secret_key="k" * 48)
     assert settings.app_secret_key == "k" * 48
+
+
+def test_mixed_case_production_rejects_default_key() -> None:
+    with pytest.raises(ValidationError):
+        _settings(app_env="Production", app_secret_key=DEFAULT_SECRET_KEY)
+
+
+def test_environment_is_normalized_for_all_production_guards() -> None:
+    production = _settings(app_env=" Production ", app_secret_key="s" * 48)
+    assert production.app_env == "production"
+    development = _settings(app_env="Development")
+    assert development.app_env == "development"
