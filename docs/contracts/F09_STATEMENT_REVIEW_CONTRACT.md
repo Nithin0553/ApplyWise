@@ -9,9 +9,9 @@ F08 must implement the CurrentVerificationProvider interface (apps/api/app/modul
 
 ## Authenticated HTTP API
 - GET /api/statement-review/{statement_id}: review state with authoritative F08 status and finalization eligibility.
-- POST /api/statement-review/{statement_id}/decision: JSON containing decision (APPROVED or REJECTED) and expected_revision; 409 for stale revision or attempting to approve non-VERIFIED.
+- POST /api/statement-review/{statement_id}/decision: JSON containing decision (APPROVED or REJECTED) and expected_revision; 409 for stale revision or attempting to approve UNSUPPORTED.
 - GET /api/statement-review/{statement_id}/history: ordered append-only sequence of owner decisions and F08 revisions.
-- GET /api/statement-review/approved: currently VERIFIED, currently user-APPROVED statements only; suitable for future trusted F13 and F11 consumption.
+- GET /api/statement-review/approved: currently VERIFIED or INFERRED statements with current user-APPROVED decisions only; suitable for future trusted F13 and F11 consumption.
 
 All routes require F01 Job Seeker access. Missing/foreign IDs use identical 404. Unauthenticated 401, wrong role 403, unavailable F08 503 (no successful decisions written). Duplicate same-decision/revision actions are idempotent; first-write races return a safe 409. No endpoint accepts client-provided verification or approval flags.
 
@@ -20,7 +20,7 @@ All routes require F01 Job Seeker access. Missing/foreign IDs use identical 404.
 - statement_review_events: append-only sequence, decision, revision and timestamp per review.
 - Migration: 20261106_0005_create_statement_reviews.py; revision parent 20261006_0004.
 
-A previous APPROVED row never independently authorizes finalization. The service re-resolves the statement through F08's provider on every decision/read/list; if the revision changed it appears STALE and is excluded. Only current VERIFIED + owner APPROVED yields finalization_eligible true. INFERRED and UNSUPPORTED claims can be rejected, but cannot be approved for final export.
+A previous APPROVED row never independently authorizes finalization. The service re-resolves the statement through F08's provider on every decision/read/list; if the revision changed it appears STALE and is excluded. Only current VERIFIED or INFERRED + explicit owner APPROVED yields finalization_eligible true. INFERRED remains labeled INFERRED and must never be misrepresented as VERIFIED; it is the job seeker's explicitly accepted inference, not independent verification. UNSUPPORTED claims can be rejected, but cannot be approved or included in final export. Evidence/text changes rotate the revision and revoke eligibility.
 
 ## Integration status
 The F08 implementation has not yet merged. Production uses UnavailableVerificationProvider and all review/approval routes fail closed with 503. Tests explicitly replace that provider with fixtures to exercise real persisted F09 operations. This PR is an implementation foundation, not a claim that trusted resume finalization or PDF/Word export is active.
