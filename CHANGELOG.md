@@ -10,6 +10,28 @@
   - `DELETE /api/evidence/{id}` (Req-Func-Sw-9) and an Import resume / Delete flow in the Career
     Evidence Profile page.
   - New backend dependencies: `pypdf`, `python-multipart`. Contract: `docs/contracts/F03_RESUME_IMPORT_CONTRACT.md`.
+- F15 Interview Defensibility Check (`generation` module, `interview` frontend):
+  - Backend: `interview_schemas.py`, a deterministic `interview_service.py` and
+    `POST /api/interview/preparation`. For each approved statement it returns
+    the questions an interviewer is likely to ask, supporting points drawn from
+    the user's own cited evidence, and a defensibility risk with the signals
+    behind it.
+  - The check uses no AI provider. Every signal is a textual comparison between
+    an approved statement and the evidence it cites, so the advice is
+    deterministic, explainable line by line, and available without F08 or F09.
+  - Defensibility is not verification: `InterviewPrep` carries
+    `advisory_only: Literal[True]`, and no model in the feature has an
+    approval, verification or export field.
+  - Cited evidence is resolved server-side through F02, so a caller cannot
+    supply material that appears to justify any claim. Missing, foreign-owned
+    and unapproved ids all return an identical 404.
+  - Statements are still caller-supplied pending F09, so the route reuses F11's
+    `require_prototype_environment` guard and returns 404 when
+    `APP_ENV=production`.
+  - Frontend: `features/interview` — `InterviewPrepPage` ordering the hardest
+    statements first, with plain-language labels for every signal.
+  - Docs: `docs/contracts/F15_INTERVIEW_DEFENSIBILITY_CONTRACT.md`.
+
 - F01 User Registration and Authentication / RBAC foundation (`auth` module):
   - Backend: `users` table and Alembic migration, bcrypt password hashing,
     JWT access tokens, `/auth/register`, `/auth/login`, `/auth/me`, and the
