@@ -54,10 +54,10 @@ export function StatementReviewPage({ token, statementId }: Props) {
     }
   }
 
-  return <section className="aw-review" aria-label="Verified statement review">
+  return <section className="aw-review" aria-label="Statement review">
     <header>
       <h2>Review a resume statement</h2>
-      <p>First verify the claim against your real experience. Your approval is a separate decision.</p>
+      <p>Check the claim against your real experience. Independent verification and your approval are separate decisions.</p>
     </header>
     {loading && <p role="status">Loading verified statement…</p>}
     {error && <div className="aw-review-error" role="alert">
@@ -71,12 +71,14 @@ export function StatementReviewPage({ token, statementId }: Props) {
         <div><dt>Your review</dt><dd>{review.review_status}</dd></div>
         <div><dt>Source evidence</dt><dd>{review.evidence_ids.length} references</dd></div>
       </dl>
+      {review.verification_status === "INFERRED" &&
+        <p role="status">This is INFERRED, not independently VERIFIED. Approve only if you can personally defend the claim and its supporting evidence.</p>}
       {review.review_status === "STALE" &&
         <p role="status">This claim or its evidence changed. Review the latest verified version again.</p>}
       <div className="aw-review-actions">
-        <button type="button" disabled={busy || review.verification_status !== "VERIFIED"}
+        <button type="button" disabled={busy || review.verification_status === "UNSUPPORTED"}
           onClick={() => void decide("APPROVED")}>
-          {busy ? "Saving…" : "Approve verified statement"}
+          {busy ? "Saving…" : "Approve statement"}
         </button>
         <button type="button" disabled={busy} onClick={() => void decide("REJECTED")}>
           Reject statement
