@@ -25,7 +25,8 @@
 
 /apps/api/app/modules/verification/ @niraalibandi
 /apps/web/src/features/verification/ @niraalibandi
-/apps/web/src/features/review/ @surajloni
+/apps/api/app/modules/statement_review/ @Nithin0553
+/apps/web/src/features/review/ @Nithin0553
 
 /apps/api/app/modules/auth/ @Pras04ad
 /apps/web/src/features/auth/ @Pras04ad
