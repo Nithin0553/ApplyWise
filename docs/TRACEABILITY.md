@@ -21,7 +21,7 @@ Statuses below reflect repository-visible implementation state. Work in an open 
 | F12 Resume Formatting and ATS Readability Analysis | Medium | 5 Extensions | TBD | TBD | Not started in repository |
 | F11 Cover Letter Generation | Medium | 5 Extensions | TBD | TBD | Not started in repository |
 | F14 Peer Review and Sharing | Medium | 5 Extensions | Issue #12 / F14 contract | Backend persistence/security + frontend component tests | Foundation in PR #8; F01 role wiring in progress |
-| F15 Interview Defensibility Check | Low | 5 Extensions | TBD | TBD | Not started in repository |
+| F15 Interview Defensibility Check | Low | 5 Extensions | F15 contract | Backend deterministic-signal unit tests + API ownership tests + frontend component tests | Backend, contract and UI implemented; statement input awaits F09, route gated off in production |
 | F16 Market Skill Demand Analysis | Low | 5 Extensions | TBD | TBD | Not started in repository |
 
 The first integration-release boundary remains an evidence-grounded, verified, user-approved
