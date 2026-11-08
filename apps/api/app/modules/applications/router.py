@@ -17,7 +17,6 @@ from app.modules.statement_review.contract import (
 from app.modules.statement_review.service import StatementReviewService
 
 from .finalization import FinalizationNotEligibleError, TrustedFinalizationService
-
 from .models import ApplicationStatus
 from .schemas import (
     ApplicationCreate,
