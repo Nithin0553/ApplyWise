@@ -7,4 +7,4 @@
 - Suraj Loni — `@surajloni`
 - Prudhvi Prasad Sikharam — `@Pras04ad`
 
-Repository permission lookup currently reports read-level access for `@Pras04ad`; write collaborator access should be granted before issue assignment and CODEOWNERS review enforcement are expected to work.
+`@Pras04ad` has write collaborator access (confirmed with GitHub on November 7, 2026), so issue assignment and CODEOWNERS review requests work for all six members.
