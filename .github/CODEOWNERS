@@ -23,9 +23,10 @@
 /apps/web/src/features/resume/ @dhernandez23
 /apps/web/src/features/ats/ @dhernandez23
 
-/apps/api/app/modules/verification/ @surajloni
-/apps/web/src/features/verification/ @surajloni
-/apps/web/src/features/review/ @surajloni
+/apps/api/app/modules/verification/ @niraalibandi
+/apps/web/src/features/verification/ @niraalibandi
+/apps/api/app/modules/statement_review/ @Nithin0553
+/apps/web/src/features/review/ @Nithin0553
 
 /apps/api/app/modules/auth/ @Pras04ad
 /apps/web/src/features/auth/ @Pras04ad
