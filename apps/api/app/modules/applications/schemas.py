@@ -205,3 +205,17 @@ class ReviewedDraftView(BaseModel):
 
     application: ApplicationView
     resume_version: ResumeVersionView
+
+
+class TrustedFinalizationSelection(BaseModel):
+    """Only selected IDs cross the browser boundary. No content or status flags."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    statement_ids: tuple[UUID, ...] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def unique_statement_ids(self) -> Self:
+        if len(self.statement_ids) != len(set(self.statement_ids)):
+            raise ValueError("Duplicate statement IDs are not allowed")
+        return self
