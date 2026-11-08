@@ -3,6 +3,13 @@
 ## [Unreleased]
 
 ### Added
+- F03 Resume Import and Profile Population (`evidence` module + `features/import`):
+  - `POST /api/evidence/import` accepts a PDF or Word (`.docx`) resume and saves the details it
+    finds as `UNCONFIRMED` evidence records (never approved automatically). Unsupported,
+    corrupted, empty, and oversized files are rejected with a clear message and nothing is saved.
+  - `DELETE /api/evidence/{id}` (Req-Func-Sw-9) and an Import resume / Delete flow in the Career
+    Evidence Profile page.
+  - New backend dependencies: `pypdf`, `python-multipart`. Contract: `docs/contracts/F03_RESUME_IMPORT_CONTRACT.md`.
 - F15 Interview Defensibility Check (`generation` module, `interview` frontend):
   - Backend: `interview_schemas.py`, a deterministic `interview_service.py` and
     `POST /api/interview/preparation`. For each approved statement it returns
@@ -25,7 +32,6 @@
     statements first, with plain-language labels for every signal.
   - Docs: `docs/contracts/F15_INTERVIEW_DEFENSIBILITY_CONTRACT.md`.
 
-### Added
 - F01 User Registration and Authentication / RBAC foundation (`auth` module):
   - Backend: `users` table and Alembic migration, bcrypt password hashing,
     JWT access tokens, `/auth/register`, `/auth/login`, `/auth/me`, and the

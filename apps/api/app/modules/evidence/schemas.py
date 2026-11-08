@@ -102,3 +102,10 @@ class EvidenceGroundingContext(BaseModel):
             source_url=evidence.url,
             approved_at=evidence.approved_at,
         )
+
+
+class ResumeImportResult(BaseModel):
+    """F03: records created from an uploaded resume; every record is UNCONFIRMED."""
+
+    filename: str
+    records: list[EvidenceView]

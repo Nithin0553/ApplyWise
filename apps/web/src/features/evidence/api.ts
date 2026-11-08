@@ -110,13 +110,17 @@ async function request<T>(
 ): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${token}`);
-  if (init.body !== undefined) {
+  // JSON bodies are strings; FormData uploads must keep the browser's multipart boundary.
+  if (typeof init.body === "string") {
     headers.set("Content-Type", "application/json");
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
   if (!response.ok) {
     throw new EvidenceApiError(await extractErrorMessage(response), response.status);
+  }
+  if (response.status === 204) {
+    return undefined as T;
   }
   return (await response.json()) as T;
 }
@@ -168,4 +172,20 @@ export async function unconfirmEvidence(
     { method: "POST" },
   );
   return toEvidenceItem(record);
+}
+
+export async function deleteEvidence(token: string, evidenceId: string): Promise<void> {
+  await request<void>(`/api/evidence/${evidenceId}`, token, { method: "DELETE" });
+}
+
+/** F03: upload a PDF or Word resume; the API returns the proposed records, all unconfirmed. */
+export async function importResume(token: string, file: File): Promise<EvidenceItem[]> {
+  const body = new FormData();
+  body.append("file", file);
+  const result = await request<{ filename: string; records: EvidenceApiRecord[] }>(
+    "/api/evidence/import",
+    token,
+    { method: "POST", body },
+  );
+  return result.records.map(toEvidenceItem);
 }
