@@ -11,7 +11,7 @@ from app.main import app
 from app.modules.applications.schemas import ApplicationCreate, ResumeVersionContent
 from app.modules.applications.service import ApplicationService
 from app.modules.evidence.models import EvidenceType
-from app.modules.evidence.schemas import EvidenceCreate, EvidenceUpdate
+from app.modules.evidence.schemas import EvidenceCreate
 from app.modules.evidence.service import EvidenceService
 from app.modules.statement_review.contract import (
     CurrentVerifiedStatement,
