@@ -16,8 +16,8 @@ from app.modules.evidence.schemas import EvidenceCreate
 from app.modules.evidence.service import EvidenceService
 from app.modules.statement_review.contract import (
     CurrentVerifiedStatement,
-    VerificationStatus,
     UnavailableVerificationProvider,
+    VerificationStatus,
     current_verification_provider,
 )
 from app.modules.statement_review.models import ReviewDecision
