@@ -18,8 +18,8 @@ from app.modules.statement_review.contract import (
     CurrentVerifiedStatement,
     UnavailableVerificationProvider,
     VerificationStatus,
-    current_verification_provider,
 )
+from app.modules.statement_review.dependencies import current_verification_provider
 from app.modules.statement_review.models import ReviewDecision
 from app.modules.statement_review.service import StatementReviewService
 
