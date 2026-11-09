@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.modules.evidence.service import EvidenceService
-from app.modules.statement_review import contract
+from app.modules.statement_review import dependencies
 from app.modules.statement_review.contract import (
     UnavailableVerificationProvider,
     VerificationUnavailableError,
@@ -24,7 +24,7 @@ def test_adapter_uses_real_service_with_same_session(
             self.evidence = evidence
 
     monkeypatch.setattr(contract, "_verification_service_type", lambda: Service)
-    provider = contract.current_verification_provider(db_session)
+    provider = dependencies.current_verification_provider(db_session)
     assert isinstance(provider, Service)
     assert provider.session is db_session
     assert isinstance(provider.evidence, EvidenceService)
@@ -40,7 +40,7 @@ def test_missing_f08_module_fails_closed(
         )
 
     monkeypatch.setattr(contract, "_verification_service_type", absent)
-    provider = contract.current_verification_provider(db_session)
+    provider = dependencies.current_verification_provider(db_session)
     assert isinstance(provider, UnavailableVerificationProvider)
     with pytest.raises(VerificationUnavailableError):
         provider.list_current(user_id=uuid4())
@@ -56,4 +56,4 @@ def test_broken_transitive_import_is_not_silently_hidden(
 
     monkeypatch.setattr(contract, "_verification_service_type", broken)
     with pytest.raises(ModuleNotFoundError, match="Internal dependency broken"):
-        contract.current_verification_provider(db_session)
+        dependencies.current_verification_provider(db_session)
