@@ -266,3 +266,55 @@ def test_cannot_withdraw_another_users_statement(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert client.get(f"{ENDPOINT}/{statement_id}", headers=_auth(owner)).status_code == 200
+
+
+def test_deleting_the_evidence_invalidates_the_verdict_and_rotates_the_revision(
+    client: TestClient,
+) -> None:
+    """F03 can now delete approved evidence (#64 item d).
+
+    A deleted record must be indistinguishable from an unapproved one as far as
+    verification is concerned: the claim stops being supported and its revision
+    moves, so any F09 approval resting on it is invalidated.
+    """
+    token = _register(client, "deleteev-f08@example.edu")
+    evidence_id = _evidence(client, token)
+    first = _submit(
+        client,
+        token,
+        "Built and maintained automated regression suites for revenue management software",
+        evidence_id,
+    ).json()
+    assert first["status"] == "VERIFIED"
+
+    removed = client.delete(f"/api/evidence/{evidence_id}", headers=_auth(token))
+    assert removed.status_code == 204, removed.text
+
+    after = client.get(
+        f"{ENDPOINT}/{first['statement_id']}", headers=_auth(token)
+    ).json()
+
+    assert after["status"] == "UNSUPPORTED"
+    assert after["revision"] != first["revision"]
+    assert after["export_eligible"] is False
+    assert any(f["reason"] == "EVIDENCE_NOT_AVAILABLE" for f in after["findings"])
+
+
+def test_a_deleted_statement_disappears_from_the_provider_listing(
+    client: TestClient,
+) -> None:
+    """Withdrawn claims leave; claims whose evidence died stay, reclassified.
+
+    F09 must be able to see that an approval was invalidated. A silently
+    missing statement looks the same as one that never existed.
+    """
+    token = _register(client, "listing-f08@example.edu")
+    evidence_id = _evidence(client, token)
+    kept = _submit(client, token, "Built regression suites", evidence_id).json()
+
+    client.delete(f"/api/evidence/{evidence_id}", headers=_auth(token))
+
+    listed = client.get(ENDPOINT, headers=_auth(token)).json()
+
+    assert [item["statement_id"] for item in listed] == [kept["statement_id"]]
+    assert listed[0]["status"] == "UNSUPPORTED"
