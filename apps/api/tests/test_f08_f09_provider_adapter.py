@@ -23,7 +23,7 @@ def test_adapter_uses_real_service_with_same_session(
             self.session = session
             self.evidence = evidence
 
-    monkeypatch.setattr(contract, "_verification_service_type", lambda: Service)
+    monkeypatch.setattr(dependencies, "_verification_service_type", lambda: Service)
     provider = dependencies.current_verification_provider(db_session)
     assert isinstance(provider, Service)
     assert provider.session is db_session
@@ -39,7 +39,7 @@ def test_missing_f08_module_fails_closed(
             "F08 is not yet available.", name="app.modules.verification.service"
         )
 
-    monkeypatch.setattr(contract, "_verification_service_type", absent)
+    monkeypatch.setattr(dependencies, "_verification_service_type", absent)
     provider = dependencies.current_verification_provider(db_session)
     assert isinstance(provider, UnavailableVerificationProvider)
     with pytest.raises(VerificationUnavailableError):
@@ -54,6 +54,6 @@ def test_broken_transitive_import_is_not_silently_hidden(
             "Internal dependency broken", name="unrelated_runtime_package"
         )
 
-    monkeypatch.setattr(contract, "_verification_service_type", broken)
+    monkeypatch.setattr(dependencies, "_verification_service_type", broken)
     with pytest.raises(ModuleNotFoundError, match="Internal dependency broken"):
         dependencies.current_verification_provider(db_session)
