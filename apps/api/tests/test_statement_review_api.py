@@ -11,8 +11,8 @@ from app.main import app
 from app.modules.auth.models import User, UserRole
 from app.modules.statement_review.contract import (
     CurrentVerifiedStatement,
-    VerificationStatus,
     UnavailableVerificationProvider,
+    VerificationStatus,
     current_verification_provider,
 )
 
