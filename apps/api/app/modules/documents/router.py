@@ -20,10 +20,10 @@ from app.modules.applications.service import (
 )
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
+from app.modules.statement_review.dependencies import current_verification_provider
 from app.modules.statement_review.contract import (
     CurrentVerificationProvider,
     VerificationUnavailableError,
-    current_verification_provider,
 )
 from app.modules.statement_review.service import StatementReviewService
 
