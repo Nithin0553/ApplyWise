@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session
 
 from app.main import app
 from app.modules.evidence.service import EvidenceService
-from app.modules.statement_review.dependencies import current_verification_provider
 from app.modules.statement_review.contract import (
     UnavailableVerificationProvider,
 )
+from app.modules.statement_review.dependencies import current_verification_provider
 from tests.test_f13_trusted_finalization import (
     FakeF08,
     approve_statement,
