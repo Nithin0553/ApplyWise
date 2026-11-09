@@ -9,7 +9,14 @@ from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
 from app.modules.evidence.service import EvidenceService
+from app.modules.statement_review.contract import (
+    CurrentVerificationProvider,
+    VerificationUnavailableError,
+    current_verification_provider,
+)
+from app.modules.statement_review.service import StatementReviewService
 
+from .finalization import FinalizationNotEligibleError, TrustedFinalizationService
 from .models import ApplicationStatus
 from .schemas import (
     ApplicationCreate,
@@ -24,6 +31,7 @@ from .schemas import (
     ResumeVersionView,
     ReviewedDraftCreate,
     ReviewedDraftView,
+    TrustedFinalizationSelection,
     VerificationSnapshotStatus,
 )
 from .service import (
@@ -275,3 +283,80 @@ def save_resume_version(
         raise _application_not_found(exc) from exc
     db.commit()
     return result
+
+
+@router.post(
+    "/{application_id}/trusted-finalize",
+    response_model=ResumeVersionView,
+    status_code=status.HTTP_201_CREATED,
+)
+def trusted_finalize_resume(
+    application_id: UUID,
+    payload: TrustedFinalizationSelection,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+    verifier: CurrentVerificationProvider = Depends(current_verification_provider),
+) -> ResumeVersionView:
+    """F13: materialize owner-authorized F09 claims and F02 evidence server-side.
+
+    The body contains IDs only. Historical draft saves remain separate.
+    Until F08 is connected this returns 503 without creating a version.
+    """
+    service = TrustedFinalizationService(db, StatementReviewService(db, verifier))
+    try:
+        version = service.finalize(
+            user_id=current_user.id,
+            application_id=application_id,
+            statement_ids=payload.statement_ids,
+        )
+        db.commit()
+        return version
+    except ApplicationNotFoundError as exc:
+        db.rollback()
+        raise _application_not_found(exc) from exc
+    except VerificationUnavailableError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Claim verification is not available.",
+        ) from exc
+    except FinalizationNotEligibleError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
+    except Exception:
+        db.rollback()
+        raise
+
+
+@router.get(
+    "/resume-versions/{resume_version_id}/trusted-export-content",
+    response_model=ResumeVersionContent,
+)
+def trusted_export_content(
+    resume_version_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+    verifier: CurrentVerificationProvider = Depends(current_verification_provider),
+) -> ResumeVersionContent:
+    """F10 handoff: recheck saved content against current F08/F09 and F02.
+
+    A historical snapshot's existence is never export authorization.
+    """
+    service = TrustedFinalizationService(db, StatementReviewService(db, verifier))
+    try:
+        return service.current_export_content(
+            user_id=current_user.id, resume_version_id=resume_version_id
+        )
+    except ResumeVersionNotFoundError as exc:
+        raise _resume_not_found(exc) from exc
+    except VerificationUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Claim verification is not available.",
+        ) from exc
+    except FinalizationNotEligibleError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
