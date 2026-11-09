@@ -54,6 +54,18 @@ class ProvenanceSnapshotItem(BaseModel):
     verification_status: VerificationSnapshotStatus
     approval_status: ApprovalSnapshotStatus
     origin: ProvenanceOrigin = ProvenanceOrigin.DRAFT_USER_REVIEWED
+    # F09's current server-authoritative revision, captured only by the trusted
+    # finalization path. Legacy user-reviewed drafts legitimately omit it.
+    verification_revision: str | None = Field(
+        default=None, min_length=8, max_length=128,
+        pattern=r"^[a-zA-Z0-9._:-]+$",
+    )
+
+    @model_validator(mode="after")
+    def trusted_origin_has_revision(self) -> Self:
+        if self.origin == ProvenanceOrigin.F09_APPROVED and self.verification_revision is None:
+            raise ValueError("F09-approved provenance requires a verification revision")
+        return self
 
 
 def _validate_snapshot_links(
