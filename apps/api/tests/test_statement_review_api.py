@@ -12,6 +12,7 @@ from app.modules.auth.models import User, UserRole
 from app.modules.statement_review.contract import (
     CurrentVerifiedStatement,
     VerificationStatus,
+    UnavailableVerificationProvider,
     current_verification_provider,
 )
 
@@ -64,6 +65,7 @@ def enable_test_verifier(f08: VerifiedFixtures) -> None:
 
 
 def test_live_routes_fail_closed_without_real_f08(client: TestClient) -> None:
+    app.dependency_overrides[current_verification_provider] = UnavailableVerificationProvider
     _, headers = register(client, "offline")
     statement = str(uuid4())
     assert client.get("/api/statement-review/approved", headers=headers).status_code == 503
