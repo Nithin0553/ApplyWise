@@ -20,8 +20,8 @@ from app.modules.generation.cover_letter_schemas import ApprovedStatement
 from .contract import (
     CurrentVerificationProvider,
     VerificationUnavailableError,
-    current_verification_provider,
 )
+from .dependencies import current_verification_provider
 from .schemas import ReviewDecisionRequest, ReviewHistoryItem, StatementReviewView
 from .service import (
     ReviewNotEligibleError,
