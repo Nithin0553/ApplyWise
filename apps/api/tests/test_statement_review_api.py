@@ -14,7 +14,6 @@ from app.modules.statement_review.contract import (
     UnavailableVerificationProvider,
     VerificationStatus,
 )
-
 from app.modules.statement_review.dependencies import current_verification_provider
 
 PASSWORD = "synthetic-pass-123"
