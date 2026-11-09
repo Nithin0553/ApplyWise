@@ -12,6 +12,7 @@ from app.modules.auth import models as auth_models
 from app.modules.evidence import models as evidence_models
 from app.modules.sharing import models as sharing_models
 from app.modules.statement_review import models as statement_review_models
+from app.modules.verification import models as verification_models
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
@@ -28,6 +29,7 @@ _ = (
     sharing_models.ResumeShareRecord,
     statement_review_models.StatementReviewRecord,
     statement_review_models.StatementReviewEventRecord,
+    verification_models.VerifiedStatementRecord,
 )
 target_metadata = Base.metadata
 
