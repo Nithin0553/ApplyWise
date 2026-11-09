@@ -14,12 +14,7 @@ from enum import StrEnum
 from typing import Protocol, Self
 from uuid import UUID
 
-from fastapi import Depends
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy.orm import Session
-
-from app.db.session import get_db
-from app.modules.evidence.service import EvidenceService
 
 
 class VerificationStatus(StrEnum):
@@ -79,35 +74,3 @@ class UnavailableVerificationProvider:
     def list_current(self, *, user_id: UUID) -> tuple[CurrentVerifiedStatement, ...]:
         raise VerificationUnavailableError("Claim verification is not available.")
 
-
-def _verification_service_type() -> type:
-    """Resolve F08 lazily while its implementation PR is under review.
-
-    Avoid importing a module that has not merged yet at application startup.
-    Once F08 is installed, this returns its real authoritative service.
-    """
-    from app.modules.verification.service import VerificationService
-
-    return VerificationService
-
-
-def current_verification_provider(
-    db: Session = Depends(get_db),
-) -> CurrentVerificationProvider:
-    """F08 → F09 bridge; missing F08 fails closed, not to a client flag.
-
-    Both services use the same request transaction and owner-scoped F02
-    evidence provider. Never use the browser's submitted verdict as proof.
-    """
-    try:
-        verifier_type = _verification_service_type()
-    except ModuleNotFoundError as exc:
-        # Only tolerate the not-yet-merged F08 package itself. Do NOT hide
-        # broken imports inside a present F08 implementation.
-        if exc.name not in (
-            "app.modules.verification",
-            "app.modules.verification.service",
-        ):
-            raise
-        return UnavailableVerificationProvider()
-    return verifier_type(db, EvidenceService(db))
