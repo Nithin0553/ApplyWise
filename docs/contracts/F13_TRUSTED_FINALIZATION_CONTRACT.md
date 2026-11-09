@@ -28,15 +28,18 @@ are scoped to their user ID:
    for the current revision. UNSUPPORTED, rejected, stale, missing or foreign
    statement IDs are ineligible. The server then loads only current owned
    approved F02 evidence, including approval timestamps. It builds
-   `ResumeVersionContent` with `F09_APPROVED` origin and persists an
-   immutable F13 version under the user's existing application.
+   `ResumeVersionContent` with `F09_APPROVED` origin and the exact F09
+   verification revision on every trusted statement. It persists an immutable
+   F13 version under the user's existing application.
 
 2. `GET /api/applications/resume-versions/{resume_version_id}/trusted-export-content`
    is the **F10 handoff**. It does not trust a saved version merely because its
    snapshot says APPROVED or F09_APPROVED. It requires every historical
    statement to have `F09_APPROVED` origin, resolves those statement IDs again
    through current F08/F09, resolves current F02 approved evidence, and compares
-   both server-built contents with the historical snapshot exactly. Missing,
+   both server-built contents with the historical snapshot exactly, including
+   each F09 verification revision. Re-approving identical text on a newer
+   revision **does not** retroactively authorize older saved versions. Missing,
    revoked, edited, reclassified or re-approved evidence/statement data fails
    closed. F10 must use this checked content (or the same service method
    `TrustedFinalizationService.current_export_content`) immediately before
@@ -73,5 +76,6 @@ current approved evidence/statement snapshot materialization, user approval of
 INFERRED without status promotion, F08 unavailable failure, stale revisions,
 unconfirmed evidence invalidation, unsupported claims, rejected/unknown
 selection, owner isolation, client-side status forgery, duplicate IDs,
-historical draft denial and exported-content revalidation.
+historical draft denial, exact-revision invalidation even after re-approval
+of identical text, and exported-content revalidation.
 CI and Security Baseline must pass on the final stacked branch before review.
