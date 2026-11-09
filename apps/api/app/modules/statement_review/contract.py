@@ -74,7 +74,3 @@ class UnavailableVerificationProvider:
     def list_current(self, *, user_id: UUID) -> tuple[CurrentVerifiedStatement, ...]:
         raise VerificationUnavailableError("Claim verification is not available.")
 
-
-def current_verification_provider() -> CurrentVerificationProvider:
-    """FastAPI dependency override point for the future F08 adapter."""
-    return UnavailableVerificationProvider()
