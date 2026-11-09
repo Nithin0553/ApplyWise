@@ -16,9 +16,10 @@ from app.modules.evidence.schemas import EvidenceCreate
 from app.modules.evidence.service import EvidenceService
 from app.modules.statement_review.contract import (
     CurrentVerifiedStatement,
+    UnavailableVerificationProvider,
     VerificationStatus,
-    current_verification_provider,
 )
+from app.modules.statement_review.dependencies import current_verification_provider
 from app.modules.statement_review.models import ReviewDecision
 from app.modules.statement_review.service import StatementReviewService
 
@@ -120,6 +121,7 @@ def trusted_export_url(version_id: UUID) -> str:
 def test_unavailable_f08_fails_closed_without_saving_version(
     client: TestClient, db_session: Session,
 ) -> None:
+    app.dependency_overrides[current_verification_provider] = UnavailableVerificationProvider
     owner, headers = register(client, "unavailable")
     application_id = make_application(db_session, owner)
     response = client.post(
