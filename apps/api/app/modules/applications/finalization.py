@@ -17,7 +17,7 @@ from app.modules.generation.cover_letter_contracts import (
     StatementNotApprovedError,
     select_approved_statements,
 )
-from app.modules.statement_review.service import StatementReviewService
+from app.modules.statement_review.service import ReviewNotFoundError, StatementReviewService
 
 from .schemas import (
     ApprovalSnapshotStatus,
@@ -69,6 +69,27 @@ class TrustedFinalizationService:
         for statement in selected:
             if statement.verification_status not in ("VERIFIED", "INFERRED"):
                 raise FinalizationNotEligibleError("Unsupported statement.")
+            # F09's /approved list is current at its own read. Check the exact
+            # revision again when materializing so a concurrent F08 change
+            # cannot silently bind a new revision to old content.
+            try:
+                review = self.statement_reviews.get_review(
+                    user_id=user_id, statement_id=statement.statement_id
+                )
+            except ReviewNotFoundError as exc:
+                raise FinalizationNotEligibleError(
+                    "Statement is no longer eligible for finalization."
+                ) from exc
+            if (
+                not review.finalization_eligible
+                or review.reviewed_revision != review.verification_revision
+                or review.text != statement.text
+                or review.evidence_ids != statement.evidence_ids
+                or review.verification_status != statement.verification_status
+            ):
+                raise FinalizationNotEligibleError(
+                    "Statement changed during finalization; refresh and retry."
+                )
             for evidence_id in statement.evidence_ids:
                 evidence = approved_evidence.get(evidence_id)
                 if evidence is None or evidence.approved_at is None:
@@ -88,6 +109,7 @@ class TrustedFinalizationService:
                     ),
                     approval_status=ApprovalSnapshotStatus.APPROVED,
                     origin=ProvenanceOrigin.F09_APPROVED,
+                    verification_revision=review.verification_revision,
                 )
             )
 
