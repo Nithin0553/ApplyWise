@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -158,6 +159,7 @@ def test_trusted_f13_creates_snapshot_and_rechecks_f02_before_export(
     assert snapshot["statements"][0]["origin"] == "F09_APPROVED"
     assert snapshot["statements"][0]["verification_status"] == "VERIFIED"
     assert snapshot["statements"][0]["approval_status"] == "APPROVED"
+    assert snapshot["statements"][0]["verification_revision"] == "revision-one-current"
     assert snapshot["evidence"][0]["evidence_id"] == str(evidence_id)
     assert snapshot["evidence"][0]["title"] == "Python"
 
@@ -299,3 +301,75 @@ def test_historical_drafts_and_foreign_versions_are_never_trusted_export(
         },
     )
     assert response.status_code == 422
+
+
+def test_reapproval_of_identical_text_on_new_revision_does_not_reauthorize_old_version(
+    client: TestClient, db_session: Session,
+) -> None:
+    """An updated F08 revision is material even when the visible text is equal."""
+    owner, headers = register(client, "same-text-revision")
+    application_id = make_application(db_session, owner)
+    evidence_id = make_evidence(db_session, owner)
+    statement_id = uuid4()
+    f08 = FakeF08()
+    approve_statement(db_session, f08, owner, statement_id, evidence_id)
+    app.dependency_overrides[current_verification_provider] = lambda: f08
+
+    first = client.post(
+        finalization_url(application_id), headers=headers,
+        json={"statement_ids": [str(statement_id)]},
+    )
+    assert first.status_code == 201
+    previous_id = UUID(first.json()["id"])
+    assert first.json()["snapshot"]["statements"][0]["verification_revision"] == (
+        "revision-one-current"
+    )
+    assert client.get(trusted_export_url(previous_id), headers=headers).status_code == 200
+
+    # F08 may rotate a revision for relevant evidence fields not shown in the
+    # F13 snapshot, or another re-verification of exactly the same claim.
+    f08.set(
+        owner, statement_id, evidence_id,
+        revision="revision-two-updated",
+        text="Developed Python integration tests.",
+    )
+    assert client.get(trusted_export_url(previous_id), headers=headers).status_code == 409
+
+    StatementReviewService(db_session, f08).decide(
+        user_id=owner, statement_id=statement_id,
+        decision=ReviewDecision.APPROVED,
+        expected_revision="revision-two-updated",
+    )
+    db_session.commit()
+
+    # A new user approval on the new revision cannot retroactively authorize
+    # the already-saved snapshot, even though its visible content matches.
+    assert client.get(trusted_export_url(previous_id), headers=headers).status_code == 409
+    second = client.post(
+        finalization_url(application_id), headers=headers,
+        json={"statement_ids": [str(statement_id)]},
+    )
+    assert second.status_code == 201
+    assert second.json()["version_number"] == 2
+    assert second.json()["snapshot"]["statements"][0]["verification_revision"] == (
+        "revision-two-updated"
+    )
+    assert client.get(
+        trusted_export_url(UUID(second.json()["id"])), headers=headers
+    ).status_code == 200
+
+
+def test_trusted_origin_without_revision_is_invalid() -> None:
+    from pydantic import ValidationError
+
+    from app.modules.applications.schemas import ProvenanceSnapshotItem
+
+    with pytest.raises(ValidationError):
+        ProvenanceSnapshotItem(
+            statement_id=uuid4(),
+            text="Untrusted server-origin assertion.",
+            evidence_ids=(),
+            verification_status="VERIFIED",
+            approval_status="APPROVED",
+            origin="F09_APPROVED",
+        )
