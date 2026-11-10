@@ -10,6 +10,7 @@ from app.modules.generation.interview_router import router as interview_router
 from app.modules.generation.router import router as generation_router
 from app.modules.sharing.router import router as sharing_router
 from app.modules.statement_review.router import router as statement_review_router
+from app.modules.verification.router import router as verification_router
 
 app = FastAPI(
     title="ApplyWise API",
@@ -33,6 +34,7 @@ app.include_router(applications_router)
 app.include_router(sharing_router)
 app.include_router(documents_router)
 app.include_router(statement_review_router)
+app.include_router(verification_router)
 
 
 @app.get("/health", tags=["system"])

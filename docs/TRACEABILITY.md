@@ -8,7 +8,7 @@ Statuses below reflect repository-visible implementation state. Work in an open 
 | Feature | Priority | Precedence | Requirements | Tests | Status |
 |---|---|---|---|---|---|
 | F02 Career Evidence Profile | High | 1 Foundations | Issue #2 / F02 contract | Backend persistence/domain + contract tests | Implemented in PR #8; F01 integration in progress |
-| F08 Claim Verification | High | 3 Controlled Generation; prototype early | TBD | TBD | Not started in repository |
+| F08 Claim Verification | High | 3 Controlled Generation; prototype early | F08 contract | Deterministic classifier corpus (fabricated figures/rankings both directions), revision-rotation properties, API ownership tests, F09 structural-compatibility tests | Backend, contract and UI implemented; derived-revision invalidation in place; F09 provider wiring lands with #58 |
 | F09 Statement Review and Approval | High | 3 Controlled Generation | TBD | TBD | Not started in repository |
 | F01 User Registration and Authentication | High | 1 Foundations | Issue #7 | Backend auth/RBAC + frontend auth tests | Merged to `main` in PR #13 |
 | F07 AI Statement Generation with Provenance | High | 3 Controlled Generation | Issue #3 | Owner branch tests | Implemented in PR #11; pending integration/merge |

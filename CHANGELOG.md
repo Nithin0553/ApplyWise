@@ -3,6 +3,29 @@
 ## [Unreleased]
 
 ### Added
+- F08 Claim Verification (`verification` module, `verification` frontend):
+  - Backend: deterministic classifier returning `VERIFIED` / `INFERRED` /
+    `UNSUPPORTED` with findings that quote the figure or word behind each
+    verdict, plus `POST/GET/DELETE /api/verification/statements`.
+  - No AI provider is used. Every decision is a textual comparison between a
+    claim and the approved evidence cited for it, so the component that
+    decides whether a claim is supported cannot itself hallucinate.
+  - `UNSUPPORTED` is reserved for fabricated specifics that can be checked
+    objectively — a figure or ranking absent from the evidence. Interpretive
+    scope wording is `INFERRED`, which stays exportable under Req-Qual-Trace-2.
+  - The verification revision is **derived**, not stored: a SHA-256 over the
+    claim text, cited evidence ids, the current content and approval timestamp
+    of each cited record, and the classification. Rotation is structural, which
+    is what F09 invalidation and F13 export staleness depend on.
+  - Classification and revision are recomputed on every read, so editing
+    evidence changes the answer immediately with no cache to invalidate.
+  - Implements the provider shape F09 declares, restated structurally so
+    neither module imports the other; compatibility is covered by tests.
+  - Frontend: `features/verification` — `VerificationPanel`, blocked claims
+    first, every verdict shown with its reasons.
+  - Docs: `docs/contracts/F08_CLAIM_VERIFICATION_CONTRACT.md`.
+
+### Added
 - F03 Resume Import and Profile Population (`evidence` module + `features/import`):
   - `POST /api/evidence/import` accepts a PDF or Word (`.docx`) resume and saves the details it
     finds as `UNCONFIRMED` evidence records (never approved automatically). Unsupported,
