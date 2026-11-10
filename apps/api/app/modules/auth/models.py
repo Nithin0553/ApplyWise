@@ -29,19 +29,12 @@ class UserRole(enum.StrEnum):
     through the public registration endpoint, so a user can never grant
     themselves elevated access.
 
-    REVIEWER is included here so the role model is complete per
-    docs/TEAM_ALLOCATION.md's product-user types, but F01 does not issue it
-    through registration or login. Per docs/ARCHITECTURE.md, reviewer
-    access to a resume is a controlled, time-limited *link* scoped to one
-    resume version (F14, owned by Suraj), not an account-wide role a user
-    signs in with. F14 is expected to mint and validate its own
-    short-lived share tokens rather than authenticating a reviewer as a
-    ``User`` row here. This value exists so other modules can reference
-    ``UserRole.REVIEWER`` in documentation/contracts without inventing
-    their own role constant; it is not wired into any F01 endpoint and
-    ``require_role`` is never called with it. If F14 ends up needing a
-    real reviewer account, that decision belongs to F14's owner and should
-    be revisited in that module's PR, not assumed here.
+    REVIEWER is included so the role model is complete per
+    docs/TEAM_ALLOCATION.md's product-user types. F01 does not issue it
+    through registration or login. F14 (sharing, owned by Nithin) calls
+    ``require_role(UserRole.REVIEWER)`` to protect the reviewer routes, so
+    a reviewer is a real account with this role. How such an account is
+    provisioned is not decided yet and is tracked as a team decision.
     """
 
     JOB_SEEKER = "job_seeker"
