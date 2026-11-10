@@ -157,9 +157,12 @@ provider. Neither module depends on the other at build time, and
 field names, keyword-only signatures, StrEnum value equality across the two
 modules, and the revision format F09 validates.
 
-**Wiring, once F09 merges:** override F09's `current_verification_provider`
-dependency to return `VerificationService(db, EvidenceService(db))`. That is a
-change of caller, not of policy.
+**Current wiring:** F09's `statement_review/dependencies.py` supplies
+`current_verification_provider` and constructs
+`VerificationService(db, EvidenceService(db))` using the request-scoped
+database session. The public `statement_review/contract.py` remains
+dependency-free. When the F08 implementation is unavailable, the dependency
+continues to fail closed instead of trusting a client-provided verdict.
 
 ## Endpoints
 
