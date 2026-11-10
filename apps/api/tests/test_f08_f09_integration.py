@@ -1,6 +1,6 @@
 """F08 is the dependency F09 fails closed without. This proves it closes.
 
-`statement_review.contract.current_verification_provider` resolves F08 lazily
+`statement_review.dependencies.current_verification_provider` resolves F08 lazily
 and falls back to `UnavailableVerificationProvider` when the module is absent,
 so before F08 exists every review route answers 503. Installing F08 is what
 makes F09 real — and nothing in either module's own tests can show that,
