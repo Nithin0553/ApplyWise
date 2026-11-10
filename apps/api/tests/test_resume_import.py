@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from app.modules.auth.models import User, UserRole
 from app.modules.auth.security import hash_password
 from app.modules.evidence.resume_import import (
+    MAX_DOCX_MEMBERS,
+    MAX_UNCOMPRESSED_DOCX_BYTES,
     MAX_UPLOAD_BYTES,
     UnreadableResumeError,
     UnsupportedResumeFormatError,
@@ -18,7 +20,10 @@ from app.modules.evidence.resume_import import (
     propose_evidence,
     read_resume,
 )
-from tests.resume_files import SAMPLE_LINES, build_docx, build_pdf
+from tests.resume_files import SAMPLE_LINES, build_docx, build_pdf, set_declared_member_count
+
+# build_docx always writes [Content_Types].xml and word/document.xml.
+BASE_DOCX_MEMBERS = 2
 
 PASSWORD = "correct-horse-1"
 
@@ -180,6 +185,32 @@ def test_docx_without_document_xml_is_unreadable() -> None:
         extract_text("resume.docx", buffer.getvalue())
 
 
+def test_docx_at_the_member_limit_is_read() -> None:
+    data = build_docx(SAMPLE_LINES, extra_members=MAX_DOCX_MEMBERS - BASE_DOCX_MEMBERS)
+    assert "Software Engineer Intern" in extract_text("resume.docx", data)
+
+
+def test_docx_with_too_many_members_is_unreadable() -> None:
+    data = build_docx(SAMPLE_LINES, extra_members=MAX_DOCX_MEMBERS - BASE_DOCX_MEMBERS + 1)
+    with pytest.raises(UnreadableResumeError):
+        extract_text("resume.docx", data)
+
+
+def test_docx_that_understates_its_member_count_is_still_refused() -> None:
+    data = build_docx(SAMPLE_LINES, extra_members=MAX_DOCX_MEMBERS)
+    with pytest.raises(UnreadableResumeError):
+        extract_text("resume.docx", set_declared_member_count(data, BASE_DOCX_MEMBERS))
+
+
+def test_docx_with_oversized_document_xml_is_unreadable() -> None:
+    # Highly repetitive text: small once compressed, over the limit once decompressed.
+    filler = "Python " * (MAX_UNCOMPRESSED_DOCX_BYTES // 7 + 1)
+    data = build_docx([*SAMPLE_LINES, filler])
+    assert len(data) <= MAX_UPLOAD_BYTES
+    with pytest.raises(UnreadableResumeError):
+        extract_text("resume.docx", data)
+
+
 # ------------------------------------------------------------------ API
 
 
@@ -257,6 +288,30 @@ def test_corrupted_file_is_rejected_and_nothing_is_saved(client: TestClient) -> 
     assert response.status_code == 422
     assert "could not be processed" in response.json()["detail"]
     assert client.get("/api/evidence/", headers=headers).json() == []
+
+
+def test_docx_with_too_many_members_is_rejected_and_nothing_is_saved(client: TestClient) -> None:
+    headers = _register(client, "alex@example.com")
+    data = build_docx(SAMPLE_LINES, extra_members=MAX_DOCX_MEMBERS)
+
+    response = _upload(client, headers, "resume.docx", data)
+
+    assert response.status_code == 422
+    assert response.json()["detail"].startswith("This file could not be processed.")
+    assert client.get("/api/evidence/", headers=headers).json() == []
+
+
+@pytest.mark.parametrize("builder,name", [(build_docx, "resume.docx"), (build_pdf, "resume.pdf")])
+def test_normal_resumes_still_import_after_the_archive_limits(
+    client: TestClient, builder, name: str
+) -> None:
+    headers = _register(client, "alex@example.com")
+
+    response = _upload(client, headers, name, builder(SAMPLE_LINES))
+
+    assert response.status_code == 201
+    assert len(response.json()["records"]) >= 6
+    assert {r["status"] for r in response.json()["records"]} == {"unconfirmed"}
 
 
 def test_file_without_resume_content_is_rejected(client: TestClient) -> None:

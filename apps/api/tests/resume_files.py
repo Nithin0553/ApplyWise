@@ -52,7 +52,8 @@ def build_pdf(lines: list[str]) -> bytes:
     return bytes(out)
 
 
-def build_docx(lines: list[str]) -> bytes:
+def build_docx(lines: list[str], *, extra_members: int = 0) -> bytes:
+    """Return a minimal .docx; ``extra_members`` adds that many empty archive members."""
     paragraphs = "".join(
         f'<w:p><w:r><w:t xml:space="preserve">{escape(line)}</w:t></w:r></w:p>' for line in lines
     )
@@ -65,4 +66,13 @@ def build_docx(lines: list[str]) -> bytes:
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("[Content_Types].xml", "<Types/>")
         archive.writestr("word/document.xml", document)
+        for index in range(extra_members):
+            archive.writestr(f"word/media/extra{index}.bin", b"")
     return buffer.getvalue()
+
+
+def set_declared_member_count(data: bytes, count: int) -> bytes:
+    """Overwrite the member counts in a zip's end record, leaving the members unchanged."""
+    position = data.rfind(b"PK\x05\x06")
+    field = count.to_bytes(2, "little")
+    return data[: position + 8] + field + field + data[position + 12 :]

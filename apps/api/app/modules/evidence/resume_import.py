@@ -23,6 +23,8 @@ from .schemas import EvidenceCreate
 
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_UNCOMPRESSED_DOCX_BYTES = 20 * 1024 * 1024
+# A Word resume has a few dozen archive members, or a few hundred with many images.
+MAX_DOCX_MEMBERS = 1000
 MAX_PROPOSED_RECORDS = 100
 IMPORT_SOURCE = "resume_import"
 
@@ -94,10 +96,39 @@ def _pdf_text(data: bytes) -> str:
 
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
+# ZIP end-of-central-directory record: fixed 22 bytes, then a comment of up to 64 KB.
+_EOCD_SIGNATURE = b"PK\x05\x06"
+_EOCD_SIZE = 22
+_EOCD_MAX_COMMENT = 0xFFFF
+
+
+def _declared_member_count(data: bytes) -> int | None:
+    """Return the member count stated in the archive's end record, or None if there is none.
+
+    Opening a ZipFile reads an entry for every member, so an upload packed with tens of
+    thousands of tiny members costs real time even though its size is within the limit.
+    Reading the count first lets such a file be refused before that work starts.
+    """
+    start = max(0, len(data) - _EOCD_SIZE - _EOCD_MAX_COMMENT)
+    position = data.rfind(_EOCD_SIGNATURE, start)
+    if position < 0 or position + _EOCD_SIZE > len(data):
+        return None
+    # Total entries in the central directory. ZIP64 archives store 0xFFFF here, which is
+    # also over the limit, so they are refused too; no Word resume needs ZIP64.
+    return int.from_bytes(data[position + 10 : position + 12], "little")
+
 
 def _docx_text(data: bytes) -> str:
+    declared = _declared_member_count(data)
+    if declared is not None and declared > MAX_DOCX_MEMBERS:
+        raise UnreadableResumeError(UNREADABLE_MESSAGE)
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            # The end record can understate the count, so check the parsed list as well.
+            if len(archive.infolist()) > MAX_DOCX_MEMBERS:
+                raise UnreadableResumeError(UNREADABLE_MESSAGE)
+            # Only word/document.xml is ever decompressed, and its declared size is checked
+            # before reading; zipfile stops at that declared size when it decompresses.
             info = archive.getinfo("word/document.xml")
             if info.file_size > MAX_UNCOMPRESSED_DOCX_BYTES:
                 raise UnreadableResumeError(UNREADABLE_MESSAGE)
