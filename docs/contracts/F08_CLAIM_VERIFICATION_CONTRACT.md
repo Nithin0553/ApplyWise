@@ -46,9 +46,25 @@ or owned by someone else resolves to nothing and the claim is `UNSUPPORTED`.
 | `UNSUPPORTED` | The claim states a specific the evidence does not contain, or its evidence is gone | **Blocked** (Req-Qual-Trace-2) |
 
 `UNSUPPORTED` is reserved for **fabricated specifics that can be checked
-objectively**: a figure or a ranking absent from the evidence. These block
-export, so a false positive costs a user a true claim on their resume. That is
-the expensive mistake, and the bar is set to avoid it.
+objectively**: a figure, a ranking, a named thing, or a date the evidence does
+not contain. These block export, so a false positive costs a user a true claim
+on their resume. That is the expensive mistake, and the bar is set to avoid it.
+
+Named things were added after review of #69 found the original calibration
+wrong. "Built regression suites at Google" classified as `VERIFIED` and was
+therefore exportable: coverage scoring hid a single unknown proper noun inside
+an otherwise well-covered sentence. A named employer, tool or credential the
+evidence never mentions is a fabricated fact, exactly as checkable as a figure,
+and not a wording choice. Entity matching is literal rather than stemmed, so
+"Kubernete" does not pass as "Kubernetes"; sentence-initial capitals are
+ignored, because that capital says nothing about whether the word is a name.
+
+Dates are checked against the span the cited evidence records. A year outside
+it is `DATE_OUTSIDE_EVIDENCE`. When the evidence records dates at all, years
+belong to that check rather than the figure check — "in 2023" against a
+2022-2024 role is true even though the literal token appears nowhere. When the
+evidence records no dates, a year claim cannot be substantiated and falls to
+the figure check.
 
 Claims of scope — "led", "owned", "managed" — without a role recorded in the
 evidence are `INFERRED`, not `UNSUPPORTED`. Scope language is interpretive and
@@ -61,8 +77,8 @@ the same philosophy.
 
 Every classification carries `findings`, each naming the figure or word that
 triggered it: `FIGURE_NOT_IN_EVIDENCE`, `RANKING_NOT_IN_EVIDENCE`,
-`SCOPE_NOT_IN_EVIDENCE`, `EVIDENCE_NOT_AVAILABLE`, `BEYOND_EVIDENCE_WORDING`,
-`FULLY_COVERED`.
+`ENTITY_NOT_IN_EVIDENCE`, `DATE_OUTSIDE_EVIDENCE`, `SCOPE_NOT_IN_EVIDENCE`,
+`EVIDENCE_NOT_AVAILABLE`, `BEYOND_EVIDENCE_WORDING`, `FULLY_COVERED`.
 
 A verdict without a reason is not actionable. A user told "unsupported" with no
 explanation can only guess, and guessing here means deleting claims that were
@@ -179,8 +195,14 @@ passed and every call returned 404.
 
 ## Known limitations
 
-- Lexical matching only; paraphrase is not detected.
-- Date and duration claims are not checked against evidence date ranges.
+- Lexical matching only; paraphrase is not detected. A fabricated fact phrased
+  without a proper noun, a figure or a date — "led a large team" against
+  evidence recording an individual contributor role — is `INFERRED`, not
+  `UNSUPPORTED`.
+- Entity detection relies on capitalisation, so a lowercased proper noun
+  ("built suites at google") is not caught.
+- Only years are compared against evidence date ranges; months and durations
+  are not.
 - `VERIFIED` uses a 60% content-word coverage threshold, which is a judgement
   call rather than a measured one. It should be re-tuned against a labelled
   sample before anyone claims the 90% accuracy figure in Req-Qual-Match-3.

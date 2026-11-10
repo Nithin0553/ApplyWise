@@ -10,6 +10,8 @@ export type VerificationStatus = "VERIFIED" | "INFERRED" | "UNSUPPORTED";
 
 export type VerificationReason =
   | "FIGURE_NOT_IN_EVIDENCE"
+  | "ENTITY_NOT_IN_EVIDENCE"
+  | "DATE_OUTSIDE_EVIDENCE"
   | "RANKING_NOT_IN_EVIDENCE"
   | "SCOPE_NOT_IN_EVIDENCE"
   | "EVIDENCE_NOT_AVAILABLE"
@@ -53,6 +55,8 @@ export const STATUS_HELP: Record<VerificationStatus, string> = {
 
 export const REASON_LABEL: Record<VerificationReason, string> = {
   FIGURE_NOT_IN_EVIDENCE: "Figure is not in your evidence",
+  ENTITY_NOT_IN_EVIDENCE: "Names something your evidence does not mention",
+  DATE_OUTSIDE_EVIDENCE: "Date falls outside what your evidence records",
   RANKING_NOT_IN_EVIDENCE: "Claims a ranking your evidence does not record",
   SCOPE_NOT_IN_EVIDENCE: "Claims scope your evidence does not record",
   EVIDENCE_NOT_AVAILABLE: "Cited evidence is no longer approved",

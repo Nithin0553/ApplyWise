@@ -237,3 +237,100 @@ def test_two_different_claims_do_not_collide() -> None:
         "Reworked the nightly regression suite", ids=(MEASURED_ID,)
     )
     assert MEASURED.title  # fixture sanity
+
+
+# --- fabricated named facts (employers, tools, credentials) ----------------
+#
+# Review of #69 found that these passed as VERIFIED and therefore exportable.
+# A proper noun the evidence never mentions is a fabricated fact, not a wording
+# choice, and coverage scoring hid it: one unknown name inside an otherwise
+# well-covered sentence still scored above the VERIFIED threshold.
+
+
+@pytest.mark.parametrize(
+    ("name", "text"),
+    [
+        ("employer", "Built automated regression suites at Google for revenue management software"),
+        ("tool", "Built automated regression suites with Kubernetes for revenue software"),
+        ("credential", "Built automated regression suites certified by ISTQB for revenue software"),
+        ("framework", "Built automated regression suites in Selenium for revenue software"),
+    ],
+)
+def test_a_named_thing_absent_from_the_evidence_is_unsupported(name: str, text: str) -> None:
+    status, findings = verdict(text)
+
+    assert status is VerificationStatus.UNSUPPORTED, name
+    assert VerificationReason.ENTITY_NOT_IN_EVIDENCE in reasons(findings), name
+
+
+def test_a_named_employer_the_evidence_records_is_not_flagged() -> None:
+    """Model N is in the evidence. Naming a real employer must stay clean."""
+    status, findings = verdict(
+        "Built automated regression suites at Model N for revenue management software"
+    )
+
+    assert VerificationReason.ENTITY_NOT_IN_EVIDENCE not in reasons(findings)
+    assert status is VerificationStatus.VERIFIED
+
+
+def test_a_named_skill_the_evidence_records_is_not_flagged() -> None:
+    status, findings = verdict(
+        "Advanced Python used for automated regression suites", ids=(WORK_ID, SKILL_ID)
+    )
+
+    assert VerificationReason.ENTITY_NOT_IN_EVIDENCE not in reasons(findings)
+
+
+def test_a_sentence_initial_capital_is_not_treated_as_a_name() -> None:
+    """The first word's capital says nothing about whether it is a proper noun."""
+    status, findings = verdict(
+        "Regression suites were built and maintained for revenue management software"
+    )
+
+    assert VerificationReason.ENTITY_NOT_IN_EVIDENCE not in reasons(findings)
+    assert status is VerificationStatus.VERIFIED
+
+
+def test_entity_matching_is_literal_not_stemmed() -> None:
+    """Stemming would turn Kubernetes into Kubernete and let a near-miss pass."""
+    status, findings = verdict("Built regression suites with Kubernete tooling")
+
+    assert status is VerificationStatus.UNSUPPORTED
+    assert VerificationReason.ENTITY_NOT_IN_EVIDENCE in reasons(findings)
+
+
+# --- changed dates ---------------------------------------------------------
+
+
+def test_a_year_outside_the_evidence_range_is_unsupported() -> None:
+    """Evidence runs 2022-2024. Claiming 2018 is a changed date."""
+    status, findings = verdict(
+        "Built automated regression suites for revenue management software in 2018"
+    )
+
+    assert status is VerificationStatus.UNSUPPORTED
+    assert VerificationReason.DATE_OUTSIDE_EVIDENCE in reasons(findings)
+
+
+def test_a_year_inside_the_evidence_range_is_not_flagged() -> None:
+    """2023 falls inside 2022-2024 and must not be read as an unsourced figure.
+
+    The literal token "2023" appears nowhere in the evidence, so the figure
+    check would flag it; years belong to the date check when the evidence
+    records dates at all.
+    """
+    status, findings = verdict(
+        "Built automated regression suites for revenue management software in 2023"
+    )
+
+    assert status is VerificationStatus.VERIFIED
+    assert VerificationReason.DATE_OUTSIDE_EVIDENCE not in reasons(findings)
+    assert VerificationReason.FIGURE_NOT_IN_EVIDENCE not in reasons(findings)
+
+
+def test_a_year_is_still_checked_when_the_evidence_records_no_dates() -> None:
+    """A skill record carries no dates, so a year claim cannot be substantiated."""
+    status, findings = verdict("Advanced Python in 2023", ids=(SKILL_ID,))
+
+    assert status is VerificationStatus.UNSUPPORTED
+    assert VerificationReason.FIGURE_NOT_IN_EVIDENCE in reasons(findings)

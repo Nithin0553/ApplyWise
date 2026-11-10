@@ -51,6 +51,16 @@ REVISION_DIGEST_CHARS = 32
 # evidence, which is what INFERRED means.
 COVERAGE_THRESHOLD = 0.6
 
+# Objectively checkable fabrication: the claim states something the cited
+# evidence simply does not contain. These block export. Everything else is a
+# wording judgement and yields INFERRED, which stays exportable.
+FABRICATION_REASONS = frozenset({
+    VerificationReason.FIGURE_NOT_IN_EVIDENCE,
+    VerificationReason.RANKING_NOT_IN_EVIDENCE,
+    VerificationReason.ENTITY_NOT_IN_EVIDENCE,
+    VerificationReason.DATE_OUTSIDE_EVIDENCE,
+})
+
 # Quantities an interviewer or a recruiter can ask the source of.
 _NUMBER = re.compile(r"\$?\d[\d,]*(?:\.\d+)?\s*(?:%|x\b|k\b|m\b|bn\b)?", re.IGNORECASE)
 
@@ -103,6 +113,62 @@ def _content_words(text: str) -> set[str]:
     return {_stem(word) for word in words if word not in _STOPWORDS and len(word) > 2}
 
 
+def _literal_words(text: str) -> set[str]:
+    """Word tokens, lowercased but **not** stemmed.
+
+    Named things must be compared literally: stemming turns "Kubernetes" into
+    "Kubernete" and would let a near-miss match.
+    """
+    return set(re.findall(r"[a-z0-9][a-z0-9+#.\-']*", text.lower()))
+
+
+def _named_entities(text: str) -> list[str]:
+    """Proper nouns and acronyms a claim asserts: employers, tools, credentials.
+
+    A capitalized word that is not the first word of a sentence is a name, not
+    a wording choice. The first word of each sentence is skipped because its
+    capital says nothing, and stopwords are skipped so a capitalized "The"
+    mid-sentence does not count.
+    """
+    found: list[str] = []
+    for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
+        tokens = re.findall(r"[A-Za-z][A-Za-z0-9+#.\-']*", sentence)
+        for index, token in enumerate(tokens):
+            if index == 0:
+                continue  # sentence-initial capital carries no information
+            if not token[0].isupper():
+                continue
+            lowered = token.lower().rstrip(".")
+            if lowered in _STOPWORDS or len(lowered) < 2:
+                continue
+            if lowered not in found:
+                found.append(lowered)
+    return found
+
+
+def _claimed_years(text: str) -> list[int]:
+    return [int(match) for match in re.findall(r"\b(?:19|20)\d{2}\b", text)]
+
+
+def _evidence_year_range(cited: Sequence[EvidenceFacts]) -> tuple[int, int] | None:
+    """The span the cited evidence actually covers, or None if it records none.
+
+    An open-ended record (no end date) extends to the latest approval year, so
+    an ongoing role is never treated as having stopped.
+    """
+    years: list[int] = []
+    for item in cited:
+        if item.start_date:
+            years.append(item.start_date.year)
+        if item.end_date:
+            years.append(item.end_date.year)
+        elif item.start_date:
+            years.append(item.approved_at.year)
+    if not years:
+        return None
+    return min(years), max(years)
+
+
 def evidence_text(item: EvidenceFacts) -> str:
     """Flatten one approved evidence record to the text F08 compares against."""
     parts = [f"{item.title}"]
@@ -146,9 +212,18 @@ def classify(
     cited = [approved[eid] for eid in evidence_ids]
     raw = " | ".join(evidence_text(item) for item in cited)
     haystack_words = _content_words(raw)
+    evidence_literals = _literal_words(raw)
     evidence_numbers = _numeric_tokens(raw)
 
+    # When the evidence records dates, years belong to the date check below and
+    # not to the figure check: "in 2023" against a 2022-2024 role is a true
+    # statement, even though the literal token "2023" appears nowhere.
+    span = _evidence_year_range(cited)
+    claimed_years = {str(year) for year in _claimed_years(text)} if span else set()
+
     for token in _numeric_tokens(text):
+        if token in claimed_years:
+            continue
         if token not in evidence_numbers:
             findings.append(
                 VerificationFinding(
@@ -156,6 +231,33 @@ def classify(
                     detail=token[:160],
                 )
             )
+
+    # A named employer, tool or credential the evidence never mentions is a
+    # fabricated fact, not a wording choice. "at Google" is exactly as checkable
+    # as "by 40%", and coverage scoring hides it: one unknown proper noun in a
+    # well-covered sentence still scores above the VERIFIED threshold.
+    for entity in _named_entities(text):
+        if entity not in evidence_literals:
+            findings.append(
+                VerificationFinding(
+                    reason=VerificationReason.ENTITY_NOT_IN_EVIDENCE,
+                    detail=entity[:160],
+                )
+            )
+
+    # A year outside the span the cited evidence records is a changed date.
+    # Only checked when the evidence records dates at all; otherwise there is
+    # nothing to compare against and silence is the honest answer.
+    if span is not None:
+        first, last = span
+        for year in _claimed_years(text):
+            if not first <= year <= last:
+                findings.append(
+                    VerificationFinding(
+                        reason=VerificationReason.DATE_OUTSIDE_EVIDENCE,
+                        detail=f"{year} is outside the evidence range {first}-{last}",
+                    )
+                )
 
     claim_words = {word for word in re.findall(r"[a-z][a-z\-']*", text.lower())}
     for word in _RANKINGS:
@@ -166,14 +268,7 @@ def classify(
                 )
             )
 
-    if any(
-        finding.reason
-        in (
-            VerificationReason.FIGURE_NOT_IN_EVIDENCE,
-            VerificationReason.RANKING_NOT_IN_EVIDENCE,
-        )
-        for finding in findings
-    ):
+    if any(finding.reason in FABRICATION_REASONS for finding in findings):
         return VerificationStatus.UNSUPPORTED, tuple(findings)
 
     has_stated_role = any(item.role or item.organization for item in cited)
