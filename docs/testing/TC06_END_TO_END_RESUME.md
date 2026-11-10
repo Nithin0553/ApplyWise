@@ -22,7 +22,7 @@
 | 9 | Request F07 grounded generation selecting approved evidence IDs | Draft candidate statements cite actual A-owned approved evidence IDs; provider output marked CANDIDATE, not approved | N/A |
 | 10 | Attempt generation with only unconfirmed/foreign/missing evidence IDs | Server rejects selection without leaking ownership details | N/A |
 | 11 | Feed verified-evidence-supported text into F08; compare explicit evidence claims | Deterministic verification classifies supported statement VERIFIED or appropriately INFERRED with correct provenance | N/A — not manually executed (F08 merged) |
-| 12 | Submit unsupported claim `"Improved performance by 90%"` without evidence | Classification UNSUPPORTED and export-ineligible; no invented numerical value accepted | N/A — F08 integration pending |
+| 12 | Submit unsupported claim `"Improved performance by 90%"` without evidence | Classification UNSUPPORTED and export-ineligible; no invented numerical value accepted | N/A — not manually executed (F08 merged) |
 | 13 | In F09 review, deny unsupported claim and approve only supported statements | Denied claim removed from active resume; approved review state persisted and visible after refresh | N/A — not manually executed (F09 merged) |
 | 14 | Try to approve without verification, or materially edit a VERIFIED claim | Export remains blocked until eligible/reverified per F08/F09 contract | N/A — not manually executed (F13 boundary merged) |
 | 15 | Generate formatted resume preview from approved and export-eligible content | F10 previews expected sections; unsupported/unapproved text excluded | N/A — not manually executed (F10 merged) |
