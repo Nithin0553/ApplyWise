@@ -28,7 +28,7 @@ This appendix records the detailed test case for the interface between F07 AI st
 | Date of Current Version | 11/10/26 |
 | Created By | Niraali Deepak Bandi |
 | Last Update By | Niraali Deepak Bandi |
-| Approved By | Project manager technical review pending; approval applies to the test plan, not execution |
+| Approved By | @Nithin0553, test-plan technical review, 11/10/26; manual execution not approved or claimed |
 | The version of Software Under Test | ApplyWise API 0.1.0, main branch, commit 5d75121. Record the exact commit and deployment identifier again at execution. |
 | Test Engineer to Conduct the Test | To be assigned and recorded before manual execution |
 | List of Test Support Software | Python 3.13, pytest, an HTTP client such as the FastAPI test client, Postman or curl, PostgreSQL 16 or an isolated SQLite database, and a current desktop browser. Record exact versions at execution. |
