@@ -5,9 +5,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.main import _api_documentation_urls
-
 from app.core.config import DEFAULT_SECRET_KEY, Settings
+from app.main import _api_documentation_urls
 
 
 def _settings(**values: str) -> Settings:
