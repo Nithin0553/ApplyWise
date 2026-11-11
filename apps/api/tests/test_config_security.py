@@ -1,7 +1,11 @@
 """Production must never start with a default or weak JWT signing key."""
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
+
+from app.main import _api_documentation_urls
 
 from app.core.config import DEFAULT_SECRET_KEY, Settings
 
@@ -35,3 +39,21 @@ def test_environment_is_normalized_for_all_production_guards() -> None:
     assert production.app_env == "production"
     development = _settings(app_env="Development")
     assert development.app_env == "development"
+
+
+@pytest.mark.parametrize("environment", ["production", " Production ", "PRODUCTION"])
+def test_production_hides_all_api_docs_and_openapi_schema(environment: str) -> None:
+    """The same normalized environment must disable all three FastAPI endpoints."""
+    normalized = _settings(app_env=environment, app_secret_key="k" * 48).app_env
+    app = FastAPI(**_api_documentation_urls(normalized))
+    client = TestClient(app)
+    for path in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(path).status_code == 404
+
+
+def test_development_preserves_api_docs_and_openapi_schema() -> None:
+    normalized = _settings(app_env="development").app_env
+    app = FastAPI(**_api_documentation_urls(normalized))
+    client = TestClient(app)
+    for path in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(path).status_code == 200
