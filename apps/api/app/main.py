@@ -12,6 +12,7 @@ from app.modules.sharing.router import router as sharing_router
 from app.modules.statement_review.router import router as statement_review_router
 from app.modules.verification.router import router as verification_router
 
+
 def _api_documentation_urls(environment: str) -> dict[str, str | None]:
     """Never expose Swagger, ReDoc or the OpenAPI schema in production."""
     if environment == "production":
