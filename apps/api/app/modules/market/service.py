@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import datetime
 from uuid import UUID
 
 from app.modules.evidence.contracts import ApprovedEvidenceProvider
-from app.modules.job_analysis.contracts import AnalysisResult
 
 from .contracts import MarketSkillDemandResult, MarketSkillStatus, SkillComparison, SkillFrequency
 
@@ -34,7 +32,11 @@ class MarketSkillDemandService:
         canonical_terms: dict[str, list[str]] = {}
         counts: Counter[str] = Counter()
         for description in descriptions:
-            tokens = {term.strip().lower() for term in description.replace(";", " ").split() if term.strip()}
+            tokens = {
+                term.strip().lower()
+                for term in description.replace(";", " ").split()
+                if term.strip()
+            }
             for term in tokens:
                 if len(term) < 3:
                     continue
@@ -92,7 +94,10 @@ class MarketSkillDemandService:
             analyzed_count=len(descriptions),
             skills=tuple(skills),
             comparisons=comparison,
-            warnings=("This is a prototype market-skill summary; it does not claim full labor-market certainty.",),
+            warnings=(
+                "This is a prototype market-skill summary; it does not claim full "
+                "labor-market certainty.",
+            ),
         )
 
 
