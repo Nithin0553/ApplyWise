@@ -256,3 +256,12 @@
 .aw-review-list > li > button:hover { border-color: #1675e5; }
 .aw-review-list em { font-style: normal; font-size: 0.82rem; opacity: 0.72; white-space: nowrap; }
 .aw-review-empty { padding: 12px 14px; opacity: 0.72; }
+
+/* F08 verdict shown on a claim during review, and F09 decision failures. */
+.aw-verdict { margin: 10px 0; padding: 10px 12px; border-radius: 10px; border-left: 4px solid #9aa5b1; background: #f6f8fa; }
+.aw-verdict.is-verified { border-left-color: #1a7f37; }
+.aw-verdict.is-inferred { border-left-color: #9a6700; }
+.aw-verdict.is-unsupported { border-left-color: #b3261e; }
+.aw-verdict ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.85rem; opacity: 0.8; }
+.aw-review-error { color: #b3261e; font-size: 0.88rem; margin: 8px 0 0; }
+.aw-estimate-note { font-size: 0.8rem; opacity: 0.7; max-width: 46ch; margin: 8px 0 0; }

@@ -16,10 +16,12 @@ vi.mock("../sharing", () => ({ SharingPage: () => <h2>Sharing module connected</
 vi.mock("../verification", () => ({
   VerificationPanel: () => <h2>Verification module connected</h2>,
   listStatements: (...args: unknown[]) => listStatements(...args),
+  submitStatement: vi.fn(),
 }));
 vi.mock("../review", () => ({
   StatementReviewPage: ({ statementId }: { statementId: string }) =>
     <h2>Review module connected for {statementId}</h2>,
+  decideStatement: vi.fn(),
 }));
 vi.mock("../interview", () => ({
   InterviewPrepPage: ({ statements }: { statements: unknown[] }) =>

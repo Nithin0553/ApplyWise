@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { User } from "../auth/types";
@@ -122,6 +122,10 @@ describe("ApplyWise guided journey", () => {
     vi.stubGlobal("scrollTo", vi.fn());
     const evidenceId = "11111111-1111-4111-8111-111111111111";
     const statementId = "22222222-2222-4222-8222-222222222222";
+    // F08 keeps its own record, so the id a decision is made against is not
+    // the candidate id F07 produced.
+    const verifiedId = "44444444-4444-4444-8444-444444444444";
+    const revision = "v1-0123456789abcdef0123456789abcdef";
     const requests: string[] = [];
     const fetchMock = vi.fn(async (input: string | URL, init?: RequestInit) => {
       const path = String(input);
@@ -135,6 +139,23 @@ describe("ApplyWise guided journey", () => {
         payload = { statements: [{ statement_id: statementId, text: "Tested REST APIs.",
           evidence_ids: [evidenceId], status: "CANDIDATE", verification_status: "PENDING",
           approval_status: "UNREVIEWED", export_eligible: false }] };
+      } else if (path === "/api/verification/statements" && init?.method === "POST") {
+        const submitted = JSON.parse(String(init.body)) as { text: string; evidence_ids: string[] };
+        // The client sends text and evidence ids only; it cannot assert a verdict.
+        expect(submitted).toEqual({ text: "Tested REST APIs.", evidence_ids: [evidenceId] });
+        payload = { statement_id: verifiedId, text: submitted.text,
+          evidence_ids: submitted.evidence_ids, status: "VERIFIED", revision,
+          findings: [{ reason: "FULLY_COVERED", detail: "100% of the claim's words appear in the evidence" }],
+          export_eligible: true };
+      } else if (path === `/api/statement-review/${verifiedId}/decision` && init?.method === "POST") {
+        // The decision is bound to the exact verdict the user was shown.
+        expect(JSON.parse(String(init.body))).toEqual({
+          decision: "APPROVED", expected_revision: revision,
+        });
+        payload = { statement_id: verifiedId, text: "Tested REST APIs.",
+          evidence_ids: [evidenceId], verification_status: "VERIFIED",
+          verification_revision: revision, review_status: "APPROVED",
+          finalization_eligible: true, reviewed_revision: revision };
       } else if (path === "/api/applications/reviewed-drafts" && init?.method === "POST") {
         const posted = JSON.parse(String(init.body)) as {
           application: { company_name: string; role_title: string };
@@ -177,7 +198,11 @@ describe("ApplyWise guided journey", () => {
     fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
     expect(screen.getAllByText(/Tested REST APIs/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Approve claim/ }));
-    expect(screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument();
+    // The approval is a server round trip through F09 now, not a state update.
+    await waitFor(() => expect(
+      screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument());
+    expect(requests).toContain("/api/verification/statements");
+    expect(requests).toContain(`/api/statement-review/${verifiedId}/decision`);
     fireEvent.click(screen.getByRole("button", { name: /Export reviewed resume/ }));
     expect(await screen.findByRole("heading", { name: "My Applications" }, { timeout: 6000 })).toBeInTheDocument();
     expect(requests).toContain("/api/applications/reviewed-drafts");

@@ -82,7 +82,12 @@ export function generateCandidates(
   details: { role: string; company: string; description: string; requirements: string[] },
   approvedIds: string[],
 ): Promise<GenerationResult> {
-  return api<GenerationResult>(token, "/api/generation/preview?provider=demo", {
+  // "demo" is a scripted provider: offline, deterministic, and deliberately
+  // emitting two ungrounded citations so the rejection path is visible while
+  // developing. Forcing it in a real deployment would silently override the
+  // server's configured provider, so outside dev the server decides.
+  const query = import.meta.env.DEV ? "?provider=demo" : "";
+  return api<GenerationResult>(token, `/api/generation/preview${query}`, {
     method: "POST",
     body: JSON.stringify({
       job_context: {
@@ -226,7 +231,7 @@ export function downloadReviewedText(
     fullName.trim(), `Target role: ${details.role}`,
     details.company ? `Company: ${details.company}` : "",
     "", "RELEVANT EXPERIENCE", ...statements.map((item) => `• ${item.text}`),
-    "", "User-reviewed draft. Automated claim verification is not yet available.",
+    "", "Verified against the author's own approved evidence and approved by them.",
   ].filter((line) => line !== undefined).join("\n");
   const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" }));
   const link = document.createElement("a");
