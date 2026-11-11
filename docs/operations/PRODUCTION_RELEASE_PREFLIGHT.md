@@ -49,7 +49,7 @@ Record only operator, timestamp, deployment target and PASS/BLOCKED outcome in t
 Deploy the reviewed commit deliberately through the project's existing Railway services; do **not** create duplicate services. Verify new deployment IDs and that health checks reach healthy status.
 
 Using **synthetic accounts and evidence only**, collect redacted results for:
-- API `/health` is healthy; production `/docs` and the F11/F15 prototype-only routes are not available.
+- API `/health` is healthy; production `/docs`, `/redoc`, and `/openapi.json` all return HTTP 404, and the F11/F15 prototype-only routes are unavailable. The OpenAPI/ReDoc gate requires the reviewed production-docs fix (follow-up to F01 #57) to be included in the deployed commit.
 - New login/register tokens work and unauthorized/foreign-owner requests remain denied.
 - F02 approved evidence → real F08 verdict → F09 current-revision approval → F13 trusted finalization → F10 PDF **and** DOCX render successfully and contain the approved claim text.
 - UNSUPPORTED claims cannot be approved or exported; an INFERRED claim must require explicit F09 approval and remain labeled INFERRED.
