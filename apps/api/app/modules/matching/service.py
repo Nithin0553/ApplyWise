@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from uuid import UUID
 
 from app.modules.evidence.contracts import ApprovedEvidenceProvider
@@ -123,19 +122,26 @@ class MatchingService:
         requirement_text = requirement.text.lower()
         if requirement_text and requirement_text in evidence_text:
             aligned = [
-                item for item in evidence if requirement_text in str(getattr(item, "description", ""))
+                item
+                for item in evidence
+                if requirement_text in str(getattr(item, "description", ""))
             ]
             if not aligned:
                 aligned = [
-                    item for item in evidence if requirement_text in str(getattr(item, "title", "")).lower()
+                    item
+                    for item in evidence
+                    if requirement_text in str(getattr(item, "title", "")).lower()
                 ]
             for item in aligned:
                 requirement_matches.append(
                     EvidenceReference(
-                        evidence_id=getattr(item, "evidence_id"),
-                        approved_at=getattr(item, "approved_at"),
-                        title=getattr(item, "title"),
-                        summary=(getattr(item, "description", None) or getattr(item, "skill_name", None)),
+                        evidence_id=item.evidence_id,
+                        approved_at=item.approved_at,
+                        title=item.title,
+                        summary=(
+                            getattr(item, "description", None)
+                            or getattr(item, "skill_name", None)
+                        ),
                     )
                 )
 
@@ -148,13 +154,22 @@ class MatchingService:
                 explanation="No approved evidence currently supports this requirement.",
                 unmet_conditions=(requirement.text,),
                 gap_assessment=GapAssessment.QUALIFICATION_GAP,
-                review_warnings=tuple(requirement.review_reasons or ("Evidence matching is unavailable; review required.",)),
+                review_warnings=tuple(
+                    requirement.review_reasons
+                    or ("Evidence matching is unavailable; review required.",)
+                ),
             )
 
-        if requirement.experience is not None and requirement.experience.minimum_years is not None:
+        if (
+            requirement.experience is not None
+            and requirement.experience.minimum_years is not None
+        ):
             matched = False
             for item in evidence:
-                if getattr(item, "start_date", None) is None and getattr(item, "end_date", None) is None:
+                if (
+                    getattr(item, "start_date", None) is None
+                    and getattr(item, "end_date", None) is None
+                ):
                     continue
                 matched = True
                 break
@@ -164,8 +179,14 @@ class MatchingService:
                     requirement_text=requirement.text,
                     classification=SupportClassification.PARTIALLY_SUPPORTED,
                     evidence=tuple(requirement_matches),
-                    explanation=f"Evidence supports the requirement text, but the required experience threshold remains insufficiently documented.",
-                    unmet_conditions=(f"At least {requirement.experience.minimum_years} years of experience required.",),
+                    explanation=(
+                        "Evidence supports the requirement text, but the required "
+                        "experience threshold remains insufficiently documented."
+                    ),
+                    unmet_conditions=(
+                        f"At least {requirement.experience.minimum_years} years of "
+                        "experience required.",
+                    ),
                     gap_assessment=GapAssessment.QUALIFICATION_GAP,
                     review_warnings=tuple(requirement.review_reasons),
                 )
@@ -175,7 +196,10 @@ class MatchingService:
             requirement_text=requirement.text,
             classification=SupportClassification.STRONGLY_SUPPORTED,
             evidence=tuple(requirement_matches),
-            explanation="Approved evidence directly supports the requirement and its stated constraints.",
+            explanation=(
+                "Approved evidence directly supports the requirement and its stated "
+                "constraints."
+            ),
             unmet_conditions=(),
             gap_assessment=None,
             review_warnings=tuple(requirement.review_reasons),
