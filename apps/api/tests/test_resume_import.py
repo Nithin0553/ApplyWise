@@ -12,15 +12,24 @@ from app.modules.auth.models import User, UserRole
 from app.modules.auth.security import hash_password
 from app.modules.evidence.resume_import import (
     MAX_DOCX_MEMBERS,
+    MAX_PDF_PAGES,
     MAX_UNCOMPRESSED_DOCX_BYTES,
     MAX_UPLOAD_BYTES,
+    TOO_MANY_PAGES_MESSAGE,
+    TooManyPagesError,
     UnreadableResumeError,
     UnsupportedResumeFormatError,
     extract_text,
     propose_evidence,
     read_resume,
 )
-from tests.resume_files import SAMPLE_LINES, build_docx, build_pdf, set_declared_member_count
+from tests.resume_files import (
+    SAMPLE_LINES,
+    add_blank_pages,
+    build_docx,
+    build_pdf,
+    set_declared_member_count,
+)
 
 # build_docx always writes [Content_Types].xml and word/document.xml.
 BASE_DOCX_MEMBERS = 2
@@ -211,6 +220,30 @@ def test_docx_with_oversized_document_xml_is_unreadable() -> None:
         extract_text("resume.docx", data)
 
 
+def test_pdf_at_the_page_limit_is_read() -> None:
+    data = add_blank_pages(build_pdf(SAMPLE_LINES), MAX_PDF_PAGES - 1)
+    assert "Software Engineer Intern" in extract_text("resume.pdf", data)
+
+
+def test_pdf_over_the_page_limit_is_refused() -> None:
+    data = add_blank_pages(build_pdf(SAMPLE_LINES), MAX_PDF_PAGES)
+    with pytest.raises(TooManyPagesError):
+        extract_text("resume.pdf", data)
+
+
+def test_pdf_with_thousands_of_pages_is_refused() -> None:
+    data = add_blank_pages(build_pdf(SAMPLE_LINES), 2000)
+    assert len(data) <= MAX_UPLOAD_BYTES
+    with pytest.raises(TooManyPagesError):
+        extract_text("resume.pdf", data)
+
+
+def test_pdf_that_understates_its_page_count_is_still_refused() -> None:
+    data = add_blank_pages(build_pdf(SAMPLE_LINES), 2000, declared_count=1)
+    with pytest.raises(TooManyPagesError):
+        extract_text("resume.pdf", data)
+
+
 # ------------------------------------------------------------------ API
 
 
@@ -298,6 +331,17 @@ def test_docx_with_too_many_members_is_rejected_and_nothing_is_saved(client: Tes
 
     assert response.status_code == 422
     assert response.json()["detail"].startswith("This file could not be processed.")
+    assert client.get("/api/evidence/", headers=headers).json() == []
+
+
+def test_pdf_with_too_many_pages_is_rejected_and_nothing_is_saved(client: TestClient) -> None:
+    headers = _register(client, "alex@example.com")
+    data = add_blank_pages(build_pdf(SAMPLE_LINES), MAX_PDF_PAGES)
+
+    response = _upload(client, headers, "resume.pdf", data)
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == TOO_MANY_PAGES_MESSAGE
     assert client.get("/api/evidence/", headers=headers).json() == []
 
 

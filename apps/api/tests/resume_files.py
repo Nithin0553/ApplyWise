@@ -6,6 +6,9 @@ import io
 import zipfile
 from xml.sax.saxutils import escape
 
+from pypdf import PdfReader, PdfWriter
+from pypdf.generic import NameObject, NumberObject
+
 SAMPLE_LINES = [
     "Alex Morgan",
     "alex.morgan@example.com",
@@ -50,6 +53,23 @@ def build_pdf(lines: list[str]) -> bytes:
         out += f"{offset:010d} 00000 n \n".encode()
     out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode()
     return bytes(out)
+
+
+def add_blank_pages(pdf: bytes, count: int, *, declared_count: int | None = None) -> bytes:
+    """Append ``count`` blank pages to a PDF.
+
+    ``declared_count`` overwrites the page total the PDF states in /Pages /Count, so a test
+    can build a file whose stated page count is lower than its real one.
+    """
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(pdf)))
+    for _ in range(count):
+        writer.add_blank_page(width=612, height=792)
+    if declared_count is not None:
+        pages = writer.root_object["/Pages"].get_object()
+        pages[NameObject("/Count")] = NumberObject(declared_count)
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
 
 
 def build_docx(lines: list[str], *, extra_members: int = 0) -> bytes:

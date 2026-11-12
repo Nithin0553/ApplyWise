@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from datetime import date
 from xml.etree import ElementTree
 
-from pypdf import PdfReader
-from pypdf.errors import PyPdfError
+from pypdf import PdfReader, apply_configuration
+from pypdf.errors import LimitReachedError, PyPdfError
 
 from .models import EvidenceType
 from .schemas import EvidenceCreate
@@ -25,6 +25,10 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_UNCOMPRESSED_DOCX_BYTES = 20 * 1024 * 1024
 # A Word resume has a few dozen archive members, or a few hundred with many images.
 MAX_DOCX_MEMBERS = 1000
+# A resume is a page or two and a long CV rarely passes 20. The page tree may also hold
+# intermediate nodes, so the walk is allowed a little more room than the page count.
+MAX_PDF_PAGES = 20
+MAX_PDF_PAGE_TREE_ENTRIES = 2 * MAX_PDF_PAGES
 MAX_PROPOSED_RECORDS = 100
 IMPORT_SOURCE = "resume_import"
 
@@ -33,6 +37,10 @@ TOO_LARGE_MESSAGE = "This file is larger than 5 MB. Upload a smaller PDF or Word
 UNREADABLE_MESSAGE = (
     "This file could not be processed. Check that it is a text-based PDF or Word resume "
     "that is not password protected, and try again, or add your evidence manually."
+)
+TOO_MANY_PAGES_MESSAGE = (
+    f"This PDF has more than {MAX_PDF_PAGES} pages. Upload your resume on its own, "
+    "or add your evidence manually."
 )
 NO_CONTENT_MESSAGE = (
     "No career details could be found in this file. Check that it is a text-based resume, "
@@ -60,6 +68,10 @@ class UnreadableResumeError(ResumeImportError):
     pass
 
 
+class TooManyPagesError(UnreadableResumeError):
+    pass
+
+
 # --------------------------------------------------------------------------- extraction
 
 
@@ -84,6 +96,7 @@ def _pdf_text(data: bytes) -> str:
         reader = PdfReader(io.BytesIO(data))
         if reader.is_encrypted:
             raise UnreadableResumeError(UNREADABLE_MESSAGE)
+        _check_page_count(reader)
         text = "\n".join((page.extract_text() or "") for page in reader.pages)
     except ResumeImportError:
         raise
@@ -92,6 +105,23 @@ def _pdf_text(data: bytes) -> str:
     if not text.strip():
         raise UnreadableResumeError(UNREADABLE_MESSAGE)
     return text
+
+
+def _check_page_count(reader: PdfReader) -> None:
+    """Refuse a PDF with too many pages before any text is extracted.
+
+    Counting pages makes pypdf walk the whole page tree, and that walk alone takes over a
+    second for 20,000 blank pages in a 2.5 MB file. The /Count a PDF declares cannot be
+    trusted, so the walk itself is capped: pypdf stops as soon as the tree has more entries
+    than the cap. The walked pages are cached on the reader, so extraction reuses them.
+    """
+    try:
+        with apply_configuration(page_tree_maximum_entries=MAX_PDF_PAGE_TREE_ENTRIES):
+            page_count = len(reader.pages)
+    except LimitReachedError as exc:
+        raise TooManyPagesError(TOO_MANY_PAGES_MESSAGE) from exc
+    if page_count > MAX_PDF_PAGES:
+        raise TooManyPagesError(TOO_MANY_PAGES_MESSAGE)
 
 
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -107,14 +137,19 @@ def _declared_member_count(data: bytes) -> int | None:
 
     Opening a ZipFile reads an entry for every member, so an upload packed with tens of
     thousands of tiny members costs real time even though its size is within the limit.
-    Reading the count first lets such a file be refused before that work starts.
+    Reading the count first lets an honest archive like that be refused before that work.
+
+    This is only a shortcut, not the bound. An end record that understates the count
+    still makes ZipFile parse every entry before the infolist() check in _docx_text
+    refuses it; what limits that work is MAX_UPLOAD_BYTES.
     """
     start = max(0, len(data) - _EOCD_SIZE - _EOCD_MAX_COMMENT)
     position = data.rfind(_EOCD_SIGNATURE, start)
     if position < 0 or position + _EOCD_SIZE > len(data):
         return None
-    # Total entries in the central directory. ZIP64 archives store 0xFFFF here, which is
-    # also over the limit, so they are refused too; no Word resume needs ZIP64.
+    # Total entries in the central directory. An archive with 65,535 or more members stores
+    # 0xFFFF here (ZIP64), which is over the limit anyway. ZIP64 triggered by size or offset
+    # cannot occur within the 5 MB upload limit.
     return int.from_bytes(data[position + 10 : position + 12], "little")
 
 
