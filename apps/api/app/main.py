@@ -12,10 +12,22 @@ from app.modules.sharing.router import router as sharing_router
 from app.modules.statement_review.router import router as statement_review_router
 from app.modules.verification.router import router as verification_router
 
+
+def _api_documentation_urls(environment: str) -> dict[str, str | None]:
+    """Never expose Swagger, ReDoc or the OpenAPI schema in production."""
+    if environment == "production":
+        return {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    return {
+        "docs_url": "/docs",
+        "redoc_url": "/redoc",
+        "openapi_url": "/openapi.json",
+    }
+
+
 app = FastAPI(
     title="ApplyWise API",
     version="0.1.0",
-    docs_url="/docs" if settings.app_env != "production" else None,
+    **_api_documentation_urls(settings.app_env),
 )
 
 app.add_middleware(
