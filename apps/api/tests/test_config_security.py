@@ -5,8 +5,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.core.config import DEFAULT_SECRET_KEY, Settings
-from app.main import _api_documentation_urls
+from app.core.config import DEFAULT_SECRET_KEY, Settings, settings
+from app.main import _api_documentation_urls, app
 
 
 def _settings(**values: str) -> Settings:
@@ -56,3 +56,11 @@ def test_development_preserves_api_docs_and_openapi_schema() -> None:
     client = TestClient(app)
     for path in ("/docs", "/redoc", "/openapi.json"):
         assert client.get(path).status_code == 200
+
+
+def test_real_app_uses_the_documentation_policy() -> None:
+    """Guard the mounted app, not only the helper used by test instances."""
+    expected = _api_documentation_urls(settings.app_env)
+    assert app.docs_url == expected["docs_url"]
+    assert app.redoc_url == expected["redoc_url"]
+    assert app.openapi_url == expected["openapi_url"]
