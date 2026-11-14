@@ -4,7 +4,7 @@ import type { CandidateStatement } from "../tailoring/types";
 import { SharingPage } from "../sharing";
 import {
   addEvidence, downloadReviewedText, estimateOverlap,
-  generateCandidates, getApplications, getEvidence, getVersionCounts,
+  generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
   readRequirements, saveReviewedResume,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
@@ -12,10 +12,18 @@ import "./journey.css";
 import { ApplicationWorkspace } from "./ApplicationWorkspace";
 import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
 import { EvidenceManager } from "../evidence/EvidenceProfilePage";
+import {
+  VerificationPanel, listStatements, submitStatement, type VerifiedStatementView,
+} from "../verification";
+import { STATUS_LABEL } from "../verification/types";
+import { decideStatement } from "../review";
+import { StatementReviewPage } from "../review";
+import { InterviewPrepPage, type ApprovedStatement } from "../interview";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence";
+  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence" |
+  "verification" | "review" | "interview";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -52,6 +60,13 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [evidenceReturnStage, setEvidenceReturnStage] = useState<Stage>("paste");
+  const [verifiedStatements, setVerifiedStatements] = useState<VerifiedStatementView[]>([]);
+  const [reviewStatementId, setReviewStatementId] = useState<string | null>(null);
+  const [approvedStatements, setApprovedStatements] = useState<ApprovedStatement[]>([]);
+  // F07 proposes; F08 decides. Keyed by the candidate id so the document
+  // keeps its order while decisions are made against F08's own records.
+  const [verdicts, setVerdicts] = useState<Record<string, VerifiedStatementView>>({});
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => {
     if (stage !== "ready") return;
@@ -113,12 +128,77 @@ export function GuidedJourney({ user, token, logout }: Props) {
       }, available.map((item) => item.id));
       if (!result.statements.length) throw new Error("No grounded statements were returned. Add more approved evidence.");
       setCandidates(result.statements);
-      setApprovedIds([]); setDeniedIds([]);
+      setApprovedIds([]); setDeniedIds([]); setReviewError("");
+      setVerdicts(await verifyCandidates(result.statements));
       await delay(500);
       setStage("resume");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resume generation could not complete.");
       setStage("match");
+    }
+  }
+
+  /** Submit each F07 candidate to F08 and keep the verdict it returns.
+   *
+   * A candidate is born `verification_status: "PENDING"`, so until this runs
+   * nothing in the document has been checked against anything. F08 classifies
+   * it server-side against the user's own approved evidence; the client never
+   * decides what a claim is worth.
+   */
+  async function verifyCandidates(items: CandidateStatement[]) {
+    const entries = await Promise.all(items.map(async (item) => {
+      const verdict = await submitStatement(token, {
+        text: item.text, evidence_ids: item.evidence_ids,
+      });
+      return [item.statement_id, verdict] as const;
+    }));
+    return Object.fromEntries(entries) as Record<string, VerifiedStatementView>;
+  }
+
+  /** Record an approval or rejection through F09, not in component state.
+   *
+   * `expected_revision` is what makes the decision trustworthy: F09 refuses it
+   * if the claim or any cited evidence changed since this verdict was read, and
+   * refuses approval of an UNSUPPORTED claim outright (409).
+   */
+  async function decide(candidateId: string, decision: "APPROVED" | "REJECTED") {
+    const verdict = verdicts[candidateId];
+    if (!verdict || busy) return;
+    setBusy(true); setReviewError("");
+    try {
+      await decideStatement(token, verdict.statement_id, decision, verdict.revision);
+      if (decision === "APPROVED") setApprovedIds((current) => [...current, candidateId]);
+      else setDeniedIds((current) => [...current, candidateId]);
+      setSelectedId(null);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Could not record your decision.");
+    } finally { setBusy(false); }
+  }
+
+  // F08, F09 and F15 each shipped a finished page that nothing imported, so
+  // none of them had a click path and the STD cases covering them could not be
+  // executed. These openers load what each page needs; the pages are unchanged.
+  function openVerification() {
+    setError("");
+    changeStage("verification");
+  }
+
+  async function openReview() {
+    setError(""); setStage("review"); setReviewStatementId(null);
+    try {
+      setVerifiedStatements(await listStatements(token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load your claims.");
+    }
+  }
+
+  async function openInterview() {
+    setError(""); setStage("interview");
+    try {
+      // Server-authoritative: F09 decides what counts as approved, not the client.
+      setApprovedStatements(await getApprovedStatements(token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load approved statements.");
     }
   }
 
@@ -168,7 +248,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
     setBusy(true); setError("");
     try {
       await saveReviewedResume(token, { role, company, description: job }, evidence, approved);
-      downloadReviewedText(user.full_name, { role, company }, approved);
+      downloadReviewedText(user.full_name, { role, company }, approved,
+        Object.fromEntries(approved.map((item) =>
+          [item.statement_id, verdicts[item.statement_id]?.status])));
       setStage("exporting");
       await delay(1200);
       await openApplications();
@@ -191,6 +273,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
+        <button type="button" onClick={openVerification}>Verify claims</button>
+        <button type="button" onClick={() => void openReview()}>Review claims</button>
+        <button type="button" onClick={() => void openInterview()}>Interview prep</button>
         <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
         <details className="aw-account"><summary>Profile</summary>
@@ -203,6 +288,32 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
+    {stage === "verification" && <main className="aw-f08-workspace aw-fade" aria-label="Claim verification workspace">
+      <VerificationPanel token={token} evidenceIds={approvedEvidence.map((item) => item.id)}
+        onBack={() => changeStage("paste")} />
+    </main>}
+    {stage === "review" && <main className="aw-f09-workspace aw-fade" aria-label="Statement review workspace">
+      <div className="aw-evidence-header">
+        <button type="button" className="aw-link" onClick={() => changeStage("paste")}>← Back to application</button>
+      </div>
+      {reviewStatementId
+        ? <>
+            <button type="button" className="aw-link" onClick={() => setReviewStatementId(null)}>← All claims</button>
+            <StatementReviewPage token={token} statementId={reviewStatementId} />
+          </>
+        : <ul className="aw-review-list">
+            {verifiedStatements.map((item) => <li key={item.statement_id}>
+              <button type="button" onClick={() => setReviewStatementId(item.statement_id)}>
+                <span>{item.text}</span><em>{item.status}</em>
+              </button>
+            </li>)}
+            {!verifiedStatements.length && <li className="aw-review-empty">No claims submitted yet. Add one under Verify claims.</li>}
+          </ul>}
+    </main>}
+    {stage === "interview" && <main className="aw-f15-workspace aw-fade" aria-label="Interview preparation workspace">
+      <InterviewPrepPage token={token} statements={approvedStatements}
+        onBack={() => changeStage("paste")} />
+    </main>}
     {stage === "sharing" && <main className="aw-f14-workspace aw-fade" aria-label="Peer review sharing workspace">
       <SharingPage />
     </main>}
@@ -289,6 +400,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <h3>Overall match</h3>
           <div className="aw-match-circle" style={{"--percent": match.percentage + "%"} as CSSProperties}>
             <strong>{match.percentage}%</strong></div>
+          <p className="aw-estimate-note">Keyword overlap, estimated in your browser.
+            This is not verification: F04 job analysis and F05 matching are not wired in,
+            and nothing here says whether a claim is supported by your evidence.</p>
           <p className="aw-center aw-muted">Estimated keyword overlap</p>
           <div className="aw-match-key">
             <span><i className="is-found"/> Requirements with overlap <strong>{match.matched.filter(x => x.matches.length).length}</strong></span>
@@ -382,10 +496,22 @@ export function GuidedJourney({ user, token, logout }: Props) {
                 <div className="aw-source-evidence"><strong>Your source evidence</strong>
                   {citations.map(ev => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
                 </div>
-                <p className="aw-review-note">Check this claim against your actual experience. Automatic verification is not yet integrated.</p>
+                {verdicts[item.statement_id] && <div
+                  className={`aw-verdict is-${verdicts[item.statement_id].status.toLowerCase()}`}>
+                  <strong>{STATUS_LABEL[verdicts[item.statement_id].status]}</strong>
+                  <ul>{verdicts[item.statement_id].findings.map((finding, position) =>
+                    <li key={position}>{finding.detail}</li>)}</ul>
+                </div>}
+                <p className="aw-review-note">{verdicts[item.statement_id]?.status === "UNSUPPORTED"
+                  ? "This claim states something your approved evidence does not contain, so it cannot be approved or exported."
+                  : "Checked against your approved evidence. Approving records your decision against this exact version."}</p>
+                {reviewError && <p className="aw-review-error" role="alert">{reviewError}</p>}
                 <div className="aw-review-actions">
-                  <button type="button" onClick={() => { setDeniedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Deny claim</button>
-                  <button type="button" onClick={() => { setApprovedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Approve claim ✓</button>
+                  <button type="button" disabled={busy}
+                    onClick={() => void decide(item.statement_id, "REJECTED")}>Deny claim</button>
+                  <button type="button"
+                    disabled={busy || verdicts[item.statement_id]?.status === "UNSUPPORTED"}
+                    onClick={() => void decide(item.statement_id, "APPROVED")}>Approve claim ✓</button>
                 </div>
               </div>}
             </div>;
@@ -410,7 +536,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
             </> : <>
               <div className="aw-done-circle aw-review-complete" aria-hidden="true">✓</div>
               <h3>Review complete</h3>
-              <p className="aw-muted">Every remaining candidate has been reviewed by you. Automated verification is not yet available.</p>
+              <p className="aw-muted">Every remaining candidate was checked against your approved evidence and approved by you.</p>
             </>}
           </section>
           {deniedIds.length > 0 && <div className="aw-reflow-message" role="status">
@@ -420,7 +546,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <button type="button" className="aw-primary aw-export-button"
             disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
             onClick={() => void exportReviewed()}>Export reviewed resume →</button>
-          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a version under Applications. PDF/DOCX export and F08 verification are not yet available.</p>
+          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a <strong>historical draft</strong> under Applications. Historical drafts are kept for your records; they are not eligible for PDF or Word export, which requires trusted finalization.</p>
         </aside>
       </div>
       {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}

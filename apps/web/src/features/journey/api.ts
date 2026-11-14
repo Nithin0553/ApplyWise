@@ -1,4 +1,5 @@
 import type { CandidateStatement, GenerationResult } from "../tailoring/types";
+import type { ApprovedStatement } from "../interview/types";
 
 export interface JourneyEvidence {
   id: string;
@@ -81,7 +82,12 @@ export function generateCandidates(
   details: { role: string; company: string; description: string; requirements: string[] },
   approvedIds: string[],
 ): Promise<GenerationResult> {
-  return api<GenerationResult>(token, "/api/generation/preview?provider=demo", {
+  // "demo" is a scripted provider: offline, deterministic, and deliberately
+  // emitting two ungrounded citations so the rejection path is visible while
+  // developing. Forcing it in a real deployment would silently override the
+  // server's configured provider, so outside dev the server decides.
+  const query = import.meta.env.DEV ? "?provider=demo" : "";
+  return api<GenerationResult>(token, `/api/generation/preview${query}`, {
     method: "POST",
     body: JSON.stringify({
       job_context: {
@@ -219,13 +225,28 @@ export function downloadReviewedText(
   fullName: string,
   details: { role: string; company: string },
   statements: CandidateStatement[],
+  statuses: Record<string, "VERIFIED" | "INFERRED" | "UNSUPPORTED" | undefined> = {},
 ) {
   const safeName = (fullName.trim() || "resume").replace(/[^a-z0-9_-]+/gi, "-");
+  // Each claim carries the status F08 recorded for it. A blanket "verified"
+  // footer would be false for an INFERRED claim -- grounded, deliberately not
+  // certified -- and this file can be sent to an employer, so the distinction
+  // F08 draws has to survive into it.
+  const label = (statementId: string) => {
+    const status = statuses[statementId];
+    if (status === "VERIFIED") return " [verified against cited evidence]";
+    if (status === "INFERRED") return " [inferred: grounded, not certified]";
+    return "";
+  };
   const body = [
     fullName.trim(), `Target role: ${details.role}`,
     details.company ? `Company: ${details.company}` : "",
-    "", "RELEVANT EXPERIENCE", ...statements.map((item) => `• ${item.text}`),
-    "", "User-reviewed draft. Automated claim verification is not yet available.",
+    "", "RELEVANT EXPERIENCE",
+    ...statements.map((item) => `• ${item.text}${label(item.statement_id)}`),
+    "",
+    "Reviewed draft. Each claim shows the status recorded against the author's",
+    "own approved evidence. Inferred claims are grounded but not certified.",
+    "This file is not a trusted export.",
   ].filter((line) => line !== undefined).join("\n");
   const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" }));
   const link = document.createElement("a");
@@ -235,4 +256,13 @@ export function downloadReviewedText(
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+/** F09's server-authoritative approved statements, which F15 rehearses.
+ *
+ * The shell fetches this rather than InterviewPrepPage, because the page is
+ * deliberately given its statements instead of choosing them for itself.
+ */
+export function getApprovedStatements(token: string) {
+  return api<ApprovedStatement[]>(token, "/api/statement-review/approved");
 }
