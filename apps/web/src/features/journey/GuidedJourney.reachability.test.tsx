@@ -11,10 +11,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const listStatements = vi.fn();
 const getApprovedStatements = vi.fn();
+// What the shell actually hands VerificationPanel, so an empty evidence
+// list cannot pass as "the page rendered".
+const panelProps: Array<{ evidenceIds?: string[] }> = [];
 
 vi.mock("../sharing", () => ({ SharingPage: () => <h2>Sharing module connected</h2> }));
 vi.mock("../verification", () => ({
-  VerificationPanel: () => <h2>Verification module connected</h2>,
+  VerificationPanel: (props: { evidenceIds?: string[] }) => {
+    panelProps.push(props);
+    return <h2>Verification module connected</h2>;
+  },
   listStatements: (...args: unknown[]) => listStatements(...args),
 }));
 vi.mock("../review", () => ({
@@ -55,16 +61,65 @@ afterEach(() => {
   window.localStorage.clear();
   listStatements.mockReset();
   getApprovedStatements.mockReset();
+  panelProps.length = 0;
+  vi.unstubAllGlobals();
 });
 
 describe("feature pages are reachable from the workspace navigation", () => {
-  it("opens F08 claim verification", () => {
+  it("opens F08 claim verification", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => [] })));
     renderSignedIn();
 
     fireEvent.click(screen.getByRole("button", { name: "Verify claims" }));
 
-    expect(screen.getByRole("main", { name: "Claim verification workspace" })).toBeInTheDocument();
+    expect(await screen.findByRole("main", { name: "Claim verification workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Verification module connected" })).toBeInTheDocument();
+  });
+
+  it("loads approved evidence on entry for a user who signs in and goes straight there", async () => {
+    // Regression: `evidence` was only populated by analyzeJob(), so opening
+    // Verify claims first handed the panel an empty citable-evidence list and
+    // its Add button stayed disabled even with approved F02 records.
+    const approvedId = "11111111-1111-4111-8111-111111111111";
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { id: approvedId, evidence_type: "work_experience", title: "API Testing",
+          organization: null, role: "QA Engineer", description: "Tested REST APIs",
+          status: "approved", approved_at: "2026-11-01T00:00:00Z" },
+        { id: "22222222-2222-4222-8222-222222222222", evidence_type: "project",
+          title: "Unconfirmed", organization: null, role: null, description: null,
+          status: "unconfirmed", approved_at: null },
+      ],
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderSignedIn();
+
+    fireEvent.click(screen.getByRole("button", { name: "Verify claims" }));
+
+    expect(await screen.findByRole("main", { name: "Claim verification workspace" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith("/api/evidence/", expect.objectContaining({
+      headers: expect.any(Headers),
+    }));
+    // Only the approved record is citable; the unconfirmed one is excluded.
+    expect(panelProps.at(-1)?.evidenceIds).toEqual([approvedId]);
+  });
+
+  it("surfaces a failure to load evidence instead of an empty panel", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: false, status: 401, json: async () => ({ detail: "Session expired." }),
+    })));
+    renderSignedIn();
+
+    fireEvent.click(screen.getByRole("button", { name: "Verify claims" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Session expired.");
+  });
+
+  it("offers Interview prep while the F15 prototype route is served", () => {
+    renderSignedIn();
+
+    expect(screen.getByRole("button", { name: "Interview prep" })).toBeInTheDocument();
   });
 
   it("opens F09 review and reaches one claim's review from the list", async () => {
