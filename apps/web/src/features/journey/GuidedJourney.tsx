@@ -248,7 +248,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
     setBusy(true); setError("");
     try {
       await saveReviewedResume(token, { role, company, description: job }, evidence, approved);
-      downloadReviewedText(user.full_name, { role, company }, approved);
+      downloadReviewedText(user.full_name, { role, company }, approved,
+        Object.fromEntries(approved.map((item) =>
+          [item.statement_id, verdicts[item.statement_id]?.status])));
       setStage("exporting");
       await delay(1200);
       await openApplications();
@@ -544,7 +546,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <button type="button" className="aw-primary aw-export-button"
             disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
             onClick={() => void exportReviewed()}>Export reviewed resume →</button>
-          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a version under Applications, where it can be exported as PDF or Word.</p>
+          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a <strong>historical draft</strong> under Applications. Historical drafts are kept for your records; they are not eligible for PDF or Word export, which requires trusted finalization.</p>
         </aside>
       </div>
       {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}

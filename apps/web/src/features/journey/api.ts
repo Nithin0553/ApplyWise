@@ -225,13 +225,28 @@ export function downloadReviewedText(
   fullName: string,
   details: { role: string; company: string },
   statements: CandidateStatement[],
+  statuses: Record<string, "VERIFIED" | "INFERRED" | "UNSUPPORTED" | undefined> = {},
 ) {
   const safeName = (fullName.trim() || "resume").replace(/[^a-z0-9_-]+/gi, "-");
+  // Each claim carries the status F08 recorded for it. A blanket "verified"
+  // footer would be false for an INFERRED claim -- grounded, deliberately not
+  // certified -- and this file can be sent to an employer, so the distinction
+  // F08 draws has to survive into it.
+  const label = (statementId: string) => {
+    const status = statuses[statementId];
+    if (status === "VERIFIED") return " [verified against cited evidence]";
+    if (status === "INFERRED") return " [inferred: grounded, not certified]";
+    return "";
+  };
   const body = [
     fullName.trim(), `Target role: ${details.role}`,
     details.company ? `Company: ${details.company}` : "",
-    "", "RELEVANT EXPERIENCE", ...statements.map((item) => `• ${item.text}`),
-    "", "Verified against the author's own approved evidence and approved by them.",
+    "", "RELEVANT EXPERIENCE",
+    ...statements.map((item) => `• ${item.text}${label(item.statement_id)}`),
+    "",
+    "Reviewed draft. Each claim shows the status recorded against the author's",
+    "own approved evidence. Inferred claims are grounded but not certified.",
+    "This file is not a trusted export.",
   ].filter((line) => line !== undefined).join("\n");
   const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" }));
   const link = document.createElement("a");
