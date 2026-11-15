@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://applywise:applywise_dev@localhost:5432/applywise"
     ai_provider: str = "stub"
     ai_api_key: str | None = None
+    # Model identifier for a real provider. Aliases move with new releases,
+    # so set AI_MODEL explicitly per environment; GET /v1/models lists what
+    # a given key may use.
+    ai_model: str = "claude-sonnet-4-5"
 
     # F01: authentication / RBAC
     jwt_algorithm: str = "HS256"
