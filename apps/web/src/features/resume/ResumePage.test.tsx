@@ -70,17 +70,11 @@ describe("F10 ResumePage", () => {
       ),
     ).toBeTruthy();
 
-    expect(
-      (screen.getByRole("button", {
-        name: "Download PDF",
-      }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-
-    expect(
-      (screen.getByRole("button", {
-        name: "Download Word",
-      }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    // Nothing to export, so no download is offered: a disabled button beside
+    // a paragraph explaining it is disabled is worse than no button.
+    expect(screen.queryByRole("button", { name: "Download PDF" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Download Word" })).toBeNull();
+    expect(screen.getByText(/Select a saved resume version to export/)).toBeTruthy();
   });
 it("downloads the selected resume version using the compact template", async () => {
   vi.mocked(listResumeVersions).mockResolvedValue([

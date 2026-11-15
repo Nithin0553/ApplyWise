@@ -200,25 +200,27 @@ onChange={(event) => {
             </p>
           )}
 
-          <div className="export-actions">
-            <button
-              type="button"
-              disabled={loading || downloading || !selectedVersionId || !exportable}
-              aria-describedby="export-note"
-              onClick={() => void handleDownload("pdf")}
-            >
-              {downloading ? "Preparing download..." : "Download PDF"}
-            </button>
+          {exportable && (
+            <div className="export-actions">
+              <button
+                type="button"
+                disabled={loading || downloading}
+                aria-describedby="export-note"
+                onClick={() => void handleDownload("pdf")}
+              >
+                {downloading ? "Preparing download..." : "Download PDF"}
+              </button>
 
-            <button
-              type="button"
-              disabled={loading || downloading || !selectedVersionId || !exportable}
-              aria-describedby="export-note"
-              onClick={() => void handleDownload("docx")}
-            >
-              {downloading ? "Preparing download..." : "Download Word"}
-            </button>
-          </div>
+              <button
+                type="button"
+                disabled={loading || downloading}
+                aria-describedby="export-note"
+                onClick={() => void handleDownload("docx")}
+              >
+                {downloading ? "Preparing download..." : "Download Word"}
+              </button>
+            </div>
+          )}
 
         </aside>
 
