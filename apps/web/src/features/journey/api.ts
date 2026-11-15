@@ -138,49 +138,44 @@ export function getVersions(token: string, applicationId: string) {
   return api<JourneyResumeVersion[]>(token, `/api/applications/${encodeURIComponent(applicationId)}/resume-versions`);
 }
 
-/**
- * F13 stores provenance snapshots, not an F10 export-eligibility decision.
- * Preserve the honest INFERRED status: a human decision doesn't magically
- * turn a candidate into an F08-verified claim.
+/** Create an application, then ask F13 to finalize current F09-approved claims.
+ *
+ * The browser sends F08 statement IDs only. F13 rechecks the authenticated
+ * owner's current F02/F08/F09 state before returning a trusted version. It
+ * never accepts caller-supplied text or invented VERIFIED/APPROVED labels.
  */
-export async function saveReviewedResume(
+export async function saveTrustedResume(
   token: string,
   details: { role: string; company: string; description: string },
-  evidence: JourneyEvidence[],
-  approved: CandidateStatement[],
-) {
-  if (!approved.length) throw new Error("No approved statements to save.");
-  const ids = new Set(
-    evidence.filter(item => item.status === "approved" && item.approved_at)
-      .map(item => item.id),
-  );
-  if (approved.some(statement => !statement.evidence_ids.length ||
-    statement.evidence_ids.some(id => !ids.has(id)))) {
-    throw new Error("A statement references evidence that is no longer approved.");
+  approvedStatementIds: string[],
+): Promise<{ application: JourneyApplication; resume_version: JourneyResumeVersion }> {
+  if (!approvedStatementIds.length || approvedStatementIds.length > 10 ||
+      new Set(approvedStatementIds).size !== approvedStatementIds.length) {
+    throw new Error("Select 1–10 distinct approved, verified-or-inferred statements.");
   }
-
-  // Send the user's explicit review decisions, not self-asserted evidence
-  // snapshots or VERIFIED labels. The server resolves F02 records and
-  // atomically saves an INFERRED historical draft with its application.
-  const result = await api<{
-    application: JourneyApplication;
-    resume_version: JourneyResumeVersion;
-  }>(token, "/api/applications/reviewed-drafts", {
+  const application = await api<JourneyApplication>(token, "/api/applications/", {
     method: "POST",
     body: JSON.stringify({
-      application: {
-        company_name: details.company.trim() || "Company not specified",
-        role_title: details.role.trim() || "Target position",
-        notes: `Draft created from a user-supplied job description. ${details.description.slice(0, 240)}`,
-      },
-      statements: approved.map(statement => ({
-        statement_id: statement.statement_id,
-        text: statement.text,
-        evidence_ids: statement.evidence_ids,
-      })),
+      company_name: details.company.trim() || "Company not specified",
+      role_title: details.role.trim() || "Target position",
+      notes: `Application created from a user-supplied job description. ${details.description.slice(0, 240)}`,
     }),
   });
-  return result.application;
+
+  try {
+    const resume_version = await api<JourneyResumeVersion>(
+      token, `/api/applications/${encodeURIComponent(application.id)}/trusted-finalize`, {
+        method: "POST",
+        body: JSON.stringify({ statement_ids: approvedStatementIds }),
+      },
+    );
+    return { application, resume_version };
+  } catch (err) {
+    // Creating an application and finalizing its version are separate API calls.
+    // Never suggest that a trusted version exists if F13 refused to create one.
+    const reason = err instanceof Error ? err.message : "Could not verify selected claims.";
+    throw new Error(`The application draft was created, but trusted finalization failed: ${reason} Open Applications to retry after reviewing your evidence.`);
+  }
 }
 
 /** Rule-based excerpting, not the unmounted F04 backend prototype. */
