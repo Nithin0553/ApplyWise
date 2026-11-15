@@ -53,6 +53,18 @@ Return ONLY JSON of this exact shape, with no prose and no code fence:
 {{"statements": [{{"text": "...", "cited_refs": ["E1"]}}]}}
 """
 
+_JOB_CONTEXT_INSTRUCTIONS = (
+    "Read this job posting and return the advertised role title and the hiring "
+    "organisation.\n"
+    "Give the title as advertised, without the sentence around it: for "
+    '"Acme is seeking a talented Senior Systems Engineer (Angular)" the title is '
+    '"Senior Systems Engineer (Angular)" and the company is "Acme".\n'
+    "If the posting does not state one of them, return an empty string for it. "
+    "Do not guess, and do not use a department, location or job board as the "
+    "company.\n"
+    'Reply with JSON only, of the form {"role_title": "...", "company_name": "..."}'
+)
+
 _COVER_LETTER_INSTRUCTIONS = """\
 You write cover letter paragraphs grounded in supplied approved statements.
 
@@ -90,6 +102,19 @@ def _refs(value: object) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(item).strip() for item in value if str(item).strip())
+
+
+
+def _error_message(response: httpx.Response) -> str:
+    """The provider's stated reason, or a placeholder when it gives none."""
+    try:
+        body = response.json()
+    except ValueError:
+        return "no message supplied"
+    error = body.get("error") if isinstance(body, dict) else None
+    if isinstance(error, dict) and error.get("message"):
+        return str(error["message"])[:300]
+    return "no message supplied"
 
 
 class AnthropicAIProvider:
@@ -133,8 +158,15 @@ class AnthropicAIProvider:
             # The key is in the headers, never in the message.
             raise AIProviderError("The AI provider could not be reached.") from exc
         if response.status_code != 200:
+            # The status alone is not actionable: a wrong model name, an
+            # unsupported parameter and an exhausted quota all arrive as 4xx.
+            # The provider's own message names the cause and describes the
+            # request rather than echoing its content, so it is included,
+            # truncated, while the body itself still is not. The key lives in
+            # the headers and never appears here.
             raise AIProviderError(
-                f"The AI provider rejected the request (HTTP {response.status_code})."
+                f"The AI provider rejected the request "
+                f"(HTTP {response.status_code}): {_error_message(response)}"
             )
         try:
             blocks = response.json()["content"]
@@ -189,25 +221,12 @@ class AnthropicAIProvider:
 
         This only pre-fills two editable fields, so it is the one place a model
         answer is used without anything checking it. That is acceptable because
-        a wrong title costs a correction and reaches nothing else; an empty
-        string is explicitly allowed so the model is not pushed into guessing.
+        of where it stops: a wrong title costs a correction and reaches neither
+        evidence, verification nor approval. An empty string is explicitly
+        allowed so the model is not pushed into guessing.
         """
-        system = (
-            "You read job postings and return the advertised role title and the "
-            "hiring organisation.\n"
-            "Return the role title as advertised, without the sentence around it: "
-            'for "Acme is seeking a talented Senior Systems Engineer (Angular)" the '
-            'title is "Senior Systems Engineer (Angular)" and the company is "Acme".\n'
-            "If the posting does not state one of them, return an empty string for "
-            "it. Do not guess, and do not use a department, location or job board "
-            "as the company.\n"
-            "Reply with JSON only. No prose before or after it."
-        )
-        user = (
-            f"Job posting:\n{request.description}\n\n"
-            'Reply with JSON of the form {"role_title": "...", "company_name": "..."}'
-        )
-        parsed = self._post(system, user)
+        prompt = _JOB_CONTEXT_INSTRUCTIONS + f"\n\nJob posting:\n{request.description}"
+        parsed = _extract_json(self._post(prompt, max_tokens=256))
         return JobContextSuggestion(
             role_title=str(parsed.get("role_title", "")).strip()[:200],
             company_name=str(parsed.get("company_name", "")).strip()[:200],

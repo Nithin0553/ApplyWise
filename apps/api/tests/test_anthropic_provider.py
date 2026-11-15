@@ -18,6 +18,7 @@ from app.services.ai.anthropic import API_URL, AnthropicAIProvider
 from app.services.ai.provider import (
     AIProviderError,
     CoverLetterRequest,
+    JobContextRequest,
     GroundedGenerationRequest,
     PromptEvidence,
     PromptStatement,
@@ -149,3 +150,74 @@ def test_cover_letter_paragraphs_are_parsed() -> None:
 
     assert result.paragraphs[0].text == "I tested things."
     assert result.paragraphs[0].cited_refs == ("S1",)
+
+
+# --- job context ----------------------------------------------------------
+#
+# This is the one call whose answer nothing downstream checks, so what it sends
+# matters as much as what it returns. The payload assertion below exists
+# because a first version passed the prompt positionally into max_tokens and
+# the API rejected every request with "max_tokens: Input should be a valid
+# integer" -- a mistake no amount of asserting on the parsed result would have
+# caught.
+
+POSTING = (
+    "Syms Strategic Group (SSG) is seeking a talented Senior Systems Engineer (Angular)\n"
+    "Location: Remote\n"
+)
+
+
+def test_the_outgoing_request_is_well_formed() -> None:
+    seen: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(json.loads(request.content))
+        return _reply(json.dumps({"role_title": "Senior Systems Engineer (Angular)",
+                                  "company_name": "Syms Strategic Group"}))
+
+    _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+    assert isinstance(seen["max_tokens"], int)
+    assert seen["model"] == "test-model"
+    assert isinstance(seen["messages"], list)
+
+
+def test_the_advertised_title_is_separated_from_the_sentence_around_it() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({"role_title": "Senior Systems Engineer (Angular)",
+                                  "company_name": "Syms Strategic Group"}))
+
+    suggestion = _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+    assert suggestion.role_title == "Senior Systems Engineer (Angular)"
+    assert suggestion.company_name == "Syms Strategic Group"
+
+
+def test_an_unstated_company_comes_back_empty_rather_than_guessed() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({"role_title": "Data Analyst", "company_name": ""}))
+
+    suggestion = _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+    assert suggestion.role_title == "Data Analyst"
+    assert suggestion.company_name == ""
+
+
+def test_a_malformed_reply_raises_rather_than_inventing_a_title() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply("sorry, I could not read that posting")
+
+    with pytest.raises(AIProviderError):
+        _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+
+def test_a_rejected_request_reports_the_provider_reason_without_the_key() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return httpx.Response(400, json={"type": "error", "error": {
+            "type": "invalid_request_error", "message": "max_tokens: Input should be a valid integer"}})
+
+    with pytest.raises(AIProviderError) as raised:
+        _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+    assert "max_tokens" in str(raised.value)
+    assert KEY not in str(raised.value)
