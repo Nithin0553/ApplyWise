@@ -32,10 +32,12 @@ from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
 from app.modules.evidence.service import EvidenceService
 from app.services.ai.factory import UnknownAIProviderError, get_ai_provider
+from app.services.ai.provider import AIProviderError, JobContextRequest
 
 from .cover_letter_schemas import CoverLetterDraft, CoverLetterRequest
 from .cover_letter_service import CoverLetterService
 from .errors import GenerationUnavailableError, MalformedProviderResponseError
+from .job_context_schemas import JobContextSuggestionRequest, JobContextSuggestionView
 from .resolution import EvidenceNotApprovedError, resolve_approved_evidence
 from .schemas import GenerationPreviewRequest, GenerationRequest, GenerationResult
 from .service import GenerationService
@@ -153,3 +155,35 @@ def list_providers(
         "configured": settings.ai_provider,
         "available": ["stub", "demo", "anthropic"],
     }
+
+
+@router.post("/job-context", response_model=JobContextSuggestionView)
+def suggest_job_context(
+    request: JobContextSuggestionRequest,
+    current_user: User = Depends(require_job_seeker),
+) -> JobContextSuggestionView:
+    """Suggest a role title and employer for a pasted job description.
+
+    Nothing here is grounded or verified, and nothing is stored: the result
+    pre-fills two editable fields. The route is authenticated only so an
+    unauthenticated caller cannot spend the configured provider's quota.
+    """
+    try:
+        ai_provider = get_ai_provider(settings.ai_provider)
+    except UnknownAIProviderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        suggestion = ai_provider.suggest_job_context(
+            JobContextRequest(description=request.description)
+        )
+    except AIProviderError as exc:
+        # The caller can still type both fields, so an unavailable provider is
+        # reported rather than papered over with a guess.
+        raise HTTPException(
+            status_code=503, detail="AI provider is unavailable. Try again."
+        ) from exc
+
+    return JobContextSuggestionView(
+        role_title=suggestion.role_title, company_name=suggestion.company_name
+    )

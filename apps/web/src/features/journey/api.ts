@@ -236,3 +236,22 @@ export function downloadReviewedText(
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 500);
 }
+
+export interface JobContextSuggestion {
+  role_title: string;
+  company_name: string;
+}
+
+/** Ask the configured provider to read the role title and employer out of a posting.
+ *
+ * Unlike generated statements this is neither grounded nor verified: it only
+ * pre-fills two fields the user can edit, so a wrong answer costs a correction
+ * and reaches nothing else. Either field may come back empty when the posting
+ * does not state it.
+ */
+export function suggestJobContext(token: string, description: string) {
+  return api<JobContextSuggestion>(token, "/api/generation/job-context", {
+    method: "POST",
+    body: JSON.stringify({ description: description.slice(0, 6000) }),
+  });
+}

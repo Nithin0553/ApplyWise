@@ -84,6 +84,27 @@ class CoverLetterResponse:
     paragraphs: tuple[RawParagraph, ...]
 
 
+@dataclass(frozen=True)
+class JobContextRequest:
+    """A pasted job description, as the user supplied it."""
+
+    description: str
+
+
+@dataclass(frozen=True)
+class JobContextSuggestion:
+    """Role title and employer read out of a description. Both may be empty.
+
+    A suggestion only pre-fills two editable fields. It never reaches evidence,
+    verification or approval, so a wrong answer costs the user a correction and
+    nothing more -- which is why an empty string is an acceptable answer and a
+    guess is not required.
+    """
+
+    role_title: str
+    company_name: str
+
+
 class AIProviderError(Exception):
     """Raised by a provider when it is unavailable or cannot answer."""
 
@@ -99,4 +120,7 @@ class AIProvider(Protocol):
         ...
 
     def generate_cover_letter(self, request: CoverLetterRequest) -> CoverLetterResponse:
+        ...
+
+    def suggest_job_context(self, request: JobContextRequest) -> JobContextSuggestion:
         ...

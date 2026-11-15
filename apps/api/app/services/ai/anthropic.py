@@ -25,6 +25,8 @@ import re
 import httpx
 
 from .provider import (
+    JobContextRequest,
+    JobContextSuggestion,
     AIProviderError,
     CoverLetterRequest,
     CoverLetterResponse,
@@ -181,3 +183,32 @@ class AnthropicAIProvider:
             if isinstance(item, dict) and str(item.get("text", "")).strip()
         )
         return CoverLetterResponse(paragraphs=paragraphs[: request.max_paragraphs])
+
+    def suggest_job_context(self, request: JobContextRequest) -> JobContextSuggestion:
+        """Read the role title and employer out of a pasted job description.
+
+        This only pre-fills two editable fields, so it is the one place a model
+        answer is used without anything checking it. That is acceptable because
+        a wrong title costs a correction and reaches nothing else; an empty
+        string is explicitly allowed so the model is not pushed into guessing.
+        """
+        system = (
+            "You read job postings and return the advertised role title and the "
+            "hiring organisation.\n"
+            "Return the role title as advertised, without the sentence around it: "
+            'for "Acme is seeking a talented Senior Systems Engineer (Angular)" the '
+            'title is "Senior Systems Engineer (Angular)" and the company is "Acme".\n'
+            "If the posting does not state one of them, return an empty string for "
+            "it. Do not guess, and do not use a department, location or job board "
+            "as the company.\n"
+            "Reply with JSON only. No prose before or after it."
+        )
+        user = (
+            f"Job posting:\n{request.description}\n\n"
+            'Reply with JSON of the form {"role_title": "...", "company_name": "..."}'
+        )
+        parsed = self._post(system, user)
+        return JobContextSuggestion(
+            role_title=str(parsed.get("role_title", "")).strip()[:200],
+            company_name=str(parsed.get("company_name", "")).strip()[:200],
+        )

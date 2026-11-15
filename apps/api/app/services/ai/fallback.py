@@ -26,6 +26,8 @@ from .provider import (
     CoverLetterResponse,
     GroundedGenerationRequest,
     GroundedGenerationResponse,
+    JobContextRequest,
+    JobContextSuggestion,
 )
 
 logger = logging.getLogger(__name__)
@@ -62,3 +64,10 @@ class FallbackAIProvider:
         except AIProviderError as exc:
             self._report(exc)
             return self._backup.generate_cover_letter(request)
+
+    def suggest_job_context(self, request: JobContextRequest) -> JobContextSuggestion:
+        try:
+            return self._primary.suggest_job_context(request)
+        except AIProviderError as exc:
+            self._report(exc)
+            return self._backup.suggest_job_context(request)
