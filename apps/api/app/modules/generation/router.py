@@ -149,4 +149,7 @@ def list_providers(
     current_user: User = Depends(require_job_seeker),
 ) -> dict[str, object]:
     """Which providers this build can use, and which one is configured."""
-    return {"configured": settings.ai_provider, "available": ["stub", "demo"]}
+    return {
+        "configured": settings.ai_provider,
+        "available": ["stub", "demo", "anthropic"],
+    }
