@@ -283,9 +283,59 @@
 /* Bulk approval sits beside the outstanding-claims count. */
 .aw-review-head-actions { display: flex; align-items: center; gap: 14px; }
 
-/* F11 cover letter draft. */
-.aw-cover-controls { display: flex; align-items: flex-end; gap: 16px; margin: 18px 0; flex-wrap: wrap; }
-.aw-cover-controls label { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
-.aw-cover-letter { max-width: 70ch; line-height: 1.65; }
-.aw-cover-letter p { margin: 0 0 14px; }
-.aw-cover-letter footer { font-size: 0.85rem; border-top: 1px solid #d8dde5; padding-top: 10px; }
+/* ---- F11 cover letter ----------------------------------------------- */
+/* The letter reuses .aw-document, the same paper card as the resume, so the
+   two documents the app produces look like they came from one product. */
+.aw-cover-stage { text-align: center; }
+
+/* The title sits left and the controls right, both inside the document's
+   own width, so the page reads as one column rather than a centred heading
+   with buttons adrift beside it. */
+.aw-cover-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap; text-align: left;
+  max-width: 795px; margin: 0 auto;
+}
+.aw-cover-head h2 { margin: 6px 0 0; }
+
+.aw-cover-controls { display: flex; align-items: flex-end; gap: 14px; }
+.aw-cover-controls label {
+  display: flex; flex-direction: column; gap: 6px; text-align: left;
+  font-size: 12px; font-weight: 650; color: var(--aw-muted);
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.aw-cover-controls select {
+  padding: 11px 14px; border-radius: 12px; border: 1px solid #d3dae3;
+  background: #fff; font-size: 15px; color: #2c3342; min-width: 150px;
+}
+.aw-cover-controls select:disabled { opacity: .55; }
+
+.aw-cover-intro { max-width: 795px; margin: 14px auto 0; text-align: left; }
+
+.aw-cover-loading { display: flex; flex-direction: column; align-items: center; gap: 14px; margin: 70px 0; }
+
+.aw-letter { min-height: 0; padding: 62px 72px 70px; line-height: 1.7; }
+.aw-letter p { margin: 0 0 18px; }
+.aw-letter-head { margin-bottom: 34px; }
+.aw-letter-head h3 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
+.aw-letter-head p { margin: 0; color: var(--aw-muted); font-size: 14px; }
+.aw-letter-date, .aw-letter-to { color: var(--aw-muted); margin-bottom: 6px !important; font-size: 14px; }
+.aw-letter-to { margin-bottom: 26px !important; }
+.aw-letter-greeting { margin-bottom: 20px !important; }
+.aw-letter-signoff { margin-top: 30px; }
+
+.aw-cover-actions {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  flex-wrap: wrap; margin-top: -14px;
+}
+.aw-cover-actions .aw-muted { font-size: 13px; }
+
+.aw-cover-rejected { max-width: 795px; margin: 26px auto 0; text-align: left; }
+.aw-cover-rejected h3 { margin-top: 0; font-size: 16px; }
+
+.aw-cover-empty { margin: 80px 0; }
+
+@media (max-width: 760px) {
+  .aw-letter { padding: 38px 26px 44px; }
+  .aw-cover-controls { width: 100%; }
+}

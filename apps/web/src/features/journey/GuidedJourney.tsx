@@ -73,6 +73,11 @@ function readDraft(id: string): JourneyDraft | null {
 
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
+/** The letter as plain text, for the clipboard. */
+function letterText(draft: CoverLetterDraft): string {
+  return draft.paragraphs.map((item) => item.text).join("\n\n");
+}
+
 function Spinner({ title, description }: { title: string; description: string }) {
   return <main className="aw-center-state aw-fade" role="status">
     <div className="aw-spinner" aria-hidden="true" />
@@ -574,48 +579,77 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <VerificationPanel token={token} evidenceIds={approvedEvidence.map((item) => item.id)}
           onBack={() => changeStage("paste")} />
       </main>)}
-    {stage === "cover-letter" && <main className="aw-f11-workspace aw-fade" aria-label="Cover letter workspace">
-      <div className="aw-evidence-header">
-        <button type="button" className="aw-link" onClick={() => changeStage("resume")}>← Back to resume</button>
+    {stage === "cover-letter" && <main className="aw-cover-stage aw-fade" aria-label="Cover letter workspace">
+      <div className="aw-cover-head">
+        <div>
+          <div className="aw-eyebrow">COVER LETTER</div>
+          <h2>{coverLetter ? "Your draft letter" : "Draft a cover letter"}</h2>
+        </div>
+        <div className="aw-cover-controls">
+          <label>Tone
+            <select value={coverTone} disabled={coverBusy}
+              onChange={(event) => setCoverTone(event.target.value as CoverLetterTone)}>
+              <option value="professional">Professional</option>
+              <option value="warm">Warm</option>
+              <option value="direct">Direct</option>
+            </select>
+          </label>
+          <button type="button" className="aw-primary" disabled={coverBusy}
+            onClick={() => void draftCoverLetter()}>
+            {coverBusy ? "Drafting…" : coverLetter ? "Draft again" : "Draft letter"}
+          </button>
+        </div>
       </div>
-      <div className="aw-eyebrow">COVER LETTER</div>
-      <h2>{company ? `Draft for ${company}` : "Cover letter draft"}</h2>
-      <p className="aw-muted">Written from the claims you approved, so every paragraph
-        traces back to your own evidence. This is a draft: unlike your resume it has
-        not been through verification or approval, so it is not exported.</p>
-      <div className="aw-cover-controls">
-        <label>Tone
-          <select value={coverTone} disabled={coverBusy}
-            onChange={(event) => setCoverTone(event.target.value as CoverLetterTone)}>
-            <option value="professional">Professional</option>
-            <option value="warm">Warm</option>
-            <option value="direct">Direct</option>
-          </select>
-        </label>
-        <button type="button" className="aw-primary" disabled={coverBusy}
-          onClick={() => void draftCoverLetter()}>
-          {coverBusy ? "Drafting…" : coverLetter ? "Draft again" : "Draft cover letter"}
-        </button>
-        {coverLetter && <button type="button" className="aw-link" disabled={coverBusy}
-          onClick={() => void navigator.clipboard?.writeText(
-            coverLetter.paragraphs.map((item) => item.text).join("\n\n"))}>Copy text</button>}
-      </div>
-      {coverBusy && <p role="status" className="aw-muted">Drafting from your approved claims…</p>}
-      {coverLetter && <article className="aw-cover-letter">
-        {coverLetter.paragraphs.map((paragraph) => <p key={paragraph.paragraph_id}>{paragraph.text}</p>)}
-        <footer className="aw-muted">
-          Drafted by {coverLetter.provider} from {coverLetter.paragraphs.length}
-          {coverLetter.paragraphs.length === 1 ? " paragraph" : " paragraphs"} ·
-          every paragraph cites claims you approved.
-        </footer>
-      </article>}
-      {coverLetter && coverLetter.rejected.length > 0 && <section className="aw-panel">
-        <h3>{coverLetter.rejected.length} paragraph(s) discarded</h3>
-        <p className="aw-muted">These failed F11's grounding checks and were not shown.</p>
-        {coverLetter.rejected.map((item, index) => <p key={index} className="aw-muted">
-          <strong>{item.reason}</strong> — {item.text.slice(0, 160)}
-        </p>)}
-      </section>}
+
+      <p className="aw-muted aw-cover-intro">Written from the claims you approved, so every
+        paragraph traces back to your own evidence. This is a draft: unlike your resume it has
+        not been through verification or approval, so it is not offered as a download.</p>
+
+      {coverBusy && <div className="aw-cover-loading" role="status">
+        <div className="aw-spinner" aria-hidden="true" />
+        <p>Drafting from your approved claims…</p>
+      </div>}
+
+      {!coverBusy && coverLetter && <>
+        <article className="aw-document aw-letter">
+          <header className="aw-letter-head">
+            <h3>{user.full_name}</h3>
+            <p>{user.email}</p>
+          </header>
+          <p className="aw-letter-date">{new Date(coverLetter.generated_at).toLocaleDateString(
+            undefined, { year: "numeric", month: "long", day: "numeric" })}</p>
+          {company && <p className="aw-letter-to">{company}</p>}
+          <p className="aw-letter-greeting">Dear Hiring Manager,</p>
+          {coverLetter.paragraphs.map((paragraph) =>
+            <p key={paragraph.paragraph_id}>{paragraph.text}</p>)}
+          <p className="aw-letter-signoff">Sincerely,<br />{user.full_name}</p>
+        </article>
+        <div className="aw-cover-actions">
+          <button type="button" className="aw-link"
+            onClick={() => void navigator.clipboard?.writeText(letterText(coverLetter))}>
+            Copy letter
+          </button>
+          <span className="aw-muted">Drafted by {coverLetter.provider} · {
+            coverLetter.paragraphs.length} {coverLetter.paragraphs.length === 1
+              ? "paragraph" : "paragraphs"}, each citing claims you approved</span>
+        </div>
+        {coverLetter.rejected.length > 0 && <section className="aw-panel aw-cover-rejected">
+          <h3>{coverLetter.rejected.length} paragraph{
+            coverLetter.rejected.length === 1 ? "" : "s"} discarded</h3>
+          <p className="aw-muted">These failed the grounding checks and were left out. Shown
+            because a quietly shorter letter is harder to trust than a stated rejection.</p>
+          {coverLetter.rejected.map((item, index) => <p key={index} className="aw-muted">
+            <strong>{item.reason}</strong> — {item.text.slice(0, 160)}
+          </p>)}
+        </section>}
+      </>}
+
+      {!coverBusy && !coverLetter && <div className="aw-cover-empty">
+        <p className="aw-muted">Nothing drafted yet.</p>
+      </div>}
+
+      <button className="aw-link aw-back-review" type="button"
+        onClick={() => changeStage("resume")}>← Back to resume</button>
     </main>}
 
     {stage === "review" && <main className="aw-f09-workspace aw-fade" aria-label="Statement review workspace">
