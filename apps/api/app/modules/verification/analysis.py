@@ -126,8 +126,18 @@ def _literal_words(text: str) -> set[str]:
 
     Named things must be compared literally: stemming turns "Kubernetes" into
     "Kubernete" and would let a near-miss match.
+
+    A trailing full stop is removed, because ``_named_entities`` removes one
+    too. Without this, a name that ends a sentence in the evidence is stored as
+    "aws." while the claim is looked up as "aws", and evidence that plainly
+    contains the name is reported as not containing it. Dots inside a token are
+    kept, so "node.js" still compares as itself.
     """
-    return set(re.findall(r"[a-z0-9][a-z0-9+#.\-']*", text.lower()))
+    return {
+        token.rstrip(".")
+        for token in re.findall(r"[a-z0-9][a-z0-9+#.\-']*", text.lower())
+        if token.rstrip(".")
+    }
 
 
 def _named_entities(text: str) -> list[str]:

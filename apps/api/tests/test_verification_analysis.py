@@ -387,3 +387,43 @@ def test_a_real_superlative_is_still_caught() -> None:
 
     assert status is VerificationStatus.UNSUPPORTED
     assert VerificationReason.RANKING_NOT_IN_EVIDENCE in reasons(findings)
+
+
+def test_a_name_that_ends_a_sentence_in_the_evidence_still_matches() -> None:
+    """Found on real output: evidence ending "...cloud computing and AWS." was
+    tokenised as "aws." while the claim was looked up as "aws", so evidence
+    that plainly contained the name was reported as not containing it."""
+    evidence = FakeEvidence(
+        evidence_id=SKILL_ID,
+        evidence_type="skill",
+        title="Software Engineer experience",
+        organization=None,
+        role=None,
+        description=(
+            "I have experience with Python, Java and SQL, along with "
+            "foundational knowledge of cloud computing and AWS. I previously "
+            "worked as an Associate QA Engineer."
+        ),
+    )
+    status, findings = verdict(
+        "Bring experience with Python, Java and SQL, along with foundational "
+        "knowledge of cloud computing and AWS",
+        ids=(SKILL_ID,),
+        approved={SKILL_ID: evidence},
+    )
+
+    assert VerificationReason.ENTITY_NOT_IN_EVIDENCE not in reasons(findings)
+    assert status is not VerificationStatus.UNSUPPORTED
+
+
+def test_a_dotted_name_is_still_compared_whole() -> None:
+    """Only a trailing stop is removed; node.js must not become node."""
+    evidence = FakeEvidence(
+        evidence_id=SKILL_ID, evidence_type="skill", title="Backend",
+        organization=None, role=None, description="Built services in Node.js.",
+    )
+    clean, _ = verdict("Built services in Node.js", ids=(SKILL_ID,), approved={SKILL_ID: evidence})
+    assert clean is not VerificationStatus.UNSUPPORTED
+
+    status, findings = verdict("Built services in Deno", ids=(SKILL_ID,), approved={SKILL_ID: evidence})
+    assert VerificationReason.ENTITY_NOT_IN_EVIDENCE in reasons(findings)
