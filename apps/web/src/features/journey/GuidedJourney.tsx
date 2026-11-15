@@ -19,7 +19,7 @@ import {
   VerificationPanel, listStatements, submitStatement, type VerifiedStatementView,
 } from "../verification";
 import { REASON_LABEL, STATUS_LABEL } from "../verification/types";
-import { decideStatement } from "../review";
+import { carryForwardReview, decideStatement } from "../review";
 import { StatementReviewPage } from "../review";
 import { downloadResume, type ResumeExportFormat } from "../resume/api";
 import { InterviewPrepPage, type ApprovedStatement } from "../interview";
@@ -117,6 +117,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [assessing, setAssessing] = useState(false);
   // The application and trusted version behind the PDF/Word downloads, kept
   // so a second download does not finalize a second time.
+  const [carriedCount, setCarriedCount] = useState(0);
   const [coverLetter, setCoverLetter] = useState<CoverLetterDraft | null>(null);
   const [coverTone, setCoverTone] = useState<CoverLetterTone>("professional");
   const [coverBusy, setCoverBusy] = useState(false);
@@ -247,7 +248,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
       if (!result.statements.length) throw new Error("No grounded statements were returned. Add more approved evidence.");
       setCandidates(result.statements);
       setApprovedIds([]); setDeniedIds([]); setReviewError("");
-      setVerdicts(await verifyCandidates(result.statements));
+      const checked = await verifyCandidates(result.statements);
+      setVerdicts(checked);
+      setApprovedIds(await carryForwardApprovals(result.statements, checked));
       await delay(500);
       setStage("resume");
     } catch (err) {
@@ -263,6 +266,37 @@ export function GuidedJourney({ user, token, logout }: Props) {
    * it server-side against the user's own approved evidence; the client never
    * decides what a claim is worth.
    */
+  /** Reuse approvals the user already gave for word-for-word identical claims.
+   *
+   * Regenerating mints new statement ids, so without this the same sentence,
+   * backed by the same evidence, is put to the user again every time. The
+   * server decides: it carries an approval only when the derived revision
+   * matches one of this user's own approvals, which means the claim, the
+   * evidence behind it and F08's classification are all unchanged. Each reply
+   * is read rather than assumed, so a statement counts as approved here only
+   * because the server says it is.
+   */
+  async function carryForwardApprovals(
+    items: CandidateStatement[],
+    checked: Record<string, VerifiedStatementView>,
+  ): Promise<string[]> {
+    const carried = await Promise.all(items.map(async (item) => {
+      const verdict = checked[item.statement_id];
+      if (!verdict || verdict.status === "UNSUPPORTED") return null;
+      try {
+        const review = await carryForwardReview(token, verdict.statement_id);
+        return review.review_status === "APPROVED" ? item.statement_id : null;
+      } catch {
+        // Carrying forward is a convenience. If it fails the user reviews
+        // the claim by hand, which is the behaviour without this at all.
+        return null;
+      }
+    }));
+    const ids = carried.filter((value): value is string => value !== null);
+    setCarriedCount(ids.length);
+    return ids;
+  }
+
   async function verifyCandidates(items: CandidateStatement[]) {
     const entries = await Promise.all(items.map(async (item) => {
       const verdict = await submitStatement(token, {
@@ -481,7 +515,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
     try { localStorage.removeItem(localDraftKey(user.id)); } catch { /* ignore */ }
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
-    setAssessments([]); setVerdicts({});
+    setAssessments([]); setVerdicts({}); setCarriedCount(0);
     // The letter is written from one job's approved claims. Carrying it into
     // the next job would show the previous employer's letter under a new
     // heading until the user noticed and redrafted.
@@ -867,6 +901,10 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <div><div className="aw-eyebrow">REVIEW &amp; APPROVAL</div>
           <h2>{pendingCount ? "Review claims before exporting" : "Ready when you are."}</h2></div>
         <div className="aw-review-head-actions">
+          {carriedCount > 0 && <span className="aw-carried-note">
+            {carriedCount} {carriedCount === 1 ? "claim was" : "claims were"} already
+            approved by you, word for word, against the same evidence
+          </span>}
           {activeCandidates.some((item) => !approvedIds.includes(item.statement_id)
             && verdicts[item.statement_id]?.status === "VERIFIED") &&
             <button type="button" className="aw-link" disabled={busy}

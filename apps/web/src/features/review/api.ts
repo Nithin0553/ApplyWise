@@ -76,3 +76,19 @@ export function decideStatement(
     },
   );
 }
+
+/** Reuse an approval the user already made for identical content.
+ *
+ * Sends no decision: the server looks for one of this user's own approvals
+ * at the same derived revision. The reply says whether the statement is
+ * approved, so a caller must read it rather than assume success.
+ */
+export function carryForwardReview(
+  token: string, statementId: string,
+): Promise<StatementReview> {
+  return request<StatementReview>(
+    token,
+    `/api/statement-review/${encodeURIComponent(statementId)}/carry-forward`,
+    { method: "POST" },
+  );
+}

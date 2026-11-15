@@ -90,6 +90,38 @@ def get_history(
         raise _handle(exc) from exc
 
 
+@router.post("/{statement_id}/carry-forward", response_model=StatementReviewView)
+def carry_forward(
+    statement_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+    verifier: CurrentVerificationProvider = Depends(current_verification_provider),
+) -> StatementReviewView:
+    """Reuse this user's own approval of identical content.
+
+    Takes no payload on purpose: there is no decision to send. The server
+    looks for an approval this user already made at the same derived
+    revision, and the response says plainly whether the statement ended up
+    approved, so a caller cannot read success into silence.
+    """
+    try:
+        result = _service(db, verifier).carry_forward(
+            user_id=current_user.id,
+            statement_id=statement_id,
+        )
+        db.commit()
+        return result
+    except (VerificationUnavailableError, ReviewNotFoundError) as exc:
+        db.rollback()
+        raise _handle(exc) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Review was updated concurrently; reload and try again.",
+        ) from exc
+
+
 @router.post("/{statement_id}/decision", response_model=StatementReviewView)
 def decide(
     statement_id: UUID,

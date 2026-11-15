@@ -339,3 +339,6 @@
   .aw-letter { padding: 38px 26px 44px; }
   .aw-cover-controls { width: 100%; }
 }
+
+/* Says why some claims arrived already approved, instead of pre-ticking silently. */
+.aw-carried-note { font-size: 13px; color: var(--aw-muted); max-width: 42ch; text-align: right; line-height: 1.45; }

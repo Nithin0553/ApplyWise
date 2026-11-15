@@ -142,6 +142,72 @@ class StatementReviewService:
         self.session.flush()
         return self._view(current, record)
 
+    def carry_forward(self, *, user_id: UUID, statement_id: UUID) -> StatementReviewView:
+        """Apply an approval this user already made for identical content.
+
+        The revision is derived from the material: the claim's text, the
+        evidence it cites, the current content and approval time of each cited
+        record, and the classification. Two statements with the same revision
+        are therefore the same assertion backed by the same evidence, whatever
+        ids they carry. Regenerating a resume mints new statement ids for
+        claims whose wording did not change, and without this the user is
+        asked to approve sentences they have already approved, word for word,
+        against the same records.
+
+        This makes no new judgement. It looks for one of this user's own
+        APPROVED reviews whose revision equals this statement's current
+        revision and records the same decision here. Change the wording or the
+        evidence by one character and the revision differs, so nothing is
+        carried and the user is asked, which is the behaviour that matters.
+        """
+        current = self._verified(user_id=user_id, statement_id=statement_id)
+
+        # Never carry an approval onto something F08 will not stand behind.
+        # The status is part of the revision, so a match cannot be UNSUPPORTED;
+        # this is here so that stops being true loudly rather than silently.
+        if current.status == VerificationStatus.UNSUPPORTED:
+            return self._view(current, self._record(user_id=user_id, statement_id=statement_id))
+
+        record = self._record(user_id=user_id, statement_id=statement_id, lock=True)
+        if record is not None and record.verification_revision == current.revision:
+            return self._view(current, record)
+
+        prior = self.session.scalar(
+            select(StatementReviewRecord).where(
+                StatementReviewRecord.user_id == user_id,
+                StatementReviewRecord.statement_id != statement_id,
+                StatementReviewRecord.decision == ReviewDecision.APPROVED,
+                StatementReviewRecord.verification_revision == current.revision,
+            )
+        )
+        if prior is None:
+            return self._view(current, record)
+
+        if record is None:
+            record = StatementReviewRecord(
+                user_id=user_id,
+                statement_id=statement_id,
+                decision=ReviewDecision.APPROVED,
+                verification_revision=current.revision,
+                event_count=1,
+            )
+            self.session.add(record)
+            self.session.flush()
+        else:
+            record.decision = ReviewDecision.APPROVED
+            record.verification_revision = current.revision
+            record.event_count += 1
+
+        self.session.add(StatementReviewEventRecord(
+            review_id=record.id,
+            user_id=user_id,
+            decision=ReviewDecision.APPROVED,
+            verification_revision=current.revision,
+            sequence=record.event_count,
+        ))
+        self.session.flush()
+        return self._view(current, record)
+
     def history(self, *, user_id: UUID, statement_id: UUID) -> tuple[ReviewHistoryItem, ...]:
         self._verified(user_id=user_id, statement_id=statement_id)
         record = self._record(user_id=user_id, statement_id=statement_id)
