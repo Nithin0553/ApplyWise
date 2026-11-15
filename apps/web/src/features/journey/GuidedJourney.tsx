@@ -39,6 +39,38 @@ function readProfile(id: string): Profile | null {
     return value && typeof value.career === "string" && value.career ? value : null;
   } catch { return null; }
 }
+// Only the profile used to survive a reload, so a refresh sent the user back
+// to the empty job box and threw away the extracted requirements, the
+// requirement match and the generated claims -- every one of which costs a
+// live model call to rebuild. The draft below is the recoverable part of the
+// journey. Approvals are deliberately NOT in it: an F09 approval is a server
+// record bound to one verification revision, so letting the browser assert
+// "approved" would survive an evidence change that should have invalidated
+// it. Those are re-fetched from the server on restore.
+type ResumableStage = "paste" | "analysis" | "match" | "resume";
+const RESUMABLE: readonly ResumableStage[] = ["paste", "analysis", "match", "resume"];
+interface JourneyDraft {
+  stage: ResumableStage;
+  job: string;
+  role: string;
+  company: string;
+  requirements: string[];
+  candidates: CandidateStatement[];
+  verdicts: Record<string, VerifiedStatementView>;
+  deniedIds: string[];
+}
+function localDraftKey(id: string) { return `applywise.journey.draft.${id}`; }
+function readDraft(id: string): JourneyDraft | null {
+  try {
+    const raw = localStorage.getItem(localDraftKey(id));
+    if (!raw) return null;
+    const value = JSON.parse(raw) as JourneyDraft;
+    if (!value || !RESUMABLE.includes(value.stage)) return null;
+    if (!Array.isArray(value.candidates) || !Array.isArray(value.requirements)) return null;
+    return value;
+  } catch { return null; }
+}
+
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
 function Spinner({ title, description }: { title: string; description: string }) {
@@ -50,16 +82,17 @@ function Spinner({ title, description }: { title: string; description: string })
 
 export function GuidedJourney({ user, token, logout }: Props) {
   const stored = readProfile(user.id);
+  const draft = stored ? readDraft(user.id) : null;
   const [profile, setProfile] = useState<Profile>(stored ?? EMPTY_PROFILE);
-  const [stage, setStage] = useState<Stage>(stored ? "paste" : "setup");
-  const [job, setJob] = useState("");
-  const [role, setRole] = useState("");
-  const [company, setCompany] = useState("");
-  const [requirements, setRequirements] = useState<string[]>([]);
+  const [stage, setStage] = useState<Stage>(stored ? (draft?.stage ?? "paste") : "setup");
+  const [job, setJob] = useState(draft?.job ?? "");
+  const [role, setRole] = useState(draft?.role ?? "");
+  const [company, setCompany] = useState(draft?.company ?? "");
+  const [requirements, setRequirements] = useState<string[]>(draft?.requirements ?? []);
   const [evidence, setEvidence] = useState<JourneyEvidence[]>([]);
-  const [candidates, setCandidates] = useState<CandidateStatement[]>([]);
+  const [candidates, setCandidates] = useState<CandidateStatement[]>(draft?.candidates ?? []);
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
-  const [deniedIds, setDeniedIds] = useState<string[]>([]);
+  const [deniedIds, setDeniedIds] = useState<string[]>(draft?.deniedIds ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [savedApplications, setSavedApplications] = useState<JourneyApplication[]>([]);
   const [versionCounts, setVersionCounts] = useState<Record<string, number>>({});
@@ -71,7 +104,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [approvedStatements, setApprovedStatements] = useState<ApprovedStatement[]>([]);
   // F07 proposes; F08 decides. Keyed by the candidate id so the document
   // keeps its order while decisions are made against F08's own records.
-  const [verdicts, setVerdicts] = useState<Record<string, VerifiedStatementView>>({});
+  const [verdicts, setVerdicts] = useState<Record<string, VerifiedStatementView>>(draft?.verdicts ?? {});
   const [reviewError, setReviewError] = useState("");
   const [loadingEvidence, setLoadingEvidence] = useState(false);
   const [assessments, setAssessments] = useState<RequirementAssessment[]>([]);
@@ -80,6 +113,35 @@ export function GuidedJourney({ user, token, logout }: Props) {
   // so a second download does not finalize a second time.
   const [finalApplicationId, setFinalApplicationId] = useState<string | null>(null);
   const [finalVersionId, setFinalVersionId] = useState<string | null>(null);
+
+  // Keep the recoverable journey in step with the screen.
+  useEffect(() => {
+    if (!RESUMABLE.includes(stage as ResumableStage)) return;
+    const resumable = stage as ResumableStage;
+    try {
+      localStorage.setItem(localDraftKey(user.id), JSON.stringify({
+        stage: resumable, job, role, company, requirements, candidates, verdicts, deniedIds,
+      } satisfies JourneyDraft));
+    } catch { /* a full or disabled store must not break the journey */ }
+  }, [user.id, stage, job, role, company, requirements, candidates, verdicts, deniedIds]);
+
+  // A restored journey asks the server which claims are approved, because the
+  // browser is not allowed to be the authority on that.
+  useEffect(() => {
+    if (!draft?.candidates.length) return;
+    let live = true;
+    void (async () => {
+      try {
+        const approved = await getApprovedStatements(token);
+        if (!live) return;
+        const ids = new Set(approved.map((item) => item.statement_id));
+        setApprovedIds(draft.candidates.filter((item) => ids.has(item.statement_id))
+          .map((item) => item.statement_id));
+      } catch { /* leave them unreviewed; the user can approve again */ }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (stage !== "ready") return;
@@ -319,6 +381,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
   }
 
   function newJob() {
+    try { localStorage.removeItem(localDraftKey(user.id)); } catch { /* ignore */ }
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
     setAssessments([]);
