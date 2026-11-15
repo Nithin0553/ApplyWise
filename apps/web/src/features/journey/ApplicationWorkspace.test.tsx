@@ -17,7 +17,7 @@ const base: JourneyApplication = {
   created_at: "2026-10-31T12:00:00Z",
 };
 const renderWorkspace = (items: JourneyApplication[] = [base], onChange = vi.fn()) => {
-  render(<ApplicationWorkspace token="test-token" applications={items}
+  render(<ApplicationWorkspace token="test-token" fullName="Synthetic Applicant" applications={items}
     versionCounts={{ [base.id]: 2 }} onChange={onChange}
     onNewJob={vi.fn()} onEditProfile={vi.fn()} />);
   return onChange;

@@ -51,12 +51,16 @@ export interface EvidenceSnapshotItem {
   approved_at: string;
 }
 
+export type ProvenanceOrigin = "DRAFT_USER_REVIEWED" | "F09_APPROVED";
+
 export interface ProvenanceSnapshotItem {
   statement_id: string;
   text: string;
   evidence_ids: string[];
   verification_status: VerificationSnapshotStatus;
   approval_status: ApprovalSnapshotStatus;
+  /** Absent on versions saved before F13's trusted path existed. */
+  origin?: ProvenanceOrigin;
 }
 
 /**

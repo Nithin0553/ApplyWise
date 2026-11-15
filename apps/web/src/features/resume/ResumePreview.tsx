@@ -1,50 +1,76 @@
+import type { ResumeVersionSnapshot } from "../applications/api";
+import { buildSections, entryLabel } from "./sections";
+
 type ResumePreviewProps = {
   template: string;
+  snapshot?: ResumeVersionSnapshot;
+  fullName?: string;
+  targetRole?: string;
+  company?: string | null;
 };
 
-export function ResumePreview({ template }: ResumePreviewProps) {
+/**
+ * The selected saved version, laid out the way F10 renders it. This used to
+ * be a fixed fictional resume, which meant the page showed a document the
+ * user had never written and could not be checked against the download.
+ */
+export function ResumePreview({
+  template,
+  snapshot,
+  fullName,
+  targetRole,
+  company,
+}: ResumePreviewProps) {
+  if (!snapshot) {
+    return (
+      <article
+        className={`resume-preview resume-preview--${template}`}
+        aria-label="Resume preview"
+      >
+        <p>Select a saved resume version to see it here.</p>
+      </article>
+    );
+  }
+
+  const sections = buildSections(snapshot);
+
   return (
     <article
       className={`resume-preview resume-preview--${template}`}
-      aria-label="Sample resume preview"
+      aria-label="Resume preview"
     >
       <header>
-        <h3>Alex Morgan</h3>
-        <p>IT Support Specialist</p>
-        <p>Corpus Christi, TX · alex.morgan@example.com</p>
+        <h3>{fullName || "Your name"}</h3>
+        {targetRole && <p>{targetRole}</p>}
+        {company && <p>Target company: {company}</p>}
       </header>
 
-      <section>
-        <h4>Professional Summary</h4>
-        <p>
-          IT support professional with experience troubleshooting computers,
-          assisting users, and documenting technical procedures.
-        </p>
-      </section>
-
-      <section>
-        <h4>Experience</h4>
-        <p>
-          <strong>IT Support Specialist · Example Company</strong>
-        </p>
-        <p>January 2023 – Present</p>
-        <ul>
-          <li>Resolve hardware and software issues for staff.</li>
-          <li>Prepare computers and support new employee onboarding.</li>
-          <li>Document recurring issues and troubleshooting procedures.</li>
-        </ul>
-      </section>
-
-      <section>
-        <h4>Education</h4>
-        <p>Bachelor of Science in Computer Science</p>
-        <p>Example University · 2022</p>
-      </section>
-
-      <section>
-        <h4>Skills</h4>
-        <p>Technical support · Windows · Linux · Python · Documentation</p>
-      </section>
+      {sections.length === 0 ? (
+        <p>This version has no statements to show.</p>
+      ) : (
+        sections.map((section) => (
+          <section key={section.heading}>
+            <h4>{section.heading}</h4>
+            {section.entries.map((entry, index) => {
+              const label = entryLabel(entry);
+              return (
+                <div key={`${section.heading}:${index}`}>
+                  {label && (
+                    <p>
+                      <strong>{label}</strong>
+                    </p>
+                  )}
+                  <ul>
+                    {entry.bullets.map((bullet, position) => (
+                      <li key={position}>{bullet}</li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </section>
+        ))
+      )}
     </article>
   );
 }

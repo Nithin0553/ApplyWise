@@ -194,7 +194,7 @@ describe("ApplyWise guided journey", () => {
     fireEvent.click(screen.getByRole("button", { name: /Match with my profile/i }));
     fireEvent.click(screen.getByRole("button", { name: /Generate resume/i }));
     expect(await screen.findByRole("heading", { name: "Review claims before exporting" }, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Export reviewed resume/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Save to My Applications/ })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
     expect(screen.getAllByText(/Tested REST APIs/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Approve claim/ }));
@@ -203,11 +203,12 @@ describe("ApplyWise guided journey", () => {
       screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument());
     expect(requests).toContain("/api/verification/statements");
     expect(requests).toContain(`/api/statement-review/${verifiedId}/decision`);
-    fireEvent.click(screen.getByRole("button", { name: /Export reviewed resume/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save to My Applications/ }));
     expect(await screen.findByRole("heading", { name: "My Applications" }, { timeout: 6000 })).toBeInTheDocument();
     expect(requests).toContain("/api/applications/reviewed-drafts");
     expect(requests).toContain("/api/applications/resume-version-counts");
-    expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    // Saving to Applications stores a version; it no longer writes a .txt file.
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   }, 10000);
 

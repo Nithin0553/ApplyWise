@@ -106,22 +106,21 @@ describe("the journey does not overstate what its saved draft is", () => {
 
     await reachReviewStage();
 
-    expect(screen.getByText(/saves a historical draft instead/)).toBeInTheDocument();
-    expect(screen.getByText(/deliberately not\s+exportable/)).toBeInTheDocument();
+    expect(screen.getByText(/keeps a historical draft/)).toBeInTheDocument();
+    expect(screen.getByText(/deliberately not\s+exportable on its own/)).toBeInTheDocument();
     // The real document is offered separately, from a finalized version.
     expect(screen.getByRole("button", { name: "Download PDF" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download Word" })).toBeInTheDocument();
   }, 10000);
 
-  it("keeps an approved INFERRED claim labelled INFERRED in the downloaded file", async () => {
+  it("saves to Applications without writing a file", async () => {
+    // The .txt export was removed: PDF and Word are the only documents the
+    // journey produces, and both come from a finalized version.
     persistProfile();
     vi.stubGlobal("scrollTo", vi.fn());
     vi.stubGlobal("fetch", stubApi());
-    let downloaded: Blob | null = null;
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: vi.fn((blob: Blob) => { downloaded = blob; return "blob:test"; }),
-    });
+    const createObjectURL = vi.fn(() => "blob:test");
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
@@ -134,15 +133,11 @@ describe("the journey does not overstate what its saved draft is", () => {
     await waitFor(() => expect(
       screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: /Export reviewed resume/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Save to My Applications/ }));
 
-    await waitFor(() => expect(downloaded).not.toBeNull(), { timeout: 4000 });
-    const text = await readBlob(downloaded as unknown as Blob);
-    expect(text).toContain("[inferred: grounded, not certified]");
-    expect(text).toContain("Inferred claims are grounded but not certified.");
-    expect(text).toContain("This file is not a trusted export.");
-    // The blanket claim this replaced must not come back.
-    expect(text).not.toContain("Verified against the author's own approved evidence");
-    expect(text).not.toContain("[verified against cited evidence]");
+    await waitFor(() => expect(
+      screen.getByRole("heading", { name: "My Applications" })).toBeInTheDocument(),
+      { timeout: 6000 });
+    expect(createObjectURL).not.toHaveBeenCalled();
   }, 15000);
 });

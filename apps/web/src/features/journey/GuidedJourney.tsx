@@ -3,7 +3,7 @@ import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import { SharingPage } from "../sharing";
 import {
-  addEvidence, downloadReviewedText, estimateOverlap,
+  addEvidence, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
   assessRequirements, finalizeResume, readRequirements, saveBlob,
   saveReviewedResume, suggestJobContext,
@@ -336,8 +336,8 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
   /** Download the approved statements as a real document.
    *
-   * The .txt export saves a historical draft, which F10 refuses to render by
-   * design. This takes the other road: F13 materialises a trusted version from
+   * Saving to Applications stores a historical draft, which F10 refuses to
+   * render by design. This takes the other road: F13 materialises a trusted version from
    * the F09-approved statements and F10 renders that. The server re-checks
    * every approval and its evidence first, so a claim approved against
    * evidence that has since changed stops here rather than reaching a PDF.
@@ -443,9 +443,6 @@ export function GuidedJourney({ user, token, logout }: Props) {
     setBusy(true); setError("");
     try {
       await saveReviewedResume(token, { role, company, description: job }, evidence, approved);
-      downloadReviewedText(user.full_name, { role, company }, approved,
-        Object.fromEntries(approved.map((item) =>
-          [item.statement_id, verdicts[item.statement_id]?.status])));
       setStage("exporting");
       await delay(1200);
       await openApplications();
@@ -787,7 +784,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <button className="aw-link aw-back-review" type="button" onClick={() => changeStage("match")}>← Back to evidence</button>
           <button type="button" className="aw-primary aw-export-button"
             disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
-            onClick={() => void exportReviewed()}>Export reviewed resume →</button>
+            onClick={() => void exportReviewed()}>Save to My Applications →</button>
           <div className="aw-final-downloads">
             <button type="button" disabled={busy || !approvedIds.length}
               onClick={() => void downloadFinal("pdf")}>Download PDF</button>
@@ -795,9 +792,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
               onClick={() => void downloadFinal("docx")}>Download Word</button>
           </div>
           <p className="aw-export-hint">PDF and Word are rendered from a finalized version: the server
-            re-checks every approval and its evidence before writing the file. The .txt button above
-            saves a historical draft instead, which is kept for your records and is deliberately not
-            exportable.</p>
+            re-checks every approval and its evidence before writing the file. Saving to My
+            Applications keeps a historical draft for your records, which is deliberately not
+            exportable on its own.</p>
         </aside>
       </div>
       {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}
@@ -805,6 +802,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {stage === "applications" && <ApplicationWorkspace
       token={token}
+      fullName={user.full_name}
       applications={savedApplications}
       versionCounts={versionCounts}
       onChange={onApplicationChanged}
