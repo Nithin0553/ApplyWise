@@ -1,4 +1,5 @@
 import type { CandidateStatement, GenerationResult } from "../tailoring/types";
+import type { ApprovedStatement } from "../interview/types";
 
 export interface JourneyEvidence {
   id: string;
@@ -235,4 +236,13 @@ export function downloadReviewedText(
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+/** F09's server-authoritative approved statements, which F15 rehearses.
+ *
+ * The shell fetches this rather than InterviewPrepPage, because the page is
+ * deliberately given its statements instead of choosing them for itself.
+ */
+export function getApprovedStatements(token: string) {
+  return api<ApprovedStatement[]>(token, "/api/statement-review/approved");
 }

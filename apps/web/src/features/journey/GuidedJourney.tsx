@@ -4,7 +4,7 @@ import type { CandidateStatement } from "../tailoring/types";
 import { SharingPage } from "../sharing";
 import {
   addEvidence, downloadReviewedText, estimateOverlap,
-  generateCandidates, getApplications, getEvidence, getVersionCounts,
+  generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
   readRequirements, saveReviewedResume,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
@@ -12,10 +12,17 @@ import "./journey.css";
 import { ApplicationWorkspace } from "./ApplicationWorkspace";
 import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
 import { EvidenceManager } from "../evidence/EvidenceProfilePage";
+import { VerificationPanel, listStatements, type VerifiedStatementView } from "../verification";
+import { StatementReviewPage } from "../review";
+import { InterviewPrepPage, type ApprovedStatement } from "../interview";
+import {
+  INTERVIEW_PREP_AVAILABLE, INTERVIEW_PREP_UNAVAILABLE,
+} from "../interview/availability";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
-  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence";
+  "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence" |
+  "verification" | "review" | "interview";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -52,6 +59,10 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [evidenceReturnStage, setEvidenceReturnStage] = useState<Stage>("paste");
+  const [verifiedStatements, setVerifiedStatements] = useState<VerifiedStatementView[]>([]);
+  const [reviewStatementId, setReviewStatementId] = useState<string | null>(null);
+  const [approvedStatements, setApprovedStatements] = useState<ApprovedStatement[]>([]);
+  const [loadingEvidence, setLoadingEvidence] = useState(false);
 
   useEffect(() => {
     if (stage !== "ready") return;
@@ -119,6 +130,46 @@ export function GuidedJourney({ user, token, logout }: Props) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resume generation could not complete.");
       setStage("match");
+    }
+  }
+
+  // F08, F09 and F15 each shipped a finished page that nothing imported, so
+  // none of them had a click path and the STD cases covering them could not be
+  // executed. These openers load what each page needs; the pages are unchanged.
+  async function openVerification() {
+    // `evidence` starts empty and is otherwise only filled by analyzeJob(), so
+    // a user who signs in and opens this first saw no citable evidence even
+    // with approved F02 records, and the panel's Add button stayed disabled.
+    setError(""); setLoadingEvidence(true); setStage("verification");
+    try {
+      setEvidence(await getEvidence(token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load your approved evidence.");
+    } finally { setLoadingEvidence(false); }
+  }
+
+  async function openReview() {
+    setError(""); setStage("review"); setReviewStatementId(null);
+    try {
+      setVerifiedStatements(await listStatements(token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load your claims.");
+    }
+  }
+
+  async function openInterview() {
+    setError("");
+    if (!INTERVIEW_PREP_AVAILABLE) {
+      // Never call a route the server does not serve; say why instead.
+      setError(INTERVIEW_PREP_UNAVAILABLE);
+      return;
+    }
+    setStage("interview");
+    try {
+      // Server-authoritative: F09 decides what counts as approved, not the client.
+      setApprovedStatements(await getApprovedStatements(token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load approved statements.");
     }
   }
 
@@ -191,6 +242,10 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
+        <button type="button" onClick={() => void openVerification()}>Verify claims</button>
+        <button type="button" onClick={() => void openReview()}>Review claims</button>
+        {INTERVIEW_PREP_AVAILABLE &&
+          <button type="button" onClick={() => void openInterview()}>Interview prep</button>}
         <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
         <details className="aw-account"><summary>Profile</summary>
@@ -203,6 +258,35 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
+    {stage === "verification" && (loadingEvidence
+      ? <Spinner title="Loading your approved evidence"
+          description="Reading the records you have approved, so a claim can cite them." />
+      : <main className="aw-f08-workspace aw-fade" aria-label="Claim verification workspace">
+        <VerificationPanel token={token} evidenceIds={approvedEvidence.map((item) => item.id)}
+          onBack={() => changeStage("paste")} />
+      </main>)}
+    {stage === "review" && <main className="aw-f09-workspace aw-fade" aria-label="Statement review workspace">
+      <div className="aw-evidence-header">
+        <button type="button" className="aw-link" onClick={() => changeStage("paste")}>← Back to application</button>
+      </div>
+      {reviewStatementId
+        ? <>
+            <button type="button" className="aw-link" onClick={() => setReviewStatementId(null)}>← All claims</button>
+            <StatementReviewPage token={token} statementId={reviewStatementId} />
+          </>
+        : <ul className="aw-review-list">
+            {verifiedStatements.map((item) => <li key={item.statement_id}>
+              <button type="button" onClick={() => setReviewStatementId(item.statement_id)}>
+                <span>{item.text}</span><em>{item.status}</em>
+              </button>
+            </li>)}
+            {!verifiedStatements.length && <li className="aw-review-empty">No claims submitted yet. Add one under Verify claims.</li>}
+          </ul>}
+    </main>}
+    {stage === "interview" && <main className="aw-f15-workspace aw-fade" aria-label="Interview preparation workspace">
+      <InterviewPrepPage token={token} statements={approvedStatements}
+        onBack={() => changeStage("paste")} />
+    </main>}
     {stage === "sharing" && <main className="aw-f14-workspace aw-fade" aria-label="Peer review sharing workspace">
       <SharingPage />
     </main>}
