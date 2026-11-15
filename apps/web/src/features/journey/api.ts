@@ -305,3 +305,54 @@ export function saveBlob(blob: Blob, filename: string) {
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 500);
 }
+
+/** F11 cover-letter drafting.
+ *
+ * The route is served only outside production: it still takes approval state
+ * from the client, which proves the labels are well formed but not that F08
+ * verified and F09 approved the statements. Resolving ids server-side (as
+ * F13 already does through select_approved_statements) is what would make it
+ * safe to serve everywhere.
+ */
+export interface CoverLetterParagraph {
+  paragraph_id: string;
+  text: string;
+  statement_ids: string[];
+  evidence_ids: string[];
+}
+
+export interface CoverLetterDraft {
+  draft_id: string;
+  provider: string;
+  generated_at: string;
+  tone: string;
+  paragraphs: CoverLetterParagraph[];
+  rejected: { text: string; reason: string }[];
+}
+
+export type CoverLetterTone = "professional" | "warm" | "direct";
+
+export function generateCoverLetter(
+  token: string,
+  body: {
+    job_context: {
+      job_title: string;
+      company: string | null;
+      description: string;
+      requirements: string[];
+    };
+    approved_statements: {
+      statement_id: string;
+      text: string;
+      evidence_ids: string[];
+      verification_status: "VERIFIED" | "INFERRED";
+    }[];
+    tone: CoverLetterTone;
+    max_paragraphs: number;
+  },
+) {
+  return api<CoverLetterDraft>(token, "/api/generation/cover-letter/preview", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

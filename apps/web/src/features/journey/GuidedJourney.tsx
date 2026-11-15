@@ -5,9 +5,9 @@ import { SharingPage } from "../sharing";
 import {
   addEvidence, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
-  assessRequirements, finalizeResume, readRequirements, saveBlob,
+  assessRequirements, finalizeResume, generateCoverLetter, readRequirements, saveBlob,
   saveReviewedResume, suggestJobContext,
-  type RequirementAssessment,
+  type CoverLetterDraft, type CoverLetterTone, type RequirementAssessment,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
@@ -29,7 +29,7 @@ import {
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
   "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence" |
-  "verification" | "review" | "interview";
+  "verification" | "review" | "interview" | "cover-letter";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -111,6 +111,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [assessing, setAssessing] = useState(false);
   // The application and trusted version behind the PDF/Word downloads, kept
   // so a second download does not finalize a second time.
+  const [coverLetter, setCoverLetter] = useState<CoverLetterDraft | null>(null);
+  const [coverTone, setCoverTone] = useState<CoverLetterTone>("professional");
+  const [coverBusy, setCoverBusy] = useState(false);
   const [finalApplicationId, setFinalApplicationId] = useState<string | null>(null);
   const [finalVersionId, setFinalVersionId] = useState<string | null>(null);
 
@@ -296,6 +299,54 @@ export function GuidedJourney({ user, token, logout }: Props) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load your claims.");
     }
+  }
+
+  /** F11 drafts from approved statements, not from raw evidence.
+   *
+   * Each paragraph is a CANDIDATE: new prose that has not been through F08 or
+   * F09, so it is never export-eligible and is labelled as a draft on screen.
+   */
+  async function openCoverLetter() {
+    setError("");
+    changeStage("cover-letter");
+    if (coverLetter || coverBusy) return;
+    await draftCoverLetter();
+  }
+
+  async function draftCoverLetter() {
+    const approvedStatements = candidates
+      .filter((item) => approvedIds.includes(item.statement_id))
+      .map((item) => {
+        const verdict = verdicts[item.statement_id];
+        if (!verdict || verdict.status === "UNSUPPORTED") return null;
+        return {
+          statement_id: verdict.statement_id,
+          text: verdict.text,
+          evidence_ids: verdict.evidence_ids,
+          verification_status: verdict.status,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+    if (!approvedStatements.length) {
+      setError("Approve at least one claim before drafting a cover letter.");
+      return;
+    }
+    setCoverBusy(true); setError("");
+    try {
+      setCoverLetter(await generateCoverLetter(token, {
+        job_context: {
+          job_title: role || profile.career || "Target position",
+          company: company || null,
+          description: job || "No description supplied.",
+          requirements: requirements.slice(0, 20),
+        },
+        approved_statements: approvedStatements,
+        tone: coverTone,
+        max_paragraphs: 3,
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not draft a cover letter.");
+    } finally { setCoverBusy(false); }
   }
 
   async function openInterview() {
@@ -501,6 +552,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={() => void openApplications()}>Applications</button>
         <button type="button" onClick={() => void openVerification()}>Verify claims</button>
         <button type="button" onClick={() => void openReview()}>Review claims</button>
+        <button type="button" onClick={() => void openCoverLetter()}>Cover letter</button>
         {INTERVIEW_PREP_AVAILABLE &&
           <button type="button" onClick={() => void openInterview()}>Interview prep</button>}
         <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
@@ -522,6 +574,50 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <VerificationPanel token={token} evidenceIds={approvedEvidence.map((item) => item.id)}
           onBack={() => changeStage("paste")} />
       </main>)}
+    {stage === "cover-letter" && <main className="aw-f11-workspace aw-fade" aria-label="Cover letter workspace">
+      <div className="aw-evidence-header">
+        <button type="button" className="aw-link" onClick={() => changeStage("resume")}>← Back to resume</button>
+      </div>
+      <div className="aw-eyebrow">COVER LETTER</div>
+      <h2>{company ? `Draft for ${company}` : "Cover letter draft"}</h2>
+      <p className="aw-muted">Written from the claims you approved, so every paragraph
+        traces back to your own evidence. This is a draft: unlike your resume it has
+        not been through verification or approval, so it is not exported.</p>
+      <div className="aw-cover-controls">
+        <label>Tone
+          <select value={coverTone} disabled={coverBusy}
+            onChange={(event) => setCoverTone(event.target.value as CoverLetterTone)}>
+            <option value="professional">Professional</option>
+            <option value="warm">Warm</option>
+            <option value="direct">Direct</option>
+          </select>
+        </label>
+        <button type="button" className="aw-primary" disabled={coverBusy}
+          onClick={() => void draftCoverLetter()}>
+          {coverBusy ? "Drafting…" : coverLetter ? "Draft again" : "Draft cover letter"}
+        </button>
+        {coverLetter && <button type="button" className="aw-link" disabled={coverBusy}
+          onClick={() => void navigator.clipboard?.writeText(
+            coverLetter.paragraphs.map((item) => item.text).join("\n\n"))}>Copy text</button>}
+      </div>
+      {coverBusy && <p role="status" className="aw-muted">Drafting from your approved claims…</p>}
+      {coverLetter && <article className="aw-cover-letter">
+        {coverLetter.paragraphs.map((paragraph) => <p key={paragraph.paragraph_id}>{paragraph.text}</p>)}
+        <footer className="aw-muted">
+          Drafted by {coverLetter.provider} from {coverLetter.paragraphs.length}
+          {coverLetter.paragraphs.length === 1 ? " paragraph" : " paragraphs"} ·
+          every paragraph cites claims you approved.
+        </footer>
+      </article>}
+      {coverLetter && coverLetter.rejected.length > 0 && <section className="aw-panel">
+        <h3>{coverLetter.rejected.length} paragraph(s) discarded</h3>
+        <p className="aw-muted">These failed F11's grounding checks and were not shown.</p>
+        {coverLetter.rejected.map((item, index) => <p key={index} className="aw-muted">
+          <strong>{item.reason}</strong> — {item.text.slice(0, 160)}
+        </p>)}
+      </section>}
+    </main>}
+
     {stage === "review" && <main className="aw-f09-workspace aw-fade" aria-label="Statement review workspace">
       <div className="aw-evidence-header">
         <button type="button" className="aw-link" onClick={() => changeStage("paste")}>← Back to application</button>

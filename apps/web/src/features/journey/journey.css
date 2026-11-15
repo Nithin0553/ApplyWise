@@ -282,3 +282,10 @@
 
 /* Bulk approval sits beside the outstanding-claims count. */
 .aw-review-head-actions { display: flex; align-items: center; gap: 14px; }
+
+/* F11 cover letter draft. */
+.aw-cover-controls { display: flex; align-items: flex-end; gap: 16px; margin: 18px 0; flex-wrap: wrap; }
+.aw-cover-controls label { display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+.aw-cover-letter { max-width: 70ch; line-height: 1.65; }
+.aw-cover-letter p { margin: 0 0 14px; }
+.aw-cover-letter footer { font-size: 0.85rem; border-top: 1px solid #d8dde5; padding-top: 10px; }
