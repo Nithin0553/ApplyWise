@@ -120,7 +120,7 @@ describe("the journey creates trusted F13 versions without claiming inferred is 
     fireEvent.click(screen.getByRole("button", { name: /Finalize trusted resume/ }));
     const finalizePath = "/api/applications/33333333-3333-4333-8333-333333333333/trusted-finalize";
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
-      finalizePath, expect.objectContaining({ method: "POST" }), { timeout: 4000 }));
+      finalizePath, expect.objectContaining({ method: "POST" })), { timeout: 4000 });
     const call = fetchMock.mock.calls.find(([path]) => String(path) === finalizePath);
     expect(JSON.parse(String(call?.[1]?.body))).toEqual({ statement_ids: [verifiedId] });
     // F08's INFERRED verdict remains distinct from VERIFIED. The client never
