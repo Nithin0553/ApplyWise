@@ -156,8 +156,16 @@ export function GuidedJourney({ user, token, logout }: Props) {
         ]);
         if (!live) return;
         setEvidence(records);
-        const ids = new Set(approved.map((item) => item.statement_id));
-        setApprovedIds(draft.candidates.filter((item) => ids.has(item.statement_id))
+        // A candidate's id is F07's, not F08's. /approved answers in F08
+        // statement ids, so the two sets never intersected and a restored
+        // journey always came back unapproved -- the approvals were on the
+        // server the whole time. The verdicts carry the mapping.
+        const approvedServerIds = new Set(approved.map((item) => item.statement_id));
+        setApprovedIds(draft.candidates
+          .filter((item) => {
+            const verdict = draft.verdicts[item.statement_id];
+            return Boolean(verdict) && approvedServerIds.has(verdict.statement_id);
+          })
           .map((item) => item.statement_id));
       } catch { /* leave them unreviewed; the user can approve again */ }
     })();
@@ -252,6 +260,8 @@ export function GuidedJourney({ user, token, logout }: Props) {
       }, available.map((item) => item.id));
       if (!result.statements.length) throw new Error("No grounded statements were returned. Add more approved evidence.");
       setCandidates(result.statements);
+      // The letter belongs to the resume it was written from.
+      setCoverLetter(null);
       setApprovedIds([]); setDeniedIds([]); setReviewError("");
       const checked = await verifyCandidates(result.statements);
       setVerdicts(checked);
@@ -648,7 +658,6 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={() => void openApplications()}>Applications</button>
         <button type="button" onClick={() => void openVerification()}>Verify claims</button>
         <button type="button" onClick={() => void openReview()}>Review claims</button>
-        <button type="button" onClick={() => void openCoverLetter()}>Cover letter</button>
         {INTERVIEW_PREP_AVAILABLE &&
           <button type="button" onClick={() => void openInterview()}>Interview prep</button>}
         <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
@@ -1017,6 +1026,10 @@ export function GuidedJourney({ user, token, logout }: Props) {
               onClick={() => void downloadFinal("pdf")}>Download PDF</button>
             <button type="button" disabled={busy || !approvedIds.length}
               onClick={() => void downloadFinal("docx")}>Download Word</button>
+          </div>
+          <div className="aw-next-steps">
+            <button type="button" className="aw-link" disabled={busy || !approvedIds.length}
+              onClick={() => void openCoverLetter()}>Write a cover letter for this application →</button>
           </div>
           <p className="aw-export-hint">PDF and Word are rendered from a finalized version: the server
             re-checks every approval and its evidence before writing the file. Saving to My
