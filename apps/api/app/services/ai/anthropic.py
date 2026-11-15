@@ -51,9 +51,11 @@ _REQUIREMENT_MATCH_INSTRUCTIONS = (
     "MISSING. Use only the references given; do not invent one.\n"
     "Judge only what the evidence says. Do not assume a skill because a related "
     "one is present, and do not reward keyword overlap on its own.\n"
-    "Add a short note, at most 25 words, saying what is present or absent.\n"
-    "Return one entry per requirement, in the order given.\n"
-    'Reply with JSON only, of the form {"assessments": [{"requirement": "...", '
+    "Add a short note, at most 20 words, saying what is present or absent.\n"
+    "Return one entry per requirement, identified by its number. Do not repeat "
+    "the requirement text: the caller already has it, and echoing it wastes the "
+    "reply budget and risks altering what was asked.\n"
+    'Reply with JSON only, of the form {"assessments": [{"index": 1, '
     '"coverage": "COVERED", "cited_refs": ["E1"], "note": "..."}]}'
 )
 API_URL = "https://api.anthropic.com/v1/messages"
@@ -289,7 +291,7 @@ class AnthropicAIProvider:
             + f"\n\nRequirements:\n{numbered}"
             + f"\n\nApproved evidence:\n{evidence}"
         )
-        parsed = _extract_json(self._post(prompt, max_tokens=3000))
+        parsed = _extract_json(self._post(prompt, max_tokens=4000))
         raw = parsed.get("assessments")
         if not isinstance(raw, list):
             raise AIProviderError("The model returned no assessments.")
@@ -297,10 +299,20 @@ class AnthropicAIProvider:
         for item in raw[:MAX_REQUIREMENTS]:
             if not isinstance(item, dict):
                 continue
+            # The requirement comes from the caller's own list, looked up by
+            # the index the model returned, so the text cannot drift from what
+            # was asked and an out-of-range index is dropped rather than
+            # inventing a requirement nobody listed.
+            try:
+                position = int(item.get("index", 0)) - 1
+            except (TypeError, ValueError):
+                continue
+            if not 0 <= position < len(request.requirements):
+                continue
             coverage = str(item.get("coverage", "")).strip().upper()
             assessments.append(
                 RequirementAssessment(
-                    requirement=str(item.get("requirement", "")).strip()[:300],
+                    requirement=request.requirements[position],
                     # An unrecognised verdict is treated as MISSING rather than
                     # dropped: silently losing a requirement would overstate
                     # coverage, which is the failure this feature exists to fix.

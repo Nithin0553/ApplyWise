@@ -19,6 +19,7 @@ from app.services.ai.provider import (
     AIProviderError,
     CoverLetterRequest,
     JobContextRequest,
+    RequirementMatchRequest,
     GroundedGenerationRequest,
     PromptEvidence,
     PromptStatement,
@@ -260,3 +261,67 @@ def test_no_requirements_is_an_acceptable_answer() -> None:
     suggestion = _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
 
     assert suggestion.requirements == ()
+
+
+# --- requirement assessment ------------------------------------------------
+#
+# Assessments are returned by index, not by echoing the requirement back. A
+# first version asked for the text and the reply was truncated past
+# max_tokens, so every live call failed with unparseable JSON. Indexes also
+# mean the text cannot drift from what the caller asked about.
+
+MATCH_REQUEST = RequirementMatchRequest(
+    requirements=("Hands-on Angular experience", "Strong Java back-end development"),
+    evidence=(PromptEvidence(ref="E1", text="Built automated regression suites."),),
+)
+
+
+def test_assessments_take_their_text_from_the_caller_not_the_model() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({"assessments": [
+            {"index": 1, "coverage": "MISSING", "cited_refs": [], "note": "No Angular work."},
+            {"index": 2, "coverage": "PARTIAL", "cited_refs": ["E1"], "note": "Testing only."},
+        ]}))
+
+    result = _provider(handler).assess_requirements(MATCH_REQUEST)
+
+    assert [item.requirement for item in result.assessments] == [
+        "Hands-on Angular experience", "Strong Java back-end development",
+    ]
+    assert [item.coverage for item in result.assessments] == ["MISSING", "PARTIAL"]
+    assert result.assessments[1].cited_refs == ("E1",)
+
+
+def test_an_index_outside_the_list_is_dropped() -> None:
+    """Better to return fewer rows than a requirement nobody asked about."""
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({"assessments": [
+            {"index": 1, "coverage": "COVERED", "cited_refs": ["E1"], "note": "ok"},
+            {"index": 9, "coverage": "COVERED", "cited_refs": ["E1"], "note": "invented"},
+            {"index": "x", "coverage": "COVERED", "cited_refs": [], "note": "bad"},
+        ]}))
+
+    result = _provider(handler).assess_requirements(MATCH_REQUEST)
+
+    assert len(result.assessments) == 1
+    assert result.assessments[0].requirement == "Hands-on Angular experience"
+
+
+def test_an_unrecognised_verdict_is_read_as_missing_not_dropped() -> None:
+    """Dropping it would overstate coverage, which is what this replaced."""
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({"assessments": [
+            {"index": 1, "coverage": "probably fine", "cited_refs": [], "note": ""},
+        ]}))
+
+    result = _provider(handler).assess_requirements(MATCH_REQUEST)
+
+    assert result.assessments[0].coverage == "MISSING"
+
+
+def test_an_unparseable_reply_raises_so_the_caller_can_fall_back() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply('{"assessments": [{"index": 1, "coverage": "COV')
+
+    with pytest.raises(AIProviderError):
+        _provider(handler).assess_requirements(MATCH_REQUEST)
