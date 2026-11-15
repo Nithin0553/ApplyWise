@@ -29,22 +29,20 @@ from app.modules.statement_review.service import StatementReviewService
 
 from .adapter import build_resume_document
 from .renderer import render_resume
-from .schemas import DocumentFormat, ResumeTemplate
+from .schemas import DocumentFormat, ResumeDocument, ResumeTemplate
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 _job_seeker = require_role(UserRole.JOB_SEEKER)
 
 
-@router.get("/resume-versions/{resume_version_id}/export")
-def export_resume(
+def validated_resume_document(
     resume_version_id: UUID,
-    format: DocumentFormat,
     template: ResumeTemplate = ResumeTemplate.STANDARD,
     db: Session = Depends(get_db),
     current_user: User = Depends(_job_seeker),
     verifier: CurrentVerificationProvider = Depends(current_verification_provider),
-) -> Response:
-    """Export a resume only after current F13 trusted validation."""
+) -> ResumeDocument:
+    """Shared authorization and materialization for preview and export."""
 
     applications = ApplicationService(db)
     trusted = TrustedFinalizationService(
@@ -88,7 +86,7 @@ def export_resume(
             detail=str(exc),
         ) from exc
 
-    document = build_resume_document(
+    return build_resume_document(
         full_name=current_user.full_name,
         target_role=application.role_title,
         company=application.company_name,
@@ -96,6 +94,19 @@ def export_resume(
         template=template,
     )
 
+
+@router.get("/resume-versions/{resume_version_id}/preview", response_model=ResumeDocument)
+def preview_resume(
+    document: ResumeDocument = Depends(validated_resume_document),
+) -> ResumeDocument:
+    return document
+
+
+@router.get("/resume-versions/{resume_version_id}/export")
+def export_resume(
+    format: DocumentFormat,
+    document: ResumeDocument = Depends(validated_resume_document),
+) -> Response:
     data = render_resume(document, format)
 
     if format == DocumentFormat.PDF:

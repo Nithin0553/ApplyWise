@@ -121,6 +121,10 @@ class TrustedFinalizationService:
                 organization=approved_evidence[evidence_id].organization,
                 role=approved_evidence[evidence_id].role,
                 description=approved_evidence[evidence_id].description,
+                start_date=approved_evidence[evidence_id].start_date,
+                end_date=approved_evidence[evidence_id].end_date,
+                skill_name=approved_evidence[evidence_id].skill_name,
+                credential=approved_evidence[evidence_id].credential,
                 approved_at=approved_evidence[evidence_id].approved_at,
             )
             for evidence_id in evidence_ids

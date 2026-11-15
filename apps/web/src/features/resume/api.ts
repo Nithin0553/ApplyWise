@@ -63,3 +63,42 @@ export async function downloadResume(
 
   return response.blob();
 }
+
+export interface ResumeDocument {
+  full_name: string;
+  target_role: string;
+  company: string | null;
+  template: ResumeExportTemplate;
+  sections: {
+    heading: string;
+    entries: {
+      evidence_ids: string[];
+      statement_ids: string[];
+      title: string;
+      organization: string | null;
+      role: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      statements: string[];
+    }[];
+  }[];
+}
+
+export async function previewResume(
+  token: string,
+  resumeVersionId: string,
+): Promise<ResumeDocument> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/documents/resume-versions/${encodeURIComponent(resumeVersionId)}/preview`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!response.ok) {
+    throw new ResumeExportError(
+      response.status === 409
+        ? "This resume requires updated verification or approval before previewing."
+        : "Unable to load the validated resume preview. Please try again.",
+      response.status,
+    );
+  }
+  return response.json() as Promise<ResumeDocument>;
+}

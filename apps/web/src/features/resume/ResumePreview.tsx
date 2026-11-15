@@ -1,50 +1,43 @@
+import type { ResumeDocument } from "./api";
+
 type ResumePreviewProps = {
   template: string;
+  document: ResumeDocument;
 };
 
-export function ResumePreview({ template }: ResumePreviewProps) {
+export function ResumePreview({ template, document }: ResumePreviewProps) {
   return (
     <article
       className={`resume-preview resume-preview--${template}`}
-      aria-label="Sample resume preview"
+      aria-label="Validated resume preview"
     >
       <header>
-        <h3>Alex Morgan</h3>
-        <p>IT Support Specialist</p>
-        <p>Corpus Christi, TX · alex.morgan@example.com</p>
+        <h3>{document.full_name}</h3>
+        <p>{document.target_role}</p>
+        {document.company && <p>Target company: {document.company}</p>}
       </header>
-
-      <section>
-        <h4>Professional Summary</h4>
-        <p>
-          IT support professional with experience troubleshooting computers,
-          assisting users, and documenting technical procedures.
-        </p>
-      </section>
-
-      <section>
-        <h4>Experience</h4>
-        <p>
-          <strong>IT Support Specialist · Example Company</strong>
-        </p>
-        <p>January 2023 – Present</p>
-        <ul>
-          <li>Resolve hardware and software issues for staff.</li>
-          <li>Prepare computers and support new employee onboarding.</li>
-          <li>Document recurring issues and troubleshooting procedures.</li>
-        </ul>
-      </section>
-
-      <section>
-        <h4>Education</h4>
-        <p>Bachelor of Science in Computer Science</p>
-        <p>Example University · 2022</p>
-      </section>
-
-      <section>
-        <h4>Skills</h4>
-        <p>Technical support · Windows · Linux · Python · Documentation</p>
-      </section>
+      {document.sections.map((section) => (
+        <section key={section.heading}>
+          <h4>{section.heading}</h4>
+          {section.entries.map((entry, index) => {
+            const heading = [...new Set(
+              [entry.title, entry.role, entry.organization].filter(Boolean),
+            )].join(" | ");
+            let dates = [entry.start_date, entry.end_date].filter(Boolean).join(" - ");
+            if (dates && !entry.start_date) dates = `Ended ${dates}`;
+            else if (dates && !entry.end_date) dates = `Started ${dates}`;
+            return (
+              <div key={index}>
+                {heading && <p><strong>{heading}</strong></p>}
+                {dates && <p>{dates}</p>}
+                {entry.statements.length > 0 && (
+                  <ul>{entry.statements.map((text, i) => <li key={i}>{text}</li>)}</ul>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      ))}
     </article>
   );
 }

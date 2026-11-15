@@ -15,7 +15,7 @@ Statuses below reflect repository-visible implementation state. Work in an open 
 | F04 Job Description Analysis | High | 2 Job Analysis | Issue #4 | Parser/API/frontend prototype tests | Implemented in PR #15; pending merge |
 | F05 Requirement-to-Evidence Matching and Gap Analysis | High | 2 Job Analysis | TBD | TBD | Not started in repository |
 | F06 Content Selection Engine | High | 2 Job Analysis | TBD | TBD | Not started in repository |
-| F10 Resume Generation, Templates and Export | High | 4 Usable Application | Issue #5 | Frontend prototype tests | UI prototype in PR #14; document/export work remains |
+| F10 Resume Generation, Templates and Export | High | 4 Usable Application | Issues #5, #85 | `test_documents.py`, `test_documents_api.py`, `test_document_structure.py`, `test_trusted_resume_real_e2e.py`, ResumePage tests | Structured PDF/DOCX and validated Resume Studio preview implemented for #85; team review pending; summary omitted per ADR-004 |
 | F13 Resume Version Management and Application Tracking | High | model early / stage 4 | Issue #10 / F13 contract | Backend persistence/domain + frontend component tests | Implemented in PR #8; F01 integration in progress |
 | F03 Resume Import and Profile Population | Medium | 5 Extensions | F03 contract (Req-Func-Sw-13 to 17) | Backend import/API tests + frontend component tests | Merged to `main` in PR #61 |
 | F12 Resume Formatting and ATS Readability Analysis | Medium | 5 Extensions | TBD | TBD | Not started in repository |

@@ -49,10 +49,15 @@ def _render_docx(resume: ResumeDocument) -> bytes:
     if resume.company:
         document.add_paragraph(f"Target company: {resume.company}")
 
-    document.add_heading("Relevant Experience", level=1)
-
-    for statement in resume.statements:
-        document.add_paragraph(statement, style="List Bullet")
+    for kind, text in _content_lines(resume):
+        if kind == "section":
+            document.add_heading(text, level=1)
+        elif kind == "entry":
+            document.add_paragraph().add_run(text).bold = True
+        elif kind == "bullet":
+            document.add_paragraph(text, style="List Bullet")
+        else:
+            document.add_paragraph(text)
 
     buffer = BytesIO()
     document.save(buffer)
@@ -98,10 +103,41 @@ def _render_pdf(resume: ResumeDocument) -> bytes:
 
     y -= 10
 
-    draw_line("RELEVANT EXPERIENCE", "Helvetica-Bold", 12, 8)
-
-    for statement in resume.statements:
-        draw_line(f"- {statement}", "Helvetica", body_size, 5)
+    for kind, text in _content_lines(resume):
+        if kind == "section":
+            y -= 8
+            draw_line(text, "Helvetica-Bold", 12, 8)
+        elif kind == "entry":
+            draw_line(text, "Helvetica-Bold", body_size, 3)
+        else:
+            prefix = "- " if kind == "bullet" else ""
+            draw_line(prefix + text, "Helvetica", body_size, 5)
 
     pdf.save()
     return buffer.getvalue()
+
+
+def _content_lines(resume: ResumeDocument) -> list[tuple[str, str]]:
+    """Both formats consume the same ordered section content."""
+    lines: list[tuple[str, str]] = []
+    for section in resume.sections:
+        lines.append(("section", section.heading))
+        for entry in section.entries:
+            # Keep title and role when distinct (e.g. degree versus assistantship).
+            heading = " | ".join(dict.fromkeys(
+                value for value in (entry.title, entry.role, entry.organization) if value
+            ))
+            if heading:
+                lines.append(("entry", heading))
+            if entry.start_date or entry.end_date:
+                # A missing end date is unknown, not proof of current employment.
+                dates = " - ".join(
+                    value.isoformat() for value in (entry.start_date, entry.end_date) if value
+                )
+                if not entry.start_date:
+                    dates = "Ended " + dates
+                elif not entry.end_date:
+                    dates = "Started " + dates
+                lines.append(("dates", dates))
+            lines.extend(("bullet", text) for text in entry.statements)
+    return lines
