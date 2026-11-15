@@ -20,6 +20,17 @@ export class InterviewApiError extends Error {
 
 function messageFor(status: number, detail: unknown): string {
   if (typeof detail === "string" && detail.trim()) return detail;
+  // FastAPI reports validation failures as a list, so a request the route
+  // rejected on its face used to arrive here as "unavailable right now" --
+  // a message that sent the reader looking for an outage instead of the
+  // oversized request that actually caused it.
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => (item && typeof item === "object" && "msg" in item
+        ? String((item as { msg: unknown }).msg) : null))
+      .filter((value): value is string => Boolean(value));
+    if (messages.length) return messages.join("; ");
+  }
   if (status === 404) {
     return "Some of the evidence behind these statements is no longer approved.";
   }

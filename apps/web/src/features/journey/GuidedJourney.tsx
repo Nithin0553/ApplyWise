@@ -72,6 +72,11 @@ function readDraft(id: string): JourneyDraft | null {
   } catch { return null; }
 }
 
+// Mirrors MAX_STATEMENTS_PER_REQUEST in interview_schemas.py. Sending more
+// is rejected as a validation error, which the page could only report as a
+// generic failure.
+const INTERVIEW_STATEMENT_LIMIT = 20;
+
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 
 /** The letter as plain text, for the clipboard. */
@@ -423,8 +428,28 @@ export function GuidedJourney({ user, token, logout }: Props) {
     }
     setStage("interview");
     try {
-      // Server-authoritative: F09 decides what counts as approved, not the client.
-      setApprovedStatements(await getApprovedStatements(token));
+      // Prepare for THIS application, not for every claim ever approved.
+      //
+      // /approved returns the user's whole approval history across every
+      // resume they have generated, and that list only grows -- faster now
+      // that identical claims carry their approval forward. Interview prep
+      // caps a request at 20 statements, so after a few applications the
+      // route returned 422 and the page said it was unavailable. The claims
+      // on the resume in front of the user are also the ones worth
+      // rehearsing, so prefer those and fall back to the server list.
+      const current = candidates
+        .filter((item) => approvedIds.includes(item.statement_id))
+        .map((item) => verdicts[item.statement_id])
+        .filter((verdict): verdict is VerifiedStatementView =>
+          Boolean(verdict) && verdict.status !== "UNSUPPORTED")
+        .map((verdict) => ({
+          statement_id: verdict.statement_id,
+          text: verdict.text,
+          evidence_ids: verdict.evidence_ids,
+          verification_status: verdict.status as "VERIFIED" | "INFERRED",
+        }));
+      const statements = current.length ? current : await getApprovedStatements(token);
+      setApprovedStatements(statements.slice(0, INTERVIEW_STATEMENT_LIMIT));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load approved statements.");
     }
