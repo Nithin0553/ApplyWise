@@ -2,6 +2,7 @@
 
 from io import BytesIO
 from types import SimpleNamespace
+from uuid import uuid4
 from zipfile import ZipFile
 
 import pytest
@@ -11,6 +12,8 @@ from app.modules.documents.renderer import render_resume
 from app.modules.documents.schemas import (
     DocumentFormat,
     ResumeDocument,
+    ResumeEntry,
+    ResumeSection,
     ResumeTemplate,
 )
 from app.modules.documents.service import (
@@ -25,11 +28,12 @@ def sample_resume():
         full_name="Alex Morgan",
         target_role="IT Support Specialist",
         company="Example Company",
-        statements=(
+        sections=(ResumeSection(heading="Experience", entries=(ResumeEntry(
+            evidence_ids=(uuid4(),), statements=(
             "Troubleshoot hardware and software issues.",
             "Prepare computers for new employees.",
             "Document technical procedures.",
-        ),
+        )),)),),
     )
 
 
@@ -75,7 +79,7 @@ def test_empty_resume_statements_rejected():
         ResumeDocument(
             full_name="Alex Morgan",
             target_role="IT Support Specialist",
-            statements=(),
+            sections=(),
         )
 
 

@@ -42,6 +42,10 @@ class EvidenceSnapshotItem(BaseModel):
     organization: str | None = None
     role: str | None = None
     description: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    skill_name: str | None = None
+    credential: str | None = None
     approved_at: datetime
 
 

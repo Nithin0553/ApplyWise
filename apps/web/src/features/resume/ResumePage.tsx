@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { listResumeVersions } from "../applications/api";
 import type { ResumeVersionApiRecord } from "../applications/api";
-import { downloadResume, type ResumeExportFormat } from "./api";
+import { downloadResume, previewResume, type ResumeDocument, type ResumeExportFormat } from "./api";
 import { ResumePreview } from "./ResumePreview";
 import "./ResumePage.css";
 
@@ -18,6 +18,32 @@ export function ResumePage({ token, applicationId }: Props) {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<{
+    token: string; applicationId: string; versionId: string; document: ResumeDocument;
+  } | null>(null);
+  const [previewError, setPreviewError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setPreview(null);
+    setPreviewError("");
+    if (selectedVersionId && !loading) {
+      void previewResume(token, selectedVersionId)
+        .then((document) => {
+          if (active) setPreview({ token, applicationId, versionId: selectedVersionId, document });
+        })
+        .catch((cause: unknown) => {
+          if (active) setPreviewError(
+            cause instanceof Error ? cause.message : "Unable to load resume preview.",
+          );
+        });
+    }
+    return () => { active = false; };
+  }, [token, applicationId, selectedVersionId, loading]);
+
+  const currentPreview = !loading && preview?.token === token
+    && preview.applicationId === applicationId && preview.versionId === selectedVersionId
+    ? preview.document : null;
 
   useEffect(() => {
     let active = true;
@@ -102,9 +128,8 @@ export function ResumePage({ token, applicationId }: Props) {
       </header>
 
       <p className="prototype-notice">
-        The preview below contains fictional sample content for layout
-        demonstration only. Downloaded documents use your selected saved
-        resume version and are validated by the server.
+        Preview your selected resume using approved evidence. Downloads
+        recheck verification and approval before creating your document.
       </p>
 
       <div className="resume-layout">
@@ -206,10 +231,18 @@ onChange={(event) => {
         <section className="preview-area" aria-labelledby="preview-heading">
           <div className="preview-heading">
             <h3 id="preview-heading">Resume preview</h3>
-            <span>Sample content</span>
+            <span>Selected resume version</span>
           </div>
 
-          <ResumePreview template={template} />
+          {currentPreview ? (
+            <ResumePreview template={template} document={currentPreview} />
+          ) : previewError ? (
+            <p role="alert">{previewError}</p>
+          ) : selectedVersionId ? (
+            <p role="status">Loading validated preview...</p>
+          ) : (
+            <p>Select a saved resume version to preview.</p>
+          )}
         </section>
       </div>
     </section>
