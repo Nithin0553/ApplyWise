@@ -8,6 +8,8 @@ output is always the same for the same input.
 from __future__ import annotations
 
 from .provider import (
+    RequirementMatchRequest,
+    RequirementMatchResponse,
     JobContextRequest,
     JobContextSuggestion,
     CoverLetterRequest,
@@ -49,3 +51,13 @@ class StubAIProvider:
             (line.strip() for line in request.description.splitlines() if line.strip()), ""
         )
         return JobContextSuggestion(role_title=first[:120], company_name="")
+
+    def assess_requirements(
+        self, request: RequirementMatchRequest
+    ) -> RequirementMatchResponse:
+        """No assessment. The caller falls back to its own word overlap.
+
+        Returning a fabricated verdict would be worse than returning none: the
+        caller can tell an empty answer apart from a real one and say so.
+        """
+        return RequirementMatchResponse(assessments=())

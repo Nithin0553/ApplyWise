@@ -32,12 +32,23 @@ from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
 from app.modules.evidence.service import EvidenceService
 from app.services.ai.factory import UnknownAIProviderError, get_ai_provider
-from app.services.ai.provider import AIProviderError, JobContextRequest
+from app.services.ai.provider import (
+    AIProviderError,
+    JobContextRequest,
+    PromptEvidence,
+    RequirementMatchRequest,
+)
 
 from .cover_letter_schemas import CoverLetterDraft, CoverLetterRequest
 from .cover_letter_service import CoverLetterService
 from .errors import GenerationUnavailableError, MalformedProviderResponseError
-from .job_context_schemas import JobContextSuggestionRequest, JobContextSuggestionView
+from .job_context_schemas import (
+    JobContextSuggestionRequest,
+    JobContextSuggestionView,
+    RequirementAssessmentView,
+    RequirementMatchBody,
+    RequirementMatchView,
+)
 from .resolution import EvidenceNotApprovedError, resolve_approved_evidence
 from .schemas import GenerationPreviewRequest, GenerationRequest, GenerationResult
 from .service import GenerationService
@@ -188,4 +199,70 @@ def suggest_job_context(
         role_title=suggestion.role_title,
         company_name=suggestion.company_name,
         requirements=list(suggestion.requirements),
+    )
+
+
+@router.post("/requirement-match", response_model=RequirementMatchView)
+def assess_requirement_match(
+    request: RequirementMatchBody,
+    current_user: User = Depends(require_job_seeker),
+    db: Session = Depends(get_db),
+) -> RequirementMatchView:
+    """Say which requirements the user's approved evidence can speak to.
+
+    This replaces a browser-side word count that called a requirement matched
+    whenever one four-letter word appeared anywhere in the evidence. It is
+    still advisory: it reports what the user can currently evidence and where
+    the gaps are, and decides nothing about whether a written claim is
+    supported. That remains F08's job and stays deterministic.
+
+    Evidence is resolved from F02 by id for the authenticated user, so an
+    unknown or foreign id is refused before anything reaches the provider.
+    """
+    try:
+        ai_provider = get_ai_provider(settings.ai_provider)
+    except UnknownAIProviderError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        approved_evidence = resolve_approved_evidence(
+            EvidenceService(db),
+            user_id=current_user.id,
+            evidence_ids=request.evidence_ids,
+        )
+    except EvidenceNotApprovedError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    by_ref = {
+        f"E{index}": item.evidence_id
+        for index, item in enumerate(approved_evidence, start=1)
+    }
+    prompt_evidence = tuple(
+        PromptEvidence(ref=f"E{index}", text=item.to_prompt_text())
+        for index, item in enumerate(approved_evidence, start=1)
+    )
+
+    try:
+        result = ai_provider.assess_requirements(
+            RequirementMatchRequest(
+                requirements=tuple(request.requirements), evidence=prompt_evidence
+            )
+        )
+    except AIProviderError as exc:
+        raise HTTPException(
+            status_code=503, detail="AI provider is unavailable. Try again."
+        ) from exc
+
+    return RequirementMatchView(
+        assessments=[
+            RequirementAssessmentView(
+                requirement=item.requirement,
+                coverage=item.coverage,
+                # A reference the provider invented resolves to nothing and is
+                # dropped: the ids returned here must be records the user owns.
+                evidence_ids=[by_ref[ref] for ref in item.cited_refs if ref in by_ref],
+                note=item.note,
+            )
+            for item in result.assessments
+        ]
     )

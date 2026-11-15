@@ -25,6 +25,9 @@ import re
 import httpx
 
 from .provider import (
+    RequirementAssessment,
+    RequirementMatchRequest,
+    RequirementMatchResponse,
     JobContextRequest,
     JobContextSuggestion,
     AIProviderError,
@@ -37,6 +40,22 @@ from .provider import (
 )
 
 MAX_REQUIREMENTS = 20
+_COVERAGE = {"COVERED", "PARTIAL", "MISSING"}
+_REQUIREMENT_MATCH_INSTRUCTIONS = (
+    "Decide, for each requirement, how well the candidate's approved evidence "
+    "answers it.\n"
+    "Use COVERED when the evidence clearly shows it, PARTIAL when the evidence "
+    "is related but thinner than the requirement asks, and MISSING when the "
+    "evidence does not show it at all.\n"
+    "Cite the evidence references that support your answer, and cite none for "
+    "MISSING. Use only the references given; do not invent one.\n"
+    "Judge only what the evidence says. Do not assume a skill because a related "
+    "one is present, and do not reward keyword overlap on its own.\n"
+    "Add a short note, at most 25 words, saying what is present or absent.\n"
+    "Return one entry per requirement, in the order given.\n"
+    'Reply with JSON only, of the form {"assessments": [{"requirement": "...", '
+    '"coverage": "COVERED", "cited_refs": ["E1"], "note": "..."}]}'
+)
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -250,3 +269,46 @@ class AnthropicAIProvider:
             company_name=str(parsed.get("company_name", "")).strip()[:200],
             requirements=requirements,
         )
+
+    def assess_requirements(
+        self, request: RequirementMatchRequest
+    ) -> RequirementMatchResponse:
+        """Gap analysis against the user's approved evidence.
+
+        Advisory, and deliberately kept away from the trust boundary: it says
+        what the user can currently speak to, not whether anything they write
+        is supported. F08 answers that, deterministically, and nothing here
+        feeds into it.
+        """
+        evidence = "\n".join(f"{item.ref}: {item.text}" for item in request.evidence)
+        numbered = "\n".join(
+            f"{index}. {text}" for index, text in enumerate(request.requirements, start=1)
+        )
+        prompt = (
+            _REQUIREMENT_MATCH_INSTRUCTIONS
+            + f"\n\nRequirements:\n{numbered}"
+            + f"\n\nApproved evidence:\n{evidence}"
+        )
+        parsed = _extract_json(self._post(prompt, max_tokens=3000))
+        raw = parsed.get("assessments")
+        if not isinstance(raw, list):
+            raise AIProviderError("The model returned no assessments.")
+        assessments = []
+        for item in raw[:MAX_REQUIREMENTS]:
+            if not isinstance(item, dict):
+                continue
+            coverage = str(item.get("coverage", "")).strip().upper()
+            assessments.append(
+                RequirementAssessment(
+                    requirement=str(item.get("requirement", "")).strip()[:300],
+                    # An unrecognised verdict is treated as MISSING rather than
+                    # dropped: silently losing a requirement would overstate
+                    # coverage, which is the failure this feature exists to fix.
+                    coverage=coverage if coverage in _COVERAGE else "MISSING",
+                    cited_refs=_refs(item.get("cited_refs")),
+                    note=str(item.get("note", "")).strip()[:200],
+                )
+            )
+        if not assessments:
+            raise AIProviderError("The model returned no usable assessments.")
+        return RequirementMatchResponse(assessments=tuple(assessments))

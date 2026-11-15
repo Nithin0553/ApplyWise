@@ -108,6 +108,34 @@ class JobContextSuggestion:
     requirements: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class RequirementMatchRequest:
+    """Requirements to assess, against the evidence the user has approved."""
+
+    requirements: tuple[str, ...]
+    evidence: tuple[PromptEvidence, ...]
+
+
+@dataclass(frozen=True)
+class RequirementAssessment:
+    """How well one requirement is answered by the cited evidence.
+
+    Advisory only. This says what the user can currently speak to and where
+    the gaps are; it decides nothing about whether a written claim is
+    supported, which remains F08's job and stays deterministic.
+    """
+
+    requirement: str
+    coverage: str  # COVERED | PARTIAL | MISSING
+    cited_refs: tuple[str, ...]
+    note: str
+
+
+@dataclass(frozen=True)
+class RequirementMatchResponse:
+    assessments: tuple[RequirementAssessment, ...]
+
+
 class AIProviderError(Exception):
     """Raised by a provider when it is unavailable or cannot answer."""
 
@@ -126,4 +154,9 @@ class AIProvider(Protocol):
         ...
 
     def suggest_job_context(self, request: JobContextRequest) -> JobContextSuggestion:
+        ...
+
+    def assess_requirements(
+        self, request: RequirementMatchRequest
+    ) -> RequirementMatchResponse:
         ...

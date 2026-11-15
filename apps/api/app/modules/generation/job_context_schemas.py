@@ -8,7 +8,10 @@ grounded-generation contracts.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated, Literal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 # The paste box in the UI stops at 6000 characters; the same bound here keeps
 # an arbitrarily long body from being forwarded to a paid provider.
@@ -29,3 +32,33 @@ class JobContextSuggestionView(BaseModel):
     role_title: str = ""
     company_name: str = ""
     requirements: list[str] = Field(default_factory=list, max_length=20)
+
+
+Requirement = Annotated[str, StringConstraints(min_length=1, max_length=300, strip_whitespace=True)]
+
+
+class RequirementMatchBody(BaseModel):
+    """Requirements to assess, and the evidence ids to assess them against.
+
+    Evidence arrives as ids, never as text: the records are read from F02 for
+    the authenticated user, so a caller cannot have its own invented evidence
+    assessed as though the user owned it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    requirements: list[Requirement] = Field(min_length=1, max_length=20)
+    evidence_ids: list[UUID] = Field(min_length=1, max_length=20)
+
+
+class RequirementAssessmentView(BaseModel):
+    """Advisory gap analysis. Decides nothing about whether a claim is supported."""
+
+    requirement: str
+    coverage: Literal["COVERED", "PARTIAL", "MISSING"]
+    evidence_ids: list[UUID] = Field(default_factory=list)
+    note: str = ""
+
+
+class RequirementMatchView(BaseModel):
+    assessments: list[RequirementAssessmentView] = Field(default_factory=list)

@@ -288,3 +288,30 @@ export function suggestJobContext(token: string, description: string) {
     body: JSON.stringify({ description: description.slice(0, 6000) }),
   });
 }
+
+export interface RequirementAssessment {
+  requirement: string;
+  coverage: "COVERED" | "PARTIAL" | "MISSING";
+  evidence_ids: string[];
+  note: string;
+}
+
+/** Ask which requirements the user's approved evidence can actually speak to.
+ *
+ * Advisory. It replaces a word count that called a requirement matched when a
+ * single four-letter word appeared anywhere in the evidence, but it still
+ * decides nothing about whether a written claim is supported -- that is F08's
+ * job and stays deterministic. Evidence is sent as ids so the server resolves
+ * the records itself.
+ */
+export function assessRequirements(
+  token: string, requirements: string[], evidenceIds: string[],
+) {
+  return api<{ assessments: RequirementAssessment[] }>(token, "/api/generation/requirement-match", {
+    method: "POST",
+    body: JSON.stringify({
+      requirements: requirements.slice(0, 20).map((item) => item.slice(0, 300)),
+      evidence_ids: evidenceIds.slice(0, 20),
+    }),
+  });
+}

@@ -5,7 +5,8 @@ import { SharingPage } from "../sharing";
 import {
   addEvidence, downloadReviewedText, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
-  readRequirements, saveReviewedResume, suggestJobContext,
+  assessRequirements, readRequirements, saveReviewedResume, suggestJobContext,
+  type RequirementAssessment,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
@@ -71,6 +72,8 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [verdicts, setVerdicts] = useState<Record<string, VerifiedStatementView>>({});
   const [reviewError, setReviewError] = useState("");
   const [loadingEvidence, setLoadingEvidence] = useState(false);
+  const [assessments, setAssessments] = useState<RequirementAssessment[]>([]);
+  const [assessing, setAssessing] = useState(false);
 
   useEffect(() => {
     if (stage !== "ready") return;
@@ -236,9 +239,30 @@ export function GuidedJourney({ user, token, logout }: Props) {
     }
   }
 
+  /** Enter the match screen, asking the provider how well the evidence answers.
+   *
+   * Best effort: on failure the screen falls back to the browser word count it
+   * used before, and says which of the two it is showing.
+   */
+  async function openMatch() {
+    setError(""); changeStage("match");
+    const ids = evidence.filter((item) => item.status === "approved").map((item) => item.id);
+    if (!requirements.length || !ids.length) { setAssessments([]); return; }
+    setAssessing(true);
+    try {
+      const result = await assessRequirements(token, requirements, ids);
+      // A body without the list is treated as no answer, not as zero coverage:
+      // showing 0% because a response was malformed would be a lie.
+      setAssessments(Array.isArray(result?.assessments) ? result.assessments : []);
+    } catch {
+      setAssessments([]);
+    } finally { setAssessing(false); }
+  }
+
   function newJob() {
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
+    setAssessments([]);
     changeStage("paste");
   }
 
@@ -298,6 +322,40 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const pendingCount = candidates.filter((item) => !approvedIds.includes(item.statement_id) && !deniedIds.includes(item.statement_id)).length;
   const approvedEvidence = evidence.filter((item) => item.status === "approved");
   const match = estimateOverlap(requirements, approvedEvidence);
+  const LABEL = { COVERED: "Covered", PARTIAL: "Partly covered", MISSING: "Not evidenced" } as const;
+  const TONE = { COVERED: "aw-approved", PARTIAL: "aw-partial", MISSING: "aw-missing" } as const;
+  // The assessed view when the provider answered, the old word count when it
+  // did not. The screen says which, because the two mean very different things.
+  const coverage = assessments.length
+    ? {
+        assessed: true,
+        percentage: Math.round(
+          100 * assessments.filter((item) => item.coverage === "COVERED").length / assessments.length),
+        covered: assessments.filter((item) => item.coverage === "COVERED").length,
+        partial: assessments.filter((item) => item.coverage === "PARTIAL").length,
+        missing: assessments.filter((item) => item.coverage === "MISSING").length,
+        rows: assessments.map((item) => ({
+          text: item.requirement,
+          detail: item.note || "No note supplied.",
+          label: LABEL[item.coverage],
+          tone: TONE[item.coverage],
+        })),
+      }
+    : {
+        assessed: false,
+        percentage: match.percentage,
+        covered: match.matched.filter((item) => item.matches.length).length,
+        partial: 0,
+        missing: match.matched.filter((item) => !item.matches.length).length,
+        rows: match.matched.map((item) => ({
+          text: item.text,
+          detail: item.matches.length
+            ? item.matches.join(", ")
+            : "No matching keywords in approved evidence",
+          label: item.matches.length ? "Keyword match" : "Not found",
+          tone: item.matches.length ? "aw-approved" : "aw-missing",
+        })),
+      };
   const initials = user.full_name.trim().split(/\s+/).slice(0, 2).map((x) => x[0]?.toUpperCase()).join("") || "?";
 
   return <div className="aw-journey">
@@ -420,7 +478,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <div className="aw-summary-bar">
         <div className="aw-chips"><span className="aw-chip is-blue">{requirements.length} extracted requirements</span>
           <span className="aw-chip is-green">Your posting</span><span className="aw-chip">Review before tailoring</span></div>
-        <button type="button" className="aw-primary" onClick={() => changeStage("match")}>Match with my profile →</button>
+        <button type="button" className="aw-primary" onClick={() => void openMatch()}>Match with my profile →</button>
       </div>
     </main>}
 
@@ -432,29 +490,34 @@ export function GuidedJourney({ user, token, logout }: Props) {
       </div>
       <div className="aw-center-heading"><div className="aw-eyebrow">YOUR EVIDENCE MATCH</div>
         <h2>You're making a grounded match.</h2>
-        <p className="aw-muted">Each match is based on words found in approved career evidence.</p></div>
+        <p className="aw-muted">{coverage.assessed
+          ? "Each requirement is assessed against the evidence you approved."
+          : "Each match is based on words found in approved career evidence."}</p></div>
       <div className="aw-match-layout">
         <section className="aw-panel aw-match-overview">
           <h3>Overall match</h3>
-          <div className="aw-match-circle" style={{"--percent": match.percentage + "%"} as CSSProperties}>
-            <strong>{match.percentage}%</strong></div>
-          <p className="aw-estimate-note">Keyword overlap between these requirements
-            and your approved evidence, counted in your browser. This is not verification:
-            nothing here says whether any claim is supported by your evidence.</p>
-          <p className="aw-center aw-muted">Estimated keyword overlap</p>
+          <div className="aw-match-circle" style={{"--percent": coverage.percentage + "%"} as CSSProperties}>
+            <strong>{coverage.percentage}%</strong></div>
+          <p className="aw-estimate-note">{coverage.assessed
+            ? "Assessed against the evidence you approved. Advisory only: it shows what you can currently evidence, not whether anything you write is supported. That check is separate and does not use a language model."
+            : "Keyword overlap between these requirements and your approved evidence, counted in your browser. This is not verification: nothing here says whether any claim is supported by your evidence."}</p>
+          <p className="aw-center aw-muted">{assessing
+            ? "Assessing your evidence…"
+            : coverage.assessed ? "Requirements your evidence covers" : "Estimated keyword overlap"}</p>
           <div className="aw-match-key">
-            <span><i className="is-found"/> Requirements with overlap <strong>{match.matched.filter(x => x.matches.length).length}</strong></span>
-            <span><i className="is-missing"/> No keyword overlap <strong>{match.matched.filter(x => !x.matches.length).length}</strong></span>
+            <span><i className="is-found"/> {coverage.assessed ? "Covered" : "Requirements with overlap"} <strong>{coverage.covered}</strong></span>
+            {coverage.assessed && <span><i className="is-partial"/> Partly covered <strong>{coverage.partial}</strong></span>}
+            <span><i className="is-missing"/> {coverage.assessed ? "Not evidenced" : "No keyword overlap"} <strong>{coverage.missing}</strong></span>
           </div>
           <p className="aw-card-footnote">This is not a validated ATS or hiring-success score.</p>
         </section>
         <section className="aw-panel aw-match-evidence">
           <h3>Evidence from your career profile</h3>
           <p className="aw-muted">Requirements are compared only to your approved evidence.</p>
-          {match.matched.length ? match.matched.map((item,i) =>
+          {coverage.rows.length ? coverage.rows.map((item,i) =>
             <div className="aw-match-requirement" key={i} style={{animationDelay:(i * 75)+"ms"}}>
-              <div><strong>{item.text}</strong><small>{item.matches.length ? item.matches.join(", ") : "No matching keywords in approved evidence"}</small></div>
-              <span className={item.matches.length ? "aw-approved" : "aw-missing"}>{item.matches.length ? "Keyword match" : "Not found"}</span>
+              <div><strong>{item.text}</strong><small>{item.detail}</small></div>
+              <span className={item.tone}>{item.label}</span>
             </div>) : <p className="aw-muted">No separate requirements were detected in this posting.</p>}
         </section>
       </div>

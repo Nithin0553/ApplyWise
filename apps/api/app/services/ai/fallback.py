@@ -28,6 +28,8 @@ from .provider import (
     GroundedGenerationResponse,
     JobContextRequest,
     JobContextSuggestion,
+    RequirementMatchRequest,
+    RequirementMatchResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,3 +73,12 @@ class FallbackAIProvider:
         except AIProviderError as exc:
             self._report(exc)
             return self._backup.suggest_job_context(request)
+
+    def assess_requirements(
+        self, request: RequirementMatchRequest
+    ) -> RequirementMatchResponse:
+        try:
+            return self._primary.assess_requirements(request)
+        except AIProviderError as exc:
+            self._report(exc)
+            return self._backup.assess_requirements(request)
