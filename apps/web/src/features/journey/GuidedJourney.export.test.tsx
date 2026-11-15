@@ -26,16 +26,6 @@ const revision = "v1-0123456789abcdef0123456789abcdef";
 /** A claim F08 classifies INFERRED: grounded, approvable, not certified. */
 const INFERRED_CLAIM = "Improved release confidence for the billing organisation.";
 
-/** jsdom's Blob has no text(); FileReader is what it does implement. */
-function readBlob(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(blob);
-  });
-}
-
 function persistProfile() {
   window.localStorage.setItem(`applywise.journey.profile.${user.id}`, JSON.stringify({
     career: "QA Engineer", years: "2–3 years", arrangement: "Hybrid",
@@ -64,10 +54,13 @@ function stubApi() {
       payload = { statement_id: verifiedId, text: INFERRED_CLAIM, evidence_ids: [evidenceId],
         verification_status: "INFERRED", verification_revision: revision,
         review_status: "APPROVED", finalization_eligible: true, reviewed_revision: revision };
-    } else if (path === "/api/applications/reviewed-drafts") {
-      payload = { application: { id: "33333333-3333-4333-8333-333333333333",
-        role_title: "QA Engineer", company_name: "Company", status: "draft" },
-        resume_version: { id: "version", version_number: 1 } };
+    } else if (path === "/api/applications/" && init?.method === "POST") {
+      payload = { id: "33333333-3333-4333-8333-333333333333",
+        role_title: "QA Engineer", company_name: "Company", status: "draft" };
+    } else if (path === "/api/applications/33333333-3333-4333-8333-333333333333/trusted-finalize") {
+      payload = { id: "version", version_number: 1,
+        snapshot: { statements: [{ statement_id: verifiedId, origin: "F09_APPROVED",
+          verification_status: "INFERRED", approval_status: "APPROVED" }] } };
     } else if (path === "/api/applications/") {
       payload = [{ id: "33333333-3333-4333-8333-333333333333",
         role_title: "QA Engineer", company_name: "Company", status: "draft" }];
@@ -98,48 +91,43 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("the journey does not overstate what its saved draft is", () => {
-  it("does not promise PDF or Word export for a historical draft", async () => {
+describe("the journey creates trusted F13 versions without claiming inferred is verified", () => {
+  it("describes the authenticated F13/F10 path, not a historical draft", async () => {
     persistProfile();
     vi.stubGlobal("scrollTo", vi.fn());
     vi.stubGlobal("fetch", stubApi());
 
     await reachReviewStage();
-
-    expect(screen.getByText(/not eligible for PDF or Word export/)).toBeInTheDocument();
-    expect(screen.queryByText(/can be exported as PDF or Word/)).not.toBeInTheDocument();
+    expect(screen.getByText(/server-validated, approved resume version/i)).toBeInTheDocument();
+    expect(screen.getByText(/PDF or Word/)).toBeInTheDocument();
+    expect(screen.queryByText(/historical draft/i)).not.toBeInTheDocument();
   }, 10000);
 
-  it("keeps an approved INFERRED claim labelled INFERRED in the downloaded file", async () => {
+  it("sends only F08 IDs for an F09-approved INFERRED claim to trusted-finalize", async () => {
     persistProfile();
     vi.stubGlobal("scrollTo", vi.fn());
-    vi.stubGlobal("fetch", stubApi());
-    let downloaded: Blob | null = null;
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      value: vi.fn((blob: Blob) => { downloaded = blob; return "blob:test"; }),
-    });
-    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const fetchMock = stubApi();
+    vi.stubGlobal("fetch", fetchMock);
 
     await reachReviewStage();
     fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
-    // INFERRED is approvable: only UNSUPPORTED is barred.
     const approve = screen.getByRole("button", { name: /Approve claim/ });
     expect(approve).not.toBeDisabled();
     fireEvent.click(approve);
     await waitFor(() => expect(
       screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole("button", { name: /Export reviewed resume/ }));
-
-    await waitFor(() => expect(downloaded).not.toBeNull(), { timeout: 4000 });
-    const text = await readBlob(downloaded as unknown as Blob);
-    expect(text).toContain("[inferred: grounded, not certified]");
-    expect(text).toContain("Inferred claims are grounded but not certified.");
-    expect(text).toContain("This file is not a trusted export.");
-    // The blanket claim this replaced must not come back.
-    expect(text).not.toContain("Verified against the author's own approved evidence");
-    expect(text).not.toContain("[verified against cited evidence]");
+    fireEvent.click(screen.getByRole("button", { name: /Finalize trusted resume/ }));
+    const finalizePath = "/api/applications/33333333-3333-4333-8333-333333333333/trusted-finalize";
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      finalizePath, expect.objectContaining({ method: "POST" }), { timeout: 4000 }));
+    const call = fetchMock.mock.calls.find(([path]) => String(path) === finalizePath);
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({ statement_ids: [verifiedId] });
+    // F08's INFERRED verdict remains distinct from VERIFIED. The client never
+    // sends a self-asserted verification status, text, or fake approval origin.
+    expect(String(call?.[1]?.body)).not.toContain("VERIFIED");
+    expect(String(call?.[1]?.body)).not.toContain("F09_APPROVED");
+    expect(await screen.findByRole("heading", { name: "My Applications" }, { timeout: 6000 }))
+      .toBeInTheDocument();
   }, 15000);
 });
