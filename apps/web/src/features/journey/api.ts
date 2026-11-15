@@ -82,12 +82,12 @@ export function generateCandidates(
   details: { role: string; company: string; description: string; requirements: string[] },
   approvedIds: string[],
 ): Promise<GenerationResult> {
-  // "demo" is a scripted provider: offline, deterministic, and deliberately
-  // emitting two ungrounded citations so the rejection path is visible while
-  // developing. Forcing it in a real deployment would silently override the
-  // server's configured provider, so outside dev the server decides.
-  const query = import.meta.env.DEV ? "?provider=demo" : "";
-  return api<GenerationResult>(token, `/api/generation/preview${query}`, {
+  // No provider override. The server's AI_PROVIDER decides, exactly as it does
+  // for the job-context and requirement-match calls. Pinning this to the
+  // scripted "demo" provider meant statements were never written against the
+  // job's requirements, whatever AI_PROVIDER said -- set AI_PROVIDER=demo to
+  // get the scripted output and its deliberate ungrounded citations back.
+  return api<GenerationResult>(token, "/api/generation/preview", {
     method: "POST",
     body: JSON.stringify({
       job_context: {
