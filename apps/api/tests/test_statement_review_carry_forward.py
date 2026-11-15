@@ -18,11 +18,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.modules.statement_review.contract import CurrentVerifiedStatement
+from app.modules.statement_review.contract import (
+    CurrentVerifiedStatement,
+    VerificationStatus,
+)
+from app.modules.statement_review.models import ReviewDecision
 from app.modules.statement_review.schemas import EffectiveReviewStatus
 from app.modules.statement_review.service import StatementReviewService
-from app.modules.verification.contracts import VerificationStatus
-from app.modules.generation.cover_letter_contracts import ReviewDecision
 
 
 @dataclass
