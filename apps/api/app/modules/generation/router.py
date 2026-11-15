@@ -24,6 +24,7 @@ selection logic that will close it the same way F07's is closed here.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -39,7 +40,12 @@ from app.services.ai.provider import (
     RequirementMatchRequest,
 )
 
-from .cover_letter_schemas import CoverLetterDraft, CoverLetterRequest
+from .cover_letter_pdf import render_cover_letter_pdf
+from .cover_letter_schemas import (
+    CoverLetterDraft,
+    CoverLetterPdfRequest,
+    CoverLetterRequest,
+)
 from .cover_letter_service import CoverLetterService
 from .errors import GenerationUnavailableError, MalformedProviderResponseError
 from .job_context_schemas import (
@@ -155,6 +161,37 @@ def preview_cover_letter(
         raise HTTPException(
             status_code=502, detail="AI provider returned an unusable response."
         ) from exc
+
+
+@router.post(
+    "/cover-letter/pdf",
+    dependencies=[Depends(require_prototype_environment)],
+)
+def download_cover_letter(
+    request: CoverLetterPdfRequest,
+    current_user: User = Depends(require_job_seeker),
+) -> Response:
+    """Lay a drafted cover letter out as a PDF.
+
+    Deliberately NOT an F10 export: no F13 revalidation happens here and none
+    is implied. The caller sends the paragraphs it drafted, the server lays
+    them out under the signed-in user's name, and the page itself says it is
+    a draft. The resume remains the only document this product stands behind.
+    """
+    data = render_cover_letter_pdf(
+        full_name=current_user.full_name,
+        email=current_user.email,
+        company=request.company,
+        paragraphs=request.paragraphs,
+    )
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'attachment; filename="cover-letter-draft.pdf"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/providers")

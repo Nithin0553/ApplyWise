@@ -332,6 +332,32 @@ export interface CoverLetterDraft {
 
 export type CoverLetterTone = "professional" | "warm" | "direct";
 
+/** A PDF of the drafted letter.
+ *
+ * Deliberately not an F10 export: no trusted revalidation happens, the file
+ * says on its face that it is a draft, and the resume stays the only
+ * document this product stands behind.
+ */
+export async function downloadCoverLetterPdf(
+  token: string,
+  body: { company: string | null; paragraphs: string[] },
+): Promise<Blob> {
+  // Not api(): that parses JSON, and this route returns a file.
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  });
+  const response = await fetch("/api/generation/cover-letter/pdf", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return response.blob();
+}
+
 export function generateCoverLetter(
   token: string,
   body: {

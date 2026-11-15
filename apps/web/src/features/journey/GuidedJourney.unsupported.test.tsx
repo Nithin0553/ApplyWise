@@ -71,10 +71,12 @@ describe("an unsupported claim cannot be approved from the journey", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
 
-    // F08's reason is shown, not hidden behind a generic message. The claim
-    // text also contains "85%", so assert on the verdict's own finding list.
+    // F08's reason is shown, not hidden behind a generic message. It is shown
+    // as the plain-language label rather than the raw coverage percentage,
+    // which read as a confidence score the number does not support.
     expect(await screen.findByText("Not supported by your evidence")).toBeInTheDocument();
-    expect(screen.getByRole("listitem")).toHaveTextContent("85%");
+    expect(screen.getByRole("listitem"))
+      .toHaveTextContent("Figure is not in your evidence");
     expect(screen.getByText(/cannot be approved or exported/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Approve claim/ })).toBeDisabled();
     expect(decisions).toEqual([]);

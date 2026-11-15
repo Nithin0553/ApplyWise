@@ -63,16 +63,10 @@ function PreparationCard({ item }: { item: StatementPreparation }) {
         </ol>
       </section>
 
-      {item.supporting_points.length > 0 && (
-        <section className="iv-section">
-          <h4>Answer from your own evidence</h4>
-          <ul className="iv-points">
-            {item.supporting_points.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* The drafted answers were removed deliberately. They read as
+          generated filler next to the user's own evidence, and a weak
+          suggested answer is worse than none: it invites being repeated in
+          an interview. The questions are the useful part. */}
     </article>
   );
 }

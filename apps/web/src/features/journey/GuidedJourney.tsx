@@ -5,7 +5,8 @@ import { SharingPage } from "../sharing";
 import {
   addEvidence, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
-  assessRequirements, finalizeResume, generateCoverLetter, readRequirements, saveBlob,
+  assessRequirements, downloadCoverLetterPdf, finalizeResume, generateCoverLetter,
+  readRequirements, saveBlob,
   saveReviewedResume, suggestJobContext,
   type CoverLetterDraft, type CoverLetterTone, type RequirementAssessment,
   type JourneyApplication, type JourneyEvidence,
@@ -17,7 +18,7 @@ import { EvidenceManager } from "../evidence/EvidenceProfilePage";
 import {
   VerificationPanel, listStatements, submitStatement, type VerifiedStatementView,
 } from "../verification";
-import { STATUS_LABEL } from "../verification/types";
+import { REASON_LABEL, STATUS_LABEL } from "../verification/types";
 import { decideStatement } from "../review";
 import { StatementReviewPage } from "../review";
 import { downloadResume, type ResumeExportFormat } from "../resume/api";
@@ -163,6 +164,16 @@ export function GuidedJourney({ user, token, logout }: Props) {
     const t = window.setTimeout(() => setStage("paste"), 1500);
     return () => window.clearTimeout(t);
   }, [stage]);
+
+  /** The journey is over: stop restoring it at the next sign-in.
+   *
+   * Without this a finished journey came back on every sign-in, parked on
+   * review and approval, asking again for approvals the user had already
+   * given -- and the way out, New job, was the one screen it never showed.
+   */
+  function clearJourneyDraft() {
+    try { localStorage.removeItem(localDraftKey(user.id)); } catch { /* ignore */ }
+  }
 
   function changeStage(next: Stage) {
     setError("");
@@ -318,6 +329,21 @@ export function GuidedJourney({ user, token, logout }: Props) {
     await draftCoverLetter();
   }
 
+  async function downloadCoverLetter() {
+    if (!coverLetter || coverBusy) return;
+    setCoverBusy(true); setError("");
+    try {
+      const safeName = (user.full_name.trim() || "cover-letter")
+        .replace(/[^a-z0-9_-]+/gi, "-");
+      saveBlob(await downloadCoverLetterPdf(token, {
+        company: company || null,
+        paragraphs: coverLetter.paragraphs.map((item) => item.text),
+      }), `${safeName}-cover-letter.pdf`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not prepare the PDF.");
+    } finally { setCoverBusy(false); }
+  }
+
   async function draftCoverLetter() {
     const approvedStatements = candidates
       .filter((item) => approvedIds.includes(item.statement_id))
@@ -426,6 +452,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         setFinalVersionId(versionId);
       }
       const safeName = (user.full_name.trim() || "resume").replace(/[^a-z0-9_-]+/gi, "-");
+      clearJourneyDraft();
       saveBlob(await downloadResume(token, versionId, format, "standard"),
         `${safeName}-resume.${format}`);
     } catch (err) {
@@ -454,7 +481,11 @@ export function GuidedJourney({ user, token, logout }: Props) {
     try { localStorage.removeItem(localDraftKey(user.id)); } catch { /* ignore */ }
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
-    setAssessments([]);
+    setAssessments([]); setVerdicts({});
+    // The letter is written from one job's approved claims. Carrying it into
+    // the next job would show the previous employer's letter under a new
+    // heading until the user noticed and redrafted.
+    setCoverLetter(null);
     setFinalApplicationId(null); setFinalVersionId(null);
     changeStage("paste");
   }
@@ -499,6 +530,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
     setBusy(true); setError("");
     try {
       await saveReviewedResume(token, { role, company, description: job }, evidence, approved);
+      clearJourneyDraft();
       setStage("exporting");
       await delay(1200);
       await openApplications();
@@ -625,6 +657,8 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <p className="aw-letter-signoff">Sincerely,<br />{user.full_name}</p>
         </article>
         <div className="aw-cover-actions">
+          <button type="button" className="aw-primary" disabled={coverBusy}
+            onClick={() => void downloadCoverLetter()}>Download PDF</button>
           <button type="button" className="aw-link"
             onClick={() => void navigator.clipboard?.writeText(letterText(coverLetter))}>
             Copy letter
@@ -862,7 +896,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
                   <span>• {item.text}</span><small>{selected ? "Hide evidence ↑" : "Needs approval · Review ↗"}</small>
                 </button>}
               {selected && !approved && <div className="aw-line-detail">
-                <div className="aw-line-detail-title"><strong>Evidence review · Experience claim</strong><span>Needs approval</span></div>
+                <div className="aw-line-detail-title"><strong>Does your evidence say this?</strong><span>Needs approval</span></div>
                 <p className="aw-claim-text">{item.text}</p>
                 <div className="aw-source-evidence"><strong>Your source evidence</strong>
                   {citations.map(ev => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
@@ -871,11 +905,11 @@ export function GuidedJourney({ user, token, logout }: Props) {
                   className={`aw-verdict is-${verdicts[item.statement_id].status.toLowerCase()}`}>
                   <strong>{STATUS_LABEL[verdicts[item.statement_id].status]}</strong>
                   <ul>{verdicts[item.statement_id].findings.map((finding, position) =>
-                    <li key={position}>{finding.detail}</li>)}</ul>
+                    <li key={position}>{REASON_LABEL[finding.reason] ?? finding.detail}</li>)}</ul>
                 </div>}
                 <p className="aw-review-note">{verdicts[item.statement_id]?.status === "UNSUPPORTED"
                   ? "This claim states something your approved evidence does not contain, so it cannot be approved or exported."
-                  : "Checked against your approved evidence. Approving records your decision against this exact version."}</p>
+                  : "Approving means you are willing to put this sentence on your resume. Your approval is recorded against this exact wording and the evidence behind it, so if either changes it is checked again."}</p>
                 {reviewError && <p className="aw-review-error" role="alert">{reviewError}</p>}
                 <div className="aw-review-actions">
                   <button type="button" disabled={busy}
