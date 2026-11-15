@@ -82,7 +82,12 @@ export function generateCandidates(
   details: { role: string; company: string; description: string; requirements: string[] },
   approvedIds: string[],
 ): Promise<GenerationResult> {
-  return api<GenerationResult>(token, "/api/generation/preview?provider=demo", {
+  // "demo" is a scripted provider: offline, deterministic, and deliberately
+  // emitting two ungrounded citations so the rejection path is visible while
+  // developing. Forcing it in a real deployment would silently override the
+  // server's configured provider, so outside dev the server decides.
+  const query = import.meta.env.DEV ? "?provider=demo" : "";
+  return api<GenerationResult>(token, `/api/generation/preview${query}`, {
     method: "POST",
     body: JSON.stringify({
       job_context: {
@@ -133,49 +138,44 @@ export function getVersions(token: string, applicationId: string) {
   return api<JourneyResumeVersion[]>(token, `/api/applications/${encodeURIComponent(applicationId)}/resume-versions`);
 }
 
-/**
- * F13 stores provenance snapshots, not an F10 export-eligibility decision.
- * Preserve the honest INFERRED status: a human decision doesn't magically
- * turn a candidate into an F08-verified claim.
+/** Create an application, then ask F13 to finalize current F09-approved claims.
+ *
+ * The browser sends F08 statement IDs only. F13 rechecks the authenticated
+ * owner's current F02/F08/F09 state before returning a trusted version. It
+ * never accepts caller-supplied text or invented VERIFIED/APPROVED labels.
  */
-export async function saveReviewedResume(
+export async function saveTrustedResume(
   token: string,
   details: { role: string; company: string; description: string },
-  evidence: JourneyEvidence[],
-  approved: CandidateStatement[],
-) {
-  if (!approved.length) throw new Error("No approved statements to save.");
-  const ids = new Set(
-    evidence.filter(item => item.status === "approved" && item.approved_at)
-      .map(item => item.id),
-  );
-  if (approved.some(statement => !statement.evidence_ids.length ||
-    statement.evidence_ids.some(id => !ids.has(id)))) {
-    throw new Error("A statement references evidence that is no longer approved.");
+  approvedStatementIds: string[],
+): Promise<{ application: JourneyApplication; resume_version: JourneyResumeVersion }> {
+  if (!approvedStatementIds.length || approvedStatementIds.length > 10 ||
+      new Set(approvedStatementIds).size !== approvedStatementIds.length) {
+    throw new Error("Select 1–10 distinct approved, verified-or-inferred statements.");
   }
-
-  // Send the user's explicit review decisions, not self-asserted evidence
-  // snapshots or VERIFIED labels. The server resolves F02 records and
-  // atomically saves an INFERRED historical draft with its application.
-  const result = await api<{
-    application: JourneyApplication;
-    resume_version: JourneyResumeVersion;
-  }>(token, "/api/applications/reviewed-drafts", {
+  const application = await api<JourneyApplication>(token, "/api/applications/", {
     method: "POST",
     body: JSON.stringify({
-      application: {
-        company_name: details.company.trim() || "Company not specified",
-        role_title: details.role.trim() || "Target position",
-        notes: `Draft created from a user-supplied job description. ${details.description.slice(0, 240)}`,
-      },
-      statements: approved.map(statement => ({
-        statement_id: statement.statement_id,
-        text: statement.text,
-        evidence_ids: statement.evidence_ids,
-      })),
+      company_name: details.company.trim() || "Company not specified",
+      role_title: details.role.trim() || "Target position",
+      notes: `Application created from a user-supplied job description. ${details.description.slice(0, 240)}`,
     }),
   });
-  return result.application;
+
+  try {
+    const resume_version = await api<JourneyResumeVersion>(
+      token, `/api/applications/${encodeURIComponent(application.id)}/trusted-finalize`, {
+        method: "POST",
+        body: JSON.stringify({ statement_ids: approvedStatementIds }),
+      },
+    );
+    return { application, resume_version };
+  } catch (err) {
+    // Creating an application and finalizing its version are separate API calls.
+    // Never suggest that a trusted version exists if F13 refused to create one.
+    const reason = err instanceof Error ? err.message : "Could not verify selected claims.";
+    throw new Error(`The application draft was created, but trusted finalization failed: ${reason} Open Applications to retry after reviewing your evidence.`);
+  }
 }
 
 /** Rule-based excerpting, not the unmounted F04 backend prototype. */
@@ -220,13 +220,28 @@ export function downloadReviewedText(
   fullName: string,
   details: { role: string; company: string },
   statements: CandidateStatement[],
+  statuses: Record<string, "VERIFIED" | "INFERRED" | "UNSUPPORTED" | undefined> = {},
 ) {
   const safeName = (fullName.trim() || "resume").replace(/[^a-z0-9_-]+/gi, "-");
+  // Each claim carries the status F08 recorded for it. A blanket "verified"
+  // footer would be false for an INFERRED claim -- grounded, deliberately not
+  // certified -- and this file can be sent to an employer, so the distinction
+  // F08 draws has to survive into it.
+  const label = (statementId: string) => {
+    const status = statuses[statementId];
+    if (status === "VERIFIED") return " [verified against cited evidence]";
+    if (status === "INFERRED") return " [inferred: grounded, not certified]";
+    return "";
+  };
   const body = [
     fullName.trim(), `Target role: ${details.role}`,
     details.company ? `Company: ${details.company}` : "",
-    "", "RELEVANT EXPERIENCE", ...statements.map((item) => `• ${item.text}`),
-    "", "User-reviewed draft. Automated claim verification is not yet available.",
+    "", "RELEVANT EXPERIENCE",
+    ...statements.map((item) => `• ${item.text}${label(item.statement_id)}`),
+    "",
+    "Reviewed draft. Each claim shows the status recorded against the author's",
+    "own approved evidence. Inferred claims are grounded but not certified.",
+    "This file is not a trusted export.",
   ].filter((line) => line !== undefined).join("\n");
   const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" }));
   const link = document.createElement("a");
