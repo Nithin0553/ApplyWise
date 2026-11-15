@@ -10,7 +10,17 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
 
-from .schemas import DocumentFormat, ResumeDocument, ResumeTemplate
+from .schemas import DocumentFormat, ResumeDocument, ResumeEntry, ResumeTemplate
+
+
+def _entry_label(entry: ResumeEntry) -> str:
+    """The line that heads an entry, e.g. 'Associate QA Engineer, Model N'.
+
+    Empty when the evidence carried neither an organization nor a role, which
+    is normal for certifications and skills; those read as plain bullets.
+    """
+    parts = [part for part in (entry.role, entry.organization) if part]
+    return ", ".join(parts)
 
 
 def render_resume(
@@ -49,10 +59,22 @@ def _render_docx(resume: ResumeDocument) -> bytes:
     if resume.company:
         document.add_paragraph(f"Target company: {resume.company}")
 
-    document.add_heading("Relevant Experience", level=1)
+    if resume.sections:
+        for section in resume.sections:
+            document.add_heading(section.heading, level=1)
+            for entry in section.entries:
+                label = _entry_label(entry)
+                if label:
+                    paragraph = document.add_paragraph()
+                    paragraph.add_run(label).bold = True
+                for bullet in entry.bullets:
+                    document.add_paragraph(bullet, style="List Bullet")
+    else:
+        # A caller that supplied only a flat list of statements.
+        document.add_heading("Relevant Experience", level=1)
 
-    for statement in resume.statements:
-        document.add_paragraph(statement, style="List Bullet")
+        for statement in resume.statements:
+            document.add_paragraph(statement, style="List Bullet")
 
     buffer = BytesIO()
     document.save(buffer)
@@ -98,10 +120,22 @@ def _render_pdf(resume: ResumeDocument) -> bytes:
 
     y -= 10
 
-    draw_line("RELEVANT EXPERIENCE", "Helvetica-Bold", 12, 8)
+    if resume.sections:
+        for section in resume.sections:
+            draw_line(section.heading.upper(), "Helvetica-Bold", 12, 6)
+            for entry in section.entries:
+                label = _entry_label(entry)
+                if label:
+                    draw_line(label, "Helvetica-Bold", body_size + 1, 3)
+                for bullet in entry.bullets:
+                    draw_line(f"- {bullet}", "Helvetica", body_size, 4)
+            y -= 6
+    else:
+        # A caller that supplied only a flat list of statements.
+        draw_line("RELEVANT EXPERIENCE", "Helvetica-Bold", 12, 8)
 
-    for statement in resume.statements:
-        draw_line(f"- {statement}", "Helvetica", body_size, 5)
+        for statement in resume.statements:
+            draw_line(f"- {statement}", "Helvetica", body_size, 5)
 
     pdf.save()
     return buffer.getvalue()
