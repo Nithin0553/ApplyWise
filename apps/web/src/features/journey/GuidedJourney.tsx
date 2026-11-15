@@ -126,7 +126,11 @@ export function GuidedJourney({ user, token, logout }: Props) {
       if (suggestion?.company_name) {
         setCompany((current) => current || suggestion.company_name);
       }
-      setRequirements(reqs);
+      // readRequirements() takes the first ten long lines, so on a posting
+      // without bullet characters it returns the metadata block and stops
+      // before the duties. The model reads the whole posting, so prefer it and
+      // keep the heuristic only for when it returns nothing.
+      setRequirements(suggestion?.requirements?.length ? suggestion.requirements : reqs);
       setStage("analysis");
     } catch (err) {
       setStage("paste");
@@ -434,9 +438,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <h3>Overall match</h3>
           <div className="aw-match-circle" style={{"--percent": match.percentage + "%"} as CSSProperties}>
             <strong>{match.percentage}%</strong></div>
-          <p className="aw-estimate-note">Keyword overlap, estimated in your browser.
-            This is not verification: F04 job analysis and F05 matching are not wired in,
-            and nothing here says whether a claim is supported by your evidence.</p>
+          <p className="aw-estimate-note">Keyword overlap between these requirements
+            and your approved evidence, counted in your browser. This is not verification:
+            nothing here says whether any claim is supported by your evidence.</p>
           <p className="aw-center aw-muted">Estimated keyword overlap</p>
           <div className="aw-match-key">
             <span><i className="is-found"/> Requirements with overlap <strong>{match.matched.filter(x => x.matches.length).length}</strong></span>

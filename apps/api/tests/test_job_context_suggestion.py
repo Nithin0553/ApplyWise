@@ -44,8 +44,9 @@ def test_a_signed_in_job_seeker_gets_a_suggestion(client: TestClient) -> None:
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert set(body) == {"role_title", "company_name"}
+    assert set(body) == {"role_title", "company_name", "requirements"}
     assert isinstance(body["role_title"], str)
+    assert isinstance(body["requirements"], list)
 
 
 def test_the_route_requires_authentication(client: TestClient) -> None:

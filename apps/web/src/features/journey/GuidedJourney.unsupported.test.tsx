@@ -97,7 +97,7 @@ describe("an unsupported claim cannot be approved from the journey", () => {
       { name: "Here's what the role requires." }, { timeout: 4000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Match with my profile/i }));
 
-    expect(screen.getByText(/estimated in your browser/)).toBeInTheDocument();
+    expect(screen.getByText(/counted in your browser/)).toBeInTheDocument();
     expect(screen.getByText(/This is not verification/)).toBeInTheDocument();
   }, 10000);
 });

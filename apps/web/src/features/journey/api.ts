@@ -270,6 +270,9 @@ export function getApprovedStatements(token: string) {
 export interface JobContextSuggestion {
   role_title: string;
   company_name: string;
+  /** What the posting asks of a candidate. Empty when the provider could not
+   *  read them, which the caller treats as "fall back to readRequirements". */
+  requirements: string[];
 }
 
 /** Ask the configured provider to read the role title and employer out of a posting.

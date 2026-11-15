@@ -36,6 +36,7 @@ from .provider import (
     RawStatement,
 )
 
+MAX_REQUIREMENTS = 20
 API_URL = "https://api.anthropic.com/v1/messages"
 API_VERSION = "2023-06-01"
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -62,7 +63,18 @@ _JOB_CONTEXT_INSTRUCTIONS = (
     "If the posting does not state one of them, return an empty string for it. "
     "Do not guess, and do not use a department, location or job board as the "
     "company.\n"
-    'Reply with JSON only, of the form {"role_title": "...", "company_name": "..."}'
+    "Also list what the posting actually asks a candidate to have or do: "
+    "skills, technologies, experience and responsibilities. Read the whole "
+    "posting, not only the opening. Each item must be one specific requirement "
+    "in the posting's own words, trimmed of bullet characters.\n"
+    "Do not include section headings such as "
+    '"Essential Duties and Responsibilities", and do not include administrative '
+    "details such as department, location, salary, clearance level, employment "
+    "type or equal-opportunity text. Those describe the posting, not the "
+    "candidate.\n"
+    "Return at most 20 requirements, most important first.\n"
+    'Reply with JSON only, of the form {"role_title": "...", "company_name": "...", '
+    '"requirements": ["...", "..."]}'
 )
 
 _COVER_LETTER_INSTRUCTIONS = """\
@@ -226,8 +238,15 @@ class AnthropicAIProvider:
         allowed so the model is not pushed into guessing.
         """
         prompt = _JOB_CONTEXT_INSTRUCTIONS + f"\n\nJob posting:\n{request.description}"
-        parsed = _extract_json(self._post(prompt, max_tokens=256))
+        parsed = _extract_json(self._post(prompt, max_tokens=2048))
+        raw = parsed.get("requirements")
+        requirements = tuple(
+            str(item).strip()[:300]
+            for item in (raw if isinstance(raw, list) else [])
+            if str(item).strip()
+        )[:MAX_REQUIREMENTS]
         return JobContextSuggestion(
             role_title=str(parsed.get("role_title", "")).strip()[:200],
             company_name=str(parsed.get("company_name", "")).strip()[:200],
+            requirements=requirements,
         )

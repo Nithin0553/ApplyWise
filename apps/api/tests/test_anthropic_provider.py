@@ -221,3 +221,42 @@ def test_a_rejected_request_reports_the_provider_reason_without_the_key() -> Non
 
     assert "max_tokens" in str(raised.value)
     assert KEY not in str(raised.value)
+
+
+def test_requirements_are_read_from_the_whole_posting_and_bounded() -> None:
+    """The heuristic this replaces stopped after ten lines of metadata."""
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({
+            "role_title": "Senior Systems Engineer (Angular)",
+            "company_name": "Syms Strategic Group",
+            "requirements": [f"Requirement {n}" for n in range(30)],
+        }))
+
+    suggestion = _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+    assert len(suggestion.requirements) == 20
+    assert suggestion.requirements[0] == "Requirement 0"
+
+
+def test_blank_and_oversized_requirements_are_cleaned_up() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({
+            "role_title": "", "company_name": "",
+            "requirements": ["  Hands-on Angular experience  ", "   ", "x" * 400],
+        }))
+
+    suggestion = _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+    assert suggestion.requirements[0] == "Hands-on Angular experience"
+    assert len(suggestion.requirements) == 2
+    assert len(suggestion.requirements[1]) == 300
+
+
+def test_no_requirements_is_an_acceptable_answer() -> None:
+    """The caller falls back to its own heuristic rather than showing none."""
+    def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
+        return _reply(json.dumps({"role_title": "Data Analyst", "company_name": ""}))
+
+    suggestion = _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
+
+    assert suggestion.requirements == ()

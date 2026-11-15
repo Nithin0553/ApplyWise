@@ -22,7 +22,10 @@ class JobContextSuggestionRequest(BaseModel):
 
 
 class JobContextSuggestionView(BaseModel):
-    """Either field may be empty: the posting may not state it."""
+    """Any field may be empty: the posting may not state it, or the provider
+    may not have managed to read it. The caller falls back rather than
+    treating an empty answer as "this posting asks for nothing"."""
 
     role_title: str = ""
     company_name: str = ""
+    requirements: list[str] = Field(default_factory=list, max_length=20)

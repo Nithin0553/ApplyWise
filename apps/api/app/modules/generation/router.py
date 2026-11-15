@@ -185,5 +185,7 @@ def suggest_job_context(
         ) from exc
 
     return JobContextSuggestionView(
-        role_title=suggestion.role_title, company_name=suggestion.company_name
+        role_title=suggestion.role_title,
+        company_name=suggestion.company_name,
+        requirements=list(suggestion.requirements),
     )

@@ -103,6 +103,9 @@ class JobContextSuggestion:
 
     role_title: str
     company_name: str
+    # What the posting actually asks for. Empty when the provider could not
+    # read them, which the caller treats as "use the old heuristic".
+    requirements: tuple[str, ...] = ()
 
 
 class AIProviderError(Exception):
