@@ -12,6 +12,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getApprovedStatements = vi.fn();
+const getEvidence = vi.fn();
 
 vi.mock("../sharing", () => ({ SharingPage: () => <h2>Sharing</h2> }));
 vi.mock("../verification", () => ({
@@ -25,6 +26,7 @@ vi.mock("../interview", () => ({ InterviewPrepPage: () => <h2>Interview</h2> }))
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   getApprovedStatements: (...args: unknown[]) => getApprovedStatements(...args),
+  getEvidence: (...args: unknown[]) => getEvidence(...args),
 }));
 
 import type { User } from "../auth/types";
@@ -76,6 +78,8 @@ beforeEach(() => {
   window.localStorage.clear();
   getApprovedStatements.mockReset();
   getApprovedStatements.mockResolvedValue([]);
+  getEvidence.mockReset();
+  getEvidence.mockResolvedValue([]);
 });
 afterEach(cleanup);
 
@@ -113,6 +117,17 @@ describe("journey draft", () => {
     expect(await screen.findByText("All statements reviewed")).toBeInTheDocument();
   });
 
+  it("reloads the evidence a restored journey needs to cite-check the export", async () => {
+    // The export checks every claim's citations against this list. A journey
+    // restored without it reported the user's own approved evidence as no
+    // longer approved.
+    seedProfile();
+    seedDraft();
+    render(<GuidedJourney user={user} token="synthetic-token" logout={vi.fn()} />);
+    await screen.findByText("REVIEW & APPROVAL");
+    await waitFor(() => expect(getEvidence).toHaveBeenCalledWith("synthetic-token"));
+  });
+
   it("ignores a draft parked on a transient stage", async () => {
     seedProfile();
     seedDraft({ stage: "generating" });
@@ -121,5 +136,6 @@ describe("journey draft", () => {
     expect(await screen.findByText("Continue →")).toBeInTheDocument();
     expect(screen.queryByText("REVIEW & APPROVAL")).not.toBeInTheDocument();
     expect(getApprovedStatements).not.toHaveBeenCalled();
+    expect(getEvidence).not.toHaveBeenCalled();
   });
 });

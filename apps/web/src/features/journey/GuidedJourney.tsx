@@ -126,14 +126,21 @@ export function GuidedJourney({ user, token, logout }: Props) {
   }, [user.id, stage, job, role, company, requirements, candidates, verdicts, deniedIds]);
 
   // A restored journey asks the server which claims are approved, because the
-  // browser is not allowed to be the authority on that.
+  // browser is not allowed to be the authority on that. It reloads the
+  // evidence in the same pass: the export checks every claim's citations
+  // against this list, so a journey restored without it fails that check on
+  // evidence that is approved and present.
   useEffect(() => {
     if (!draft?.candidates.length) return;
     let live = true;
     void (async () => {
       try {
-        const approved = await getApprovedStatements(token);
+        const [approved, records] = await Promise.all([
+          getApprovedStatements(token),
+          getEvidence(token),
+        ]);
         if (!live) return;
+        setEvidence(records);
         const ids = new Set(approved.map((item) => item.statement_id));
         setApprovedIds(draft.candidates.filter((item) => ids.has(item.statement_id))
           .map((item) => item.statement_id));
@@ -343,10 +350,17 @@ export function GuidedJourney({ user, token, logout }: Props) {
     if (!statementIds.length || busy) return;
     setBusy(true); setError("");
     try {
+      // Whatever route reached this screen, cite-checking needs the current
+      // evidence, so load it when the journey does not already hold it.
+      let records = evidence;
+      if (!records.length) {
+        records = await getEvidence(token);
+        setEvidence(records);
+      }
       let applicationId = finalApplicationId;
       if (!applicationId) {
         const application = await saveReviewedResume(
-          token, { role, company, description: job }, evidence, approved);
+          token, { role, company, description: job }, records, approved);
         applicationId = application.id;
         setFinalApplicationId(applicationId);
       }
