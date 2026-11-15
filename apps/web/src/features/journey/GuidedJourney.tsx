@@ -5,7 +5,8 @@ import { SharingPage } from "../sharing";
 import {
   addEvidence, downloadReviewedText, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
-  assessRequirements, readRequirements, saveReviewedResume, suggestJobContext,
+  assessRequirements, finalizeResume, readRequirements, saveBlob,
+  saveReviewedResume, suggestJobContext,
   type RequirementAssessment,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
@@ -19,6 +20,7 @@ import {
 import { STATUS_LABEL } from "../verification/types";
 import { decideStatement } from "../review";
 import { StatementReviewPage } from "../review";
+import { downloadResume, type ResumeExportFormat } from "../resume/api";
 import { InterviewPrepPage, type ApprovedStatement } from "../interview";
 import {
   INTERVIEW_PREP_AVAILABLE, INTERVIEW_PREP_UNAVAILABLE,
@@ -74,6 +76,10 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [loadingEvidence, setLoadingEvidence] = useState(false);
   const [assessments, setAssessments] = useState<RequirementAssessment[]>([]);
   const [assessing, setAssessing] = useState(false);
+  // The application and trusted version behind the PDF/Word downloads, kept
+  // so a second download does not finalize a second time.
+  const [finalApplicationId, setFinalApplicationId] = useState<string | null>(null);
+  const [finalVersionId, setFinalVersionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (stage !== "ready") return;
@@ -259,10 +265,47 @@ export function GuidedJourney({ user, token, logout }: Props) {
     } finally { setAssessing(false); }
   }
 
+  /** Download the approved statements as a real document.
+   *
+   * The .txt export saves a historical draft, which F10 refuses to render by
+   * design. This takes the other road: F13 materialises a trusted version from
+   * the F09-approved statements and F10 renders that. The server re-checks
+   * every approval and its evidence first, so a claim approved against
+   * evidence that has since changed stops here rather than reaching a PDF.
+   */
+  async function downloadFinal(format: ResumeExportFormat) {
+    const approved = candidates.filter((item) => approvedIds.includes(item.statement_id));
+    const statementIds = approved
+      .map((item) => verdicts[item.statement_id]?.statement_id)
+      .filter((value): value is string => Boolean(value));
+    if (!statementIds.length || busy) return;
+    setBusy(true); setError("");
+    try {
+      let applicationId = finalApplicationId;
+      if (!applicationId) {
+        const application = await saveReviewedResume(
+          token, { role, company, description: job }, evidence, approved);
+        applicationId = application.id;
+        setFinalApplicationId(applicationId);
+      }
+      let versionId = finalVersionId;
+      if (!versionId) {
+        versionId = (await finalizeResume(token, applicationId, statementIds)).id;
+        setFinalVersionId(versionId);
+      }
+      const safeName = (user.full_name.trim() || "resume").replace(/[^a-z0-9_-]+/gi, "-");
+      saveBlob(await downloadResume(token, versionId, format, "standard"),
+        `${safeName}-resume.${format}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not prepare the document.");
+    } finally { setBusy(false); }
+  }
+
   function newJob() {
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
     setAssessments([]);
+    setFinalApplicationId(null); setFinalVersionId(null);
     changeStage("paste");
   }
 
@@ -647,7 +690,16 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <button type="button" className="aw-primary aw-export-button"
             disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
             onClick={() => void exportReviewed()}>Export reviewed resume →</button>
-          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a <strong>historical draft</strong> under Applications. Historical drafts are kept for your records; they are not eligible for PDF or Word export, which requires trusted finalization.</p>
+          <div className="aw-final-downloads">
+            <button type="button" disabled={busy || !approvedIds.length}
+              onClick={() => void downloadFinal("pdf")}>Download PDF</button>
+            <button type="button" disabled={busy || !approvedIds.length}
+              onClick={() => void downloadFinal("docx")}>Download Word</button>
+          </div>
+          <p className="aw-export-hint">PDF and Word are rendered from a finalized version: the server
+            re-checks every approval and its evidence before writing the file. The .txt button above
+            saves a historical draft instead, which is kept for your records and is deliberately not
+            exportable.</p>
         </aside>
       </div>
       {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}

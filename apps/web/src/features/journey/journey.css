@@ -270,3 +270,12 @@
 .aw-partial { color: #8a5a00; background: #fff6e5; border: 1px solid #f0d9a8;
   border-radius: 999px; padding: 4px 10px; font-size: 0.82rem; white-space: nowrap; }
 .aw-match-key i.is-partial { background: #d79a28; }
+
+/* Trusted-document downloads beside the draft export. */
+.aw-final-downloads { display: flex; gap: 8px; margin-top: 10px; }
+.aw-final-downloads button {
+  flex: 1; padding: 9px 12px; border-radius: 999px; border: 1px solid #5b8fc4;
+  background: #fff; color: #0a65bf; font: inherit; cursor: pointer;
+}
+.aw-final-downloads button:hover:not(:disabled) { background: #f2f7fd; }
+.aw-final-downloads button:disabled { background: #e9eef4; color: #51637a; border-color: #c3cedb; cursor: not-allowed; }

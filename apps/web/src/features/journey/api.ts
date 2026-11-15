@@ -315,3 +315,30 @@ export function assessRequirements(
     }),
   });
 }
+
+/** Materialise an F13 trusted version from F09-approved statements.
+ *
+ * Only ids cross the boundary. The server re-checks ownership, that each
+ * statement is still approved at its current F08 revision, and that the cited
+ * evidence still stands, before it writes a version marked F09_APPROVED. That
+ * marking is what F10 requires: a historical draft is refused by design.
+ */
+export function finalizeResume(token: string, applicationId: string, statementIds: string[]) {
+  return api<{ id: string; version_number: number }>(
+    token, `/api/applications/${encodeURIComponent(applicationId)}/trusted-finalize`, {
+      method: "POST",
+      body: JSON.stringify({ statement_ids: statementIds.slice(0, 10) }),
+    });
+}
+
+/** Hand a rendered file to the browser. */
+export function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 500);
+}

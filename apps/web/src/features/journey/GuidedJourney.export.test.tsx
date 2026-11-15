@@ -106,8 +106,11 @@ describe("the journey does not overstate what its saved draft is", () => {
 
     await reachReviewStage();
 
-    expect(screen.getByText(/not eligible for PDF or Word export/)).toBeInTheDocument();
-    expect(screen.queryByText(/can be exported as PDF or Word/)).not.toBeInTheDocument();
+    expect(screen.getByText(/saves a historical draft instead/)).toBeInTheDocument();
+    expect(screen.getByText(/deliberately not\s+exportable/)).toBeInTheDocument();
+    // The real document is offered separately, from a finalized version.
+    expect(screen.getByRole("button", { name: "Download PDF" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download Word" })).toBeInTheDocument();
   }, 10000);
 
   it("keeps an approved INFERRED claim labelled INFERRED in the downloaded file", async () => {
