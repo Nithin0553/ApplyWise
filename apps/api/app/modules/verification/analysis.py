@@ -69,6 +69,14 @@ _RANKINGS = (
     "leading", "top", "unprecedented", "sole",
 )
 
+# Set phrases that contain a ranking word without claiming a ranking. Matched
+# case-insensitively and removed before the ranking check only, so "best" still
+# counts in "built the best suite the team had".
+_RANKING_IDIOMS = re.compile(
+    r"\b(?:best practices?|first[- ]line|first[- ]hand|top[- ]level|top[- ]of[- ]funnel)\b",
+    re.IGNORECASE,
+)
+
 _SCOPE = (
     "led", "leading", "managed", "managing", "owned", "directed", "headed",
     "supervised", "mentored", "architected", "spearheaded",
@@ -260,8 +268,16 @@ def classify(
                 )
 
     claim_words = {word for word in re.findall(r"[a-z][a-z\-']*", text.lower())}
+    # A ranking word inside a set phrase is not a ranking claim. "Followed best
+    # practices" says something about method, not that the user was the best at
+    # anything, and RANKING_NOT_IN_EVIDENCE blocks export -- so reading the
+    # idiom literally costs the user a true claim, which is the expensive
+    # mistake this classifier is calibrated to avoid.
+    ranking_words = {
+        word for word in re.findall(r"[a-z][a-z\-']*", _RANKING_IDIOMS.sub(" ", text).lower())
+    }
     for word in _RANKINGS:
-        if word in claim_words and _stem(word) not in haystack_words:
+        if word in ranking_words and _stem(word) not in haystack_words:
             findings.append(
                 VerificationFinding(
                     reason=VerificationReason.RANKING_NOT_IN_EVIDENCE, detail=word

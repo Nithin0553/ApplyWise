@@ -334,3 +334,56 @@ def test_a_year_is_still_checked_when_the_evidence_records_no_dates() -> None:
 
     assert status is VerificationStatus.UNSUPPORTED
     assert VerificationReason.FIGURE_NOT_IN_EVIDENCE in reasons(findings)
+
+
+# --- ranking words inside set phrases --------------------------------------
+#
+# Found by running real model output through the classifier: a true claim,
+# "Holds the ISTQB Foundation Level certification (CTFL-2023-44810),
+# reflecting grounding in software testing best practices", was blocked from
+# export because "best practices" matched the ranking list. The certificate
+# number was in the evidence; only the idiom was not.
+
+
+def test_best_practices_is_not_a_ranking_claim() -> None:
+    """The expensive mistake: a false positive costs the user a true claim."""
+    status, findings = verdict(
+        "Built automated regression suites for revenue management software "
+        "following industry best practices"
+    )
+
+    assert VerificationReason.RANKING_NOT_IN_EVIDENCE not in reasons(findings)
+    assert status is not VerificationStatus.UNSUPPORTED
+
+
+def test_a_credential_recorded_in_the_evidence_is_not_a_fabricated_figure() -> None:
+    """The number that triggered the report was the user's own, from F02."""
+    evidence = FakeEvidence(
+        evidence_id=SKILL_ID,
+        evidence_type="certification",
+        title="ISTQB Foundation Level",
+        organization="ISTQB",
+        role=None,
+        description=None,
+        credential="CTFL-2023-44810",
+    )
+    status, findings = verdict(
+        "Holds the ISTQB Foundation Level certification (CTFL-2023-44810), "
+        "reflecting grounding in software testing best practices",
+        ids=(SKILL_ID,),
+        approved={SKILL_ID: evidence},
+    )
+
+    assert VerificationReason.FIGURE_NOT_IN_EVIDENCE not in reasons(findings)
+    assert VerificationReason.RANKING_NOT_IN_EVIDENCE not in reasons(findings)
+    assert status is not VerificationStatus.UNSUPPORTED
+
+
+def test_a_real_superlative_is_still_caught() -> None:
+    """Only the set phrase is excused, not the word everywhere it appears."""
+    status, findings = verdict(
+        "Built the best automated regression suite the company had"
+    )
+
+    assert status is VerificationStatus.UNSUPPORTED
+    assert VerificationReason.RANKING_NOT_IN_EVIDENCE in reasons(findings)
