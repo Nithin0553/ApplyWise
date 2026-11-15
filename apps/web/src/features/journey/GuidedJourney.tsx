@@ -5,7 +5,7 @@ import { SharingPage } from "../sharing";
 import {
   addEvidence, downloadReviewedText, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
-  readRequirements, saveReviewedResume,
+  readRequirements, saveReviewedResume, suggestJobContext,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
@@ -107,12 +107,25 @@ export function GuidedJourney({ user, token, logout }: Props) {
     if (!job.trim()) return;
     setError(""); setStage("analyzing");
     const lines = job.trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    // Fallback title: the first line, which is only right when the posting
+    // happens to open with the role. "Acme is seeking a talented Senior
+    // Engineer" becomes the whole sentence, which is why the model is asked.
     const first = lines[0]?.replace(/^job title:\s*/i, "").slice(0, 120) ?? "";
-    setRole((current) => current || (first.length < 90 ? first : profile.career));
     const reqs = readRequirements(job);
     try {
-      const [records] = await Promise.all([getEvidence(token), delay(850)]);
+      const [records, suggestion] = await Promise.all([
+        getEvidence(token),
+        // Best effort only: the fallback below is already usable, so a provider
+        // failure must not stop the user reaching the next screen.
+        suggestJobContext(token, job).catch(() => null),
+        delay(850),
+      ]);
       setEvidence(records);
+      setRole((current) =>
+        current || suggestion?.role_title || (first.length < 90 ? first : profile.career));
+      if (suggestion?.company_name) {
+        setCompany((current) => current || suggestion.company_name);
+      }
       setRequirements(reqs);
       setStage("analysis");
     } catch (err) {
