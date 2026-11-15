@@ -301,6 +301,23 @@ export function GuidedJourney({ user, token, logout }: Props) {
     } finally { setBusy(false); }
   }
 
+  /** Approve every claim F08 verified, in one action.
+   *
+   * Approval is still a decision the person makes and is still recorded
+   * against each claim's exact verification revision -- this only spares them
+   * clicking through claims they have no reason to question. INFERRED claims
+   * are left alone deliberately: grounded is not certified, and whether to
+   * stand behind one is exactly the judgement that should not be batched.
+   */
+  async function approveAllVerified() {
+    const ready = activeCandidates.filter((item) =>
+      !approvedIds.includes(item.statement_id)
+      && verdicts[item.statement_id]?.status === "VERIFIED");
+    for (const item of ready) {
+      await decide(item.statement_id, "APPROVED");
+    }
+  }
+
   function newJob() {
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
@@ -611,9 +628,15 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <div className="aw-storyboard-resume-head">
         <div><div className="aw-eyebrow">REVIEW &amp; APPROVAL</div>
           <h2>{pendingCount ? "Review claims before exporting" : "Ready when you are."}</h2></div>
-        <span className={pendingCount ? "aw-review-count" : "aw-review-count is-done"}>
-          {pendingCount ? pendingCount + " claims need attention" : "All statements reviewed"}
-        </span>
+        <div className="aw-review-head-actions">
+          {activeCandidates.some((item) => !approvedIds.includes(item.statement_id)
+            && verdicts[item.statement_id]?.status === "VERIFIED") &&
+            <button type="button" className="aw-link" disabled={busy}
+              onClick={() => void approveAllVerified()}>Approve all verified</button>}
+          <span className={pendingCount ? "aw-review-count" : "aw-review-count is-done"}>
+            {pendingCount ? pendingCount + " claims need attention" : "All statements reviewed"}
+          </span>
+        </div>
       </div>
       <div className="aw-resume-layout">
         <article className={`aw-document ${selectedId ? "aw-document-dim" : ""}`}>
@@ -663,8 +686,6 @@ export function GuidedJourney({ user, token, logout }: Props) {
           {!activeCandidates.length && <p className="aw-muted">All candidate statements have been denied. Go back to matching to generate a different draft.</p>}
           {profile.focus.length > 0 && <><h4>Technical skills</h4>
             <p className="aw-skill-line">{profile.focus.join(" · ")}</p></>}
-          {approvedEvidence.length > 0 && <><h4>Evidence sources</h4>
-            <p className="aw-source-list">{approvedEvidence.slice(0,6).map(e => e.title).join(" · ")}</p></>}
         </article>
         <aside className="aw-resume-sidebar">
           <section className="aw-panel">

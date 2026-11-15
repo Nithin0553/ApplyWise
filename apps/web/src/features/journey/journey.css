@@ -279,3 +279,6 @@
 }
 .aw-final-downloads button:hover:not(:disabled) { background: #f2f7fd; }
 .aw-final-downloads button:disabled { background: #e9eef4; color: #51637a; border-color: #c3cedb; cursor: not-allowed; }
+
+/* Bulk approval sits beside the outstanding-claims count. */
+.aw-review-head-actions { display: flex; align-items: center; gap: 14px; }
