@@ -78,7 +78,7 @@ describe("an unsupported claim cannot be approved from the journey", () => {
     expect(screen.getByText(/cannot be approved or exported/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Approve claim/ })).toBeDisabled();
     expect(decisions).toEqual([]);
-    expect(screen.getByRole("button", { name: /Export reviewed resume/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Finalize trusted resume/ })).toBeDisabled();
   }, 10000);
 
   it("labels the browser-side overlap estimate as not verification", async () => {
