@@ -113,7 +113,7 @@ describe("ApplyWise guided journey", () => {
     fireEvent.click(screen.getByRole("button", { name: "← Back to application" }));
     expect(await screen.findByText("You're making a grounded match.")).toBeInTheDocument();
   }, 6000);
-  it("requires human approval, persists a resume version, and downloads only approved text", async () => {
+  it("requires F09 approval, finalizes F08 IDs through F13, and opens Applications", async () => {
     window.localStorage.setItem(
       `applywise.journey.profile.${user.id}`,
       JSON.stringify({ career: "QA Engineer", years: "3–5 years", arrangement: "Hybrid",
@@ -156,21 +156,19 @@ describe("ApplyWise guided journey", () => {
           evidence_ids: [evidenceId], verification_status: "VERIFIED",
           verification_revision: revision, review_status: "APPROVED",
           finalization_eligible: true, reviewed_revision: revision };
-      } else if (path === "/api/applications/reviewed-drafts" && init?.method === "POST") {
-        const posted = JSON.parse(String(init.body)) as {
-          application: { company_name: string; role_title: string };
-          statements: Array<{ text: string; evidence_ids: string[] }>;
-        };
-        expect(posted.application.role_title).toContain("QA Engineer");
-        expect(posted.statements).toEqual([expect.objectContaining({
-          text: "Tested REST APIs.", evidence_ids: [evidenceId],
-        })]);
-        expect(JSON.stringify(posted)).not.toContain("VERIFIED");
-        payload = {
-          application: { id: "33333333-3333-4333-8333-333333333333",
-            role_title: "QA Engineer", company_name: "Company", status: "draft" },
-          resume_version: { id: "version", version_number: 1 },
-        };
+      } else if (path === "/api/applications/" && init?.method === "POST") {
+        const posted = JSON.parse(String(init.body)) as { role_title: string; company_name: string };
+        expect(posted.role_title).toContain("QA Engineer");
+        payload = { id: "33333333-3333-4333-8333-333333333333",
+          role_title: "QA Engineer", company_name: "Company", status: "draft" };
+      } else if (path === "/api/applications/33333333-3333-4333-8333-333333333333/trusted-finalize" &&
+          init?.method === "POST") {
+        // The F07 candidate ID must never be submitted as a trusted F08 ID.
+        expect(JSON.parse(String(init.body))).toEqual({ statement_ids: [verifiedId] });
+        payload = { id: "version", version_number: 1, snapshot: {
+          statements: [{ statement_id: verifiedId, text: "Tested REST APIs.",
+            origin: "F09_APPROVED", verification_status: "VERIFIED",
+            approval_status: "APPROVED" }] } };
       } else if (path === "/api/applications/") {
         payload = [{ id: "33333333-3333-4333-8333-333333333333",
           role_title: "QA Engineer", company_name: "Company", status: "draft" }];
@@ -194,7 +192,7 @@ describe("ApplyWise guided journey", () => {
     fireEvent.click(screen.getByRole("button", { name: /Match with my profile/i }));
     fireEvent.click(screen.getByRole("button", { name: /Generate resume/i }));
     expect(await screen.findByRole("heading", { name: "Review claims before exporting" }, { timeout: 4000 })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Export reviewed resume/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Finalize trusted resume/ })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
     expect(screen.getAllByText(/Tested REST APIs/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /Approve claim/ }));
@@ -203,11 +201,11 @@ describe("ApplyWise guided journey", () => {
       screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument());
     expect(requests).toContain("/api/verification/statements");
     expect(requests).toContain(`/api/statement-review/${verifiedId}/decision`);
-    fireEvent.click(screen.getByRole("button", { name: /Export reviewed resume/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Finalize trusted resume/ }));
     expect(await screen.findByRole("heading", { name: "My Applications" }, { timeout: 6000 })).toBeInTheDocument();
-    expect(requests).toContain("/api/applications/reviewed-drafts");
+    expect(requests).toContain("/api/applications/33333333-3333-4333-8333-333333333333/trusted-finalize");
     expect(requests).toContain("/api/applications/resume-version-counts");
-    expect(URL.createObjectURL).toHaveBeenCalledOnce();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   }, 10000);
 
