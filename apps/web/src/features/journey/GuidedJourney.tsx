@@ -3,9 +3,9 @@ import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import { SharingPage } from "../sharing";
 import {
-  addEvidence, downloadReviewedText, estimateOverlap,
+  addEvidence, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
-  readRequirements, saveReviewedResume,
+  readRequirements, saveTrustedResume,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
@@ -19,6 +19,9 @@ import { STATUS_LABEL } from "../verification/types";
 import { decideStatement } from "../review";
 import { StatementReviewPage } from "../review";
 import { InterviewPrepPage, type ApprovedStatement } from "../interview";
+import {
+  INTERVIEW_PREP_AVAILABLE, INTERVIEW_PREP_UNAVAILABLE,
+} from "../interview/availability";
 
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
@@ -63,6 +66,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [verifiedStatements, setVerifiedStatements] = useState<VerifiedStatementView[]>([]);
   const [reviewStatementId, setReviewStatementId] = useState<string | null>(null);
   const [approvedStatements, setApprovedStatements] = useState<ApprovedStatement[]>([]);
+  const [loadingEvidence, setLoadingEvidence] = useState(false);
   // F07 proposes; F08 decides. Keyed by the candidate id so the document
   // keeps its order while decisions are made against F08's own records.
   const [verdicts, setVerdicts] = useState<Record<string, VerifiedStatementView>>({});
@@ -178,9 +182,16 @@ export function GuidedJourney({ user, token, logout }: Props) {
   // F08, F09 and F15 each shipped a finished page that nothing imported, so
   // none of them had a click path and the STD cases covering them could not be
   // executed. These openers load what each page needs; the pages are unchanged.
-  function openVerification() {
-    setError("");
-    changeStage("verification");
+  async function openVerification() {
+    // `evidence` starts empty and is otherwise only filled by analyzeJob(), so
+    // a user who signs in and opens this first saw no citable evidence even
+    // with approved F02 records, and the panel's Add button stayed disabled.
+    setError(""); setLoadingEvidence(true); setStage("verification");
+    try {
+      setEvidence(await getEvidence(token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load your approved evidence.");
+    } finally { setLoadingEvidence(false); }
   }
 
   async function openReview() {
@@ -193,7 +204,13 @@ export function GuidedJourney({ user, token, logout }: Props) {
   }
 
   async function openInterview() {
-    setError(""); setStage("interview");
+    setError("");
+    if (!INTERVIEW_PREP_AVAILABLE) {
+      // Never call a route the server does not serve; say why instead.
+      setError(INTERVIEW_PREP_UNAVAILABLE);
+      return;
+    }
+    setStage("interview");
     try {
       // Server-authoritative: F09 decides what counts as approved, not the client.
       setApprovedStatements(await getApprovedStatements(token));
@@ -244,19 +261,23 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
   async function exportReviewed() {
     const approved = candidates.filter((item) => approvedIds.includes(item.statement_id));
-    if (!approved.length || candidates.some((item) => !approvedIds.includes(item.statement_id) && !deniedIds.includes(item.statement_id))) return;
+    if (!approved.length || candidates.some((item) =>
+      !approvedIds.includes(item.statement_id) && !deniedIds.includes(item.statement_id))) return;
     setBusy(true); setError("");
     try {
-      await saveReviewedResume(token, { role, company, description: job }, evidence, approved);
-      downloadReviewedText(user.full_name, { role, company }, approved,
-        Object.fromEntries(approved.map((item) =>
-          [item.statement_id, verdicts[item.statement_id]?.status])));
+      // F07 candidate IDs only index this page. F13 accepts actual F08 claim IDs
+      // and revalidates the current F09 approvals and F02 evidence server-side.
+      if (approved.some((item) => !verdicts[item.statement_id]?.export_eligible)) {
+        throw new Error("A selected claim is no longer eligible for trusted finalization.");
+      }
+      const statementIds = approved.map((item) => verdicts[item.statement_id].statement_id);
+      await saveTrustedResume(token, { role, company, description: job }, statementIds);
       setStage("exporting");
       await delay(1200);
       await openApplications();
     } catch (err) {
       setStage("resume");
-      setError(err instanceof Error ? err.message : "Could not save the reviewed resume.");
+      setError(err instanceof Error ? err.message : "Could not finalize the trusted resume.");
     } finally { setBusy(false); }
   }
 
@@ -273,9 +294,10 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
-        <button type="button" onClick={openVerification}>Verify claims</button>
+        <button type="button" onClick={() => void openVerification()}>Verify claims</button>
         <button type="button" onClick={() => void openReview()}>Review claims</button>
-        <button type="button" onClick={() => void openInterview()}>Interview prep</button>
+        {INTERVIEW_PREP_AVAILABLE &&
+          <button type="button" onClick={() => void openInterview()}>Interview prep</button>}
         <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
         <div className="aw-avatar" title={user.full_name}>{initials}</div>
         <details className="aw-account"><summary>Profile</summary>
@@ -288,10 +310,13 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {error && <div className="aw-error" role="alert">{error}</div>}
 
-    {stage === "verification" && <main className="aw-f08-workspace aw-fade" aria-label="Claim verification workspace">
-      <VerificationPanel token={token} evidenceIds={approvedEvidence.map((item) => item.id)}
-        onBack={() => changeStage("paste")} />
-    </main>}
+    {stage === "verification" && (loadingEvidence
+      ? <Spinner title="Loading your approved evidence"
+          description="Reading the records you have approved, so a claim can cite them." />
+      : <main className="aw-f08-workspace aw-fade" aria-label="Claim verification workspace">
+        <VerificationPanel token={token} evidenceIds={approvedEvidence.map((item) => item.id)}
+          onBack={() => changeStage("paste")} />
+      </main>)}
     {stage === "review" && <main className="aw-f09-workspace aw-fade" aria-label="Statement review workspace">
       <div className="aw-evidence-header">
         <button type="button" className="aw-link" onClick={() => changeStage("paste")}>← Back to application</button>
@@ -545,11 +570,11 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <button className="aw-link aw-back-review" type="button" onClick={() => changeStage("match")}>← Back to evidence</button>
           <button type="button" className="aw-primary aw-export-button"
             disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
-            onClick={() => void exportReviewed()}>Export reviewed resume →</button>
-          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a <strong>historical draft</strong> under Applications. Historical drafts are kept for your records; they are not eligible for PDF or Word export, which requires trusted finalization.</p>
+            onClick={() => void exportReviewed()}>Finalize trusted resume →</button>
+          <p className="aw-export-hint">Saves a server-validated, approved resume version. Open Applications to download PDF or Word; current evidence and approvals are checked again before every export.</p>
         </aside>
       </div>
-      {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}
+      {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Trusted resume finalized — open Applications for PDF or Word</div>}
     </main>}
 
     {stage === "applications" && <ApplicationWorkspace
