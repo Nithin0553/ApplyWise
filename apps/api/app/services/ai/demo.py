@@ -16,16 +16,16 @@ same input. A real model plugs in beside it behind ``AIProvider``.
 from __future__ import annotations
 
 from .provider import (
-    RequirementMatchRequest,
-    RequirementMatchResponse,
-    JobContextRequest,
-    JobContextSuggestion,
     CoverLetterRequest,
     CoverLetterResponse,
     GroundedGenerationRequest,
     GroundedGenerationResponse,
+    JobContextRequest,
+    JobContextSuggestion,
     RawParagraph,
     RawStatement,
+    RequirementMatchRequest,
+    RequirementMatchResponse,
 )
 
 # Past tense -> gerund, so two clauses can be joined with "while".
