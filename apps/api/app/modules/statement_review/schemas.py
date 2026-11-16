@@ -47,4 +47,5 @@ class ReviewHistoryItem(BaseModel):
     sequence: int = Field(gt=0)
     decision: ReviewDecision
     verification_revision: str
+    carried_from_statement_id: UUID | None = None
     decided_at: datetime
