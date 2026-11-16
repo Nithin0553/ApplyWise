@@ -422,8 +422,12 @@ def test_a_dotted_name_is_still_compared_whole() -> None:
         evidence_id=SKILL_ID, evidence_type="skill", title="Backend",
         organization=None, role=None, description="Built services in Node.js.",
     )
-    clean, _ = verdict("Built services in Node.js", ids=(SKILL_ID,), approved={SKILL_ID: evidence})
+    clean, _ = verdict(
+        "Built services in Node.js", ids=(SKILL_ID,), approved={SKILL_ID: evidence}
+    )
     assert clean is not VerificationStatus.UNSUPPORTED
 
-    status, findings = verdict("Built services in Deno", ids=(SKILL_ID,), approved={SKILL_ID: evidence})
+    status, findings = verdict(
+        "Built services in Deno", ids=(SKILL_ID,), approved={SKILL_ID: evidence}
+    )
     assert VerificationReason.ENTITY_NOT_IN_EVIDENCE in reasons(findings)
