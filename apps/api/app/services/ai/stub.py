@@ -8,16 +8,16 @@ output is always the same for the same input.
 from __future__ import annotations
 
 from .provider import (
-    RequirementMatchRequest,
-    RequirementMatchResponse,
-    JobContextRequest,
-    JobContextSuggestion,
     CoverLetterRequest,
     CoverLetterResponse,
     GroundedGenerationRequest,
     GroundedGenerationResponse,
+    JobContextRequest,
+    JobContextSuggestion,
     RawParagraph,
     RawStatement,
+    RequirementMatchRequest,
+    RequirementMatchResponse,
 )
 
 

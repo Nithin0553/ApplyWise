@@ -10,7 +10,6 @@ from .fallback import FallbackAIProvider
 from .provider import AIProvider
 from .stub import StubAIProvider
 
-
 # Shorter than the provider's own default: a request that hangs for half a
 # minute before falling back is worse than one that gives up sooner.
 DEMO_SAFE_TIMEOUT_SECONDS = 20.0
