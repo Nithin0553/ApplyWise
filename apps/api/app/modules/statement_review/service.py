@@ -203,6 +203,7 @@ class StatementReviewService:
             user_id=user_id,
             decision=ReviewDecision.APPROVED,
             verification_revision=current.revision,
+            carried_from_statement_id=prior.statement_id,
             sequence=record.event_count,
         ))
         self.session.flush()
