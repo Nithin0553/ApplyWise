@@ -32,6 +32,12 @@ from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
 from app.modules.evidence.service import EvidenceService
+from app.modules.statement_review.contract import (
+    CurrentVerificationProvider,
+    VerificationUnavailableError,
+)
+from app.modules.statement_review.dependencies import current_verification_provider
+from app.modules.statement_review.service import StatementReviewService
 from app.services.ai.factory import UnknownAIProviderError, get_ai_provider
 from app.services.ai.provider import (
     AIProviderError,
@@ -40,11 +46,13 @@ from app.services.ai.provider import (
     RequirementMatchRequest,
 )
 
+from .cover_letter_contracts import StatementNotApprovedError, select_approved_statements
 from .cover_letter_pdf import render_cover_letter_pdf
 from .cover_letter_schemas import (
     CoverLetterDraft,
     CoverLetterPdfRequest,
     CoverLetterRequest,
+    CoverLetterSelectionRequest,
 )
 from .cover_letter_service import CoverLetterService
 from .errors import GenerationUnavailableError, MalformedProviderResponseError
@@ -132,27 +140,47 @@ def preview_generation(
         ) from exc
 
 
-@router.post(
-    "/cover-letter/preview",
-    response_model=CoverLetterDraft,
-    dependencies=[Depends(require_prototype_environment)],
-)
+@router.post("/cover-letter/preview", response_model=CoverLetterDraft)
 def preview_cover_letter(
-    request: CoverLetterRequest,
+    request: CoverLetterSelectionRequest,
     current_user: User = Depends(require_job_seeker),
+    db: Session = Depends(get_db),
+    verifier: CurrentVerificationProvider = Depends(current_verification_provider),
     provider: str | None = Query(
         default=None,
         description="Override the configured AI provider for this call (e.g. stub, demo).",
     ),
 ) -> CoverLetterDraft:
-    """Draft cover letter paragraphs for the signed-in job seeker."""
+    """Draft candidate paragraphs from current, server-owned F08/F09 approvals."""
+    try:
+        approved = select_approved_statements(
+            StatementReviewService(db, verifier),
+            user_id=current_user.id,
+            statement_ids=request.statement_ids,
+        )
+    except StatementNotApprovedError as exc:
+        # Foreign, missing, withdrawn and unapproved IDs look identical.
+        raise HTTPException(
+            status_code=404, detail="Selected statements are not currently approved."
+        ) from exc
+    except VerificationUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="Verification is unavailable.") from exc
+
     try:
         ai_provider = get_ai_provider(provider or settings.ai_provider)
     except UnknownAIProviderError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    # The internal service receives only server-resolved statements, never
+    # browser claims of VERIFIED or APPROVED. Generated paragraphs remain drafts.
+    resolved = CoverLetterRequest(
+        job_context=request.job_context,
+        approved_statements=approved,
+        tone=request.tone,
+        max_paragraphs=request.max_paragraphs,
+    )
     try:
-        return CoverLetterService(ai_provider).generate(request, user_id=current_user.id)
+        return CoverLetterService(ai_provider).generate(resolved, user_id=current_user.id)
     except GenerationUnavailableError as exc:
         raise HTTPException(
             status_code=503, detail="AI provider is unavailable. Try again."
@@ -163,10 +191,7 @@ def preview_cover_letter(
         ) from exc
 
 
-@router.post(
-    "/cover-letter/pdf",
-    dependencies=[Depends(require_prototype_environment)],
-)
+@router.post("/cover-letter/pdf")
 def download_cover_letter(
     request: CoverLetterPdfRequest,
     current_user: User = Depends(require_job_seeker),
