@@ -25,18 +25,18 @@ import re
 import httpx
 
 from .provider import (
-    RequirementAssessment,
-    RequirementMatchRequest,
-    RequirementMatchResponse,
-    JobContextRequest,
-    JobContextSuggestion,
     AIProviderError,
     CoverLetterRequest,
     CoverLetterResponse,
     GroundedGenerationRequest,
     GroundedGenerationResponse,
+    JobContextRequest,
+    JobContextSuggestion,
     RawParagraph,
     RawStatement,
+    RequirementAssessment,
+    RequirementMatchRequest,
+    RequirementMatchResponse,
 )
 
 MAX_REQUIREMENTS = 20
@@ -222,7 +222,10 @@ class AnthropicAIProvider:
         if not isinstance(items, list):
             raise AIProviderError("The model returned no statements.")
         statements = tuple(
-            RawStatement(text=str(item.get("text", "")).strip(), cited_refs=_refs(item.get("cited_refs")))
+            RawStatement(
+                text=str(item.get("text", "")).strip(),
+                cited_refs=_refs(item.get("cited_refs")),
+            )
             for item in items
             if isinstance(item, dict) and str(item.get("text", "")).strip()
         )
@@ -243,7 +246,10 @@ class AnthropicAIProvider:
         if not isinstance(items, list):
             raise AIProviderError("The model returned no paragraphs.")
         paragraphs = tuple(
-            RawParagraph(text=str(item.get("text", "")).strip(), cited_refs=_refs(item.get("cited_refs")))
+            RawParagraph(
+                text=str(item.get("text", "")).strip(),
+                cited_refs=_refs(item.get("cited_refs")),
+            )
             for item in items
             if isinstance(item, dict) and str(item.get("text", "")).strip()
         )
