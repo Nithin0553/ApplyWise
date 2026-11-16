@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 # F11's cover-letter payload cites statement-level evidence ids; these are
 # fixed placeholders, not records that need to exist in F02.
 from tests.fixtures.generation_fixtures import EVIDENCE_ONE_ID, EVIDENCE_TWO_ID
+from tests.test_f08_f09_integration import COVERED_CLAIM, _seed, _verify
 
 JOB_CONTEXT = {
     "job_title": "Software Engineer in Test",
@@ -336,7 +337,6 @@ def test_providers_endpoint_lists_available_providers(client: TestClient) -> Non
 
 # --- F11: server-authorized statement selection ---------------------------
 
-from tests.test_f08_f09_integration import COVERED_CLAIM, _seed, _verify
 
 
 COVER_LETTER_PAYLOAD = {
