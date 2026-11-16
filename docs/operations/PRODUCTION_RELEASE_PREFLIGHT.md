@@ -3,12 +3,21 @@
 **Status:** Not executed. This is a procedure, **not** deployment approval or evidence of manual STD execution.
 **Scope:** F01 hardening PR #57 and the merged F08→F09→F13→F10 workflow. **Owner:** authorized ApplyWise Railway operator plus PM/reviewer.
 
-## Current baseline (checked 2026-11-10)
+## Current baseline (rechecked 2026-11-15)
 
-- Railway's production web, API, and Postgres services are online; the active web/API deployments were created on **2026-11-06**. A successful GitHub merge does not mean those builds are live.
+- **RELEASE HOLD: Railway incident #83.** Web, API, and PostgreSQL are all **offline**, with zero active deployments. The previous web/API builds from **2026-11-06** were marked REMOVED around **2026-11-13T21:05 UTC**. Their synchronized shutdown reason is not known. A GitHub merge does not deploy a new build.
+- The existing Postgres service still lists its 500 MB `postgres-volume` at `/var/lib/postgresql/data`. **An attached volume is neither a verified backup nor proof of data integrity.** Do not delete, recreate, overwrite, migrate, or swap it to "fix" this incident.
 - The Railway OAuth connection can see that the API has `APP_ENV` and `APP_SECRET_KEY` **names**, but cannot read their **values**. These existing variables must not be overwritten, echoed, pasted into GitHub, or treated as proof of strength.
 - F01 #57 rejects the committed default or keys shorter than 32 **UTF-8 bytes** in `APP_ENV=production`, and normalizes capitalization so prototype-only routes and OpenAPI docs use the same environment policy.
 - F08 verification, F09 review, F13 trusted finalization and F10 PDF/DOCX export plus real-provider API tests are merged on `main`. This says nothing yet about Railway runtime behavior.
+
+## Gate 0 — resolve the current Railway outage (required before release)
+
+1. **Operator action:** open Railway's ApplyWise project Activity and Usage/Billing screens, inspect the coordinated shutdown around **2026-11-13 15:05 Central**, and confirm whether hosting was paused, suspended, stopped manually, or affected by an incident. Record the supported cause in issue #83; do not speculate from the clean PostgreSQL shutdown log alone.
+2. Confirm the existing Postgres volume remains attached. Verify snapshot/backup availability and identify a recoverable restore point **without disclosing data or credentials**. If no backup exists, obtain and document a safe database recovery/backup procedure before any release migration.
+3. Recover Postgres using the approved Railway operator procedure, then confirm its runtime health and connectivity. Recover API and web **only after** the database path is confirmed. Do not blindly create replacement services or apply `alembic upgrade head` to the only unverified dataset.
+4. Record actual deployment IDs, environment config checks and a synthetic account/API smoke test. A production service being "online" alone is not enough for an STD Pass.
+5. Keep this release on hold until issue #83 is resolved and the owner confirms backup/recovery readiness.
 
 ## Gate 1 — confidential security verification (must be done by a Railway operator)
 
@@ -38,7 +47,7 @@ Record only operator, timestamp, deployment target and PASS/BLOCKED outcome in t
 
 ## Gate 2 — release preparation and backup
 
-1. Confirm PR #57 is merged only after Gate 1. Check CI and Security Baseline on the exact head and confirm all required code reviews.
+1. F01 PR #57 and the follow-up API-docs PR #77 are already merged; recheck CI, Security Baseline, and reviews for **the exact release commit** before deployment. Do not treat the historical PR status as a live health check.
 2. Take and verify a recoverable production Postgres backup/snapshot **before** applying migrations. Record a private recovery reference, not credentials or data.
 3. Confirm the linear Alembic migration head and review pending migrations; the API start command runs `python -m alembic upgrade head` **before** the server starts. A schema change may not be safely reverted merely by redeploying an older container.
 4. Record the exact `main` commit and intended web/API artifacts. Stage/test on a separate environment or disposable database where available.
