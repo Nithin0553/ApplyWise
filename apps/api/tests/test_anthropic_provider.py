@@ -18,11 +18,11 @@ from app.services.ai.anthropic import API_URL, AnthropicAIProvider
 from app.services.ai.provider import (
     AIProviderError,
     CoverLetterRequest,
-    JobContextRequest,
-    RequirementMatchRequest,
     GroundedGenerationRequest,
+    JobContextRequest,
     PromptEvidence,
     PromptStatement,
+    RequirementMatchRequest,
 )
 
 KEY = "sk-ant-test-key-never-real"
@@ -215,7 +215,9 @@ def test_a_malformed_reply_raises_rather_than_inventing_a_title() -> None:
 def test_a_rejected_request_reports_the_provider_reason_without_the_key() -> None:
     def handler(request: httpx.Request) -> httpx.Response:  # noqa: ARG001
         return httpx.Response(400, json={"type": "error", "error": {
-            "type": "invalid_request_error", "message": "max_tokens: Input should be a valid integer"}})
+            "type": "invalid_request_error",
+            "message": "max_tokens: Input should be a valid integer",
+        }})
 
     with pytest.raises(AIProviderError) as raised:
         _provider(handler).suggest_job_context(JobContextRequest(description=POSTING))
