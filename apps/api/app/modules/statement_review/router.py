@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -50,12 +50,21 @@ def _handle(exc: Exception) -> HTTPException:
 
 @router.get("/approved", response_model=list[ApprovedStatement])
 def list_approved(
+    statement_ids: list[UUID] | None = Query(default=None, max_length=20),
+    limit: int = Query(default=20, ge=1, le=20),
+    offset: int = Query(default=0, ge=0, le=10_000),
     db: Session = Depends(get_db),
     current_user: User = Depends(_job_seeker),
     verifier: CurrentVerificationProvider = Depends(current_verification_provider),
 ) -> list[ApprovedStatement]:
+    """Bound the response and allow specific resume's F08 IDs to be requested."""
     try:
-        return list(_service(db, verifier).list_approved_statements(user_id=current_user.id))
+        return list(_service(db, verifier).list_approved_statements(
+            user_id=current_user.id,
+            statement_ids=tuple(statement_ids) if statement_ids is not None else None,
+            limit=limit,
+            offset=offset,
+        ))
     except VerificationUnavailableError as exc:
         raise _handle(exc) from exc
 

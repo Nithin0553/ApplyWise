@@ -223,27 +223,57 @@ class StatementReviewService:
         ).all()
         return tuple(ReviewHistoryItem.model_validate(event) for event in events)
 
-    def list_approved_statements(self, *, user_id: UUID) -> tuple[ApprovedStatement, ...]:
-        """F09's implementation of the F11/F13 approved-statement provider.
+    def list_approved_statements(
+        self,
+        *,
+        user_id: UUID,
+        statement_ids: tuple[UUID, ...] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> tuple[ApprovedStatement, ...]:
+        """Owner-scoped, bounded read of currently approved F08 claims.
 
-        This read ALWAYS re-resolves F08's current revisions. Old approvals
-        cannot survive a material edit or an evidence status change.
+        F13 must be able to authorize an older saved resume: internal calls
+        with no limit therefore return the complete current owner-scoped set.
+        The HTTP route ALWAYS supplies a 1–20 limit. A restored journey can
+        request explicit F08 IDs instead. All paths recompute F08 evidence
+        and revision state before returning a claim.
         """
+        if (limit is not None and not 1 <= limit <= 20) or not 0 <= offset <= 10_000:
+            raise ValueError("Approved statement window is out of bounds.")
+        if statement_ids is not None and len(statement_ids) > 20:
+            raise ValueError("At most 20 statement IDs may be requested.")
+
         live = self.verifier.list_current(user_id=user_id)
-        owned = self.session.scalars(
-            select(StatementReviewRecord)
-            .where(
-                StatementReviewRecord.user_id == user_id,
-                StatementReviewRecord.decision == ReviewDecision.APPROVED,
+        approved_query = select(StatementReviewRecord).where(
+            StatementReviewRecord.user_id == user_id,
+            StatementReviewRecord.decision == ReviewDecision.APPROVED,
+        )
+        if statement_ids is not None:
+            approved_query = approved_query.where(
+                StatementReviewRecord.statement_id.in_(statement_ids)
             )
-        ).all()
+        owned = self.session.scalars(approved_query).all()
         saved = {item.statement_id: item for item in owned}
+
+        if statement_ids is None:
+            # F08 lists the user's statements oldest first.
+            candidates = reversed(live)
+        else:
+            by_id = {item.statement_id: item for item in live if item.user_id == user_id}
+            candidates = (by_id[item_id] for item_id in dict.fromkeys(statement_ids)
+                          if item_id in by_id)
+
         result: list[ApprovedStatement] = []
-        for item in live:
+        matched = 0
+        for item in candidates:
             if item.user_id != user_id or item.status == VerificationStatus.UNSUPPORTED:
                 continue
             decision = saved.get(item.statement_id)
             if decision is None or decision.verification_revision != item.revision:
+                continue
+            if matched < offset:
+                matched += 1
                 continue
             result.append(
                 ApprovedStatement(
@@ -254,4 +284,6 @@ class StatementReviewService:
                     approval_status="APPROVED",
                 )
             )
+            if limit is not None and len(result) == limit:
+                break
         return tuple(result)
