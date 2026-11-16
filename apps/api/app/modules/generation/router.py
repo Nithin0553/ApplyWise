@@ -13,12 +13,9 @@ is persisted, owned by that user and APPROVED. An id that does not resolve is
 refused before anything reaches the AI provider, so the approved-evidence
 guarantee is enforced rather than merely contractual.
 
-F11's cover-letter route still has that gap one step further along: it accepts
-approved statements from the client rather than resolving them against what F09
-persisted, because no such store exists yet. Until it does, the route is
-prototype-only and is not served in production — see
-``require_prototype_environment`` below, and ``cover_letter_contracts`` for the
-selection logic that will close it the same way F07's is closed here.
+F11 and F15 now accept statement IDs only and resolve them through current,
+owner-scoped F08 verification and persisted F09 approval. New cover-letter
+paragraphs remain unapproved drafts, never F10 final documents.
 """
 
 from __future__ import annotations
@@ -72,21 +69,6 @@ router = APIRouter(prefix="/api/generation", tags=["generation"])
 # Built once at import time: ruff flags calling a dependency factory inside an
 # argument default (B008), and a single instance is cheaper per request.
 require_job_seeker = require_role(UserRole.JOB_SEEKER)
-
-
-def require_prototype_environment() -> None:
-    """Refuse F11's endpoint outside development.
-
-    The cover-letter route still accepts approved statements from the client,
-    which proves their labels are well formed but not that F08 verified and F09
-    approved them. Until there is a server-side store to resolve ids against
-    (see ``cover_letter_contracts.select_approved_statements``), serving this
-    route in production would mean treating client-supplied approval state as
-    authoritative. So it does not exist there: the response is a plain 404,
-    which leaks nothing about why.
-    """
-    if settings.app_env == "production":
-        raise HTTPException(status_code=404, detail="Not Found")
 
 
 @router.post("/preview", response_model=GenerationResult)
