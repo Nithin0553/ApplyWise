@@ -150,14 +150,21 @@ export function GuidedJourney({ user, token, logout }: Props) {
     let live = true;
     void (async () => {
       try {
+        const currentF08Ids = draft.candidates
+          .map((item) => draft.verdicts?.[item.statement_id]?.statement_id)
+          .filter((id): id is string => Boolean(id));
         const [approved, records] = await Promise.all([
-          getApprovedStatements(token),
+          currentF08Ids.length ? getApprovedStatements(token, currentF08Ids) : Promise.resolve([]),
           getEvidence(token),
         ]);
         if (!live) return;
         setEvidence(records);
         const ids = new Set(approved.map((item) => item.statement_id));
-        setApprovedIds(draft.candidates.filter((item) => ids.has(item.statement_id))
+        // F07 candidate IDs differ from the F08 IDs reviewed by F09.
+        // Translate through the stored verdict map, never infer approval from
+        // client-side draft flags or unrelated historical approvals.
+        setApprovedIds(draft.candidates.filter((item) =>
+          ids.has(draft.verdicts?.[item.statement_id]?.statement_id ?? ""))
           .map((item) => item.statement_id));
       } catch { /* leave them unreviewed; the user can approve again */ }
     })();
