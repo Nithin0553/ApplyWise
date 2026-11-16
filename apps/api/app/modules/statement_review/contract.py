@@ -54,6 +54,10 @@ class CurrentVerificationProvider(Protocol):
     Missing or foreign ids return None identically. Edited/revoked evidence
     cannot retain an old valid revision. list_current is authoritative, not a
     saved snapshot: if verification is stale, it is omitted or reclassified.
+
+    list_current MUST return a stable oldest-first ordering (created_at then
+    statement_id) for a user. The bounded HTTP approval-history page reverses
+    this order to show recent items first, while F13 can select older IDs.
     """
 
     def get_current(

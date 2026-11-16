@@ -226,8 +226,16 @@ export function estimateOverlap(requirements: string[], approved: JourneyEvidenc
  * The shell fetches this rather than InterviewPrepPage, because the page is
  * deliberately given its statements instead of choosing them for itself.
  */
-export function getApprovedStatements(token: string) {
-  return api<ApprovedStatement[]>(token, "/api/statement-review/approved");
+export function getApprovedStatements(token: string, statementIds?: string[]) {
+  // If restoring a specific resume, ask only for its server-held F08 IDs.
+  // An unfiltered history request has a strict 20-item server default.
+  const params = new URLSearchParams();
+  for (const id of [...new Set(statementIds ?? [])].slice(0, 20)) {
+    params.append("statement_ids", id);
+  }
+  const query = params.toString();
+  return api<ApprovedStatement[]>(token,
+    `/api/statement-review/approved${query ? `?${query}` : ""}`);
 }
 
 export interface JobContextSuggestion {

@@ -342,3 +342,6 @@
 
 /* Says why some claims arrived already approved, instead of pre-ticking silently. */
 .aw-carried-note { font-size: 13px; color: var(--aw-muted); max-width: 42ch; text-align: right; line-height: 1.45; }
+
+/* Where the resume is finished: the next step in the application, not a separate feature. */
+.aw-next-steps { margin-top: 10px; }

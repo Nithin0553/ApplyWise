@@ -26,16 +26,6 @@ const revision = "v1-0123456789abcdef0123456789abcdef";
 /** A claim F08 classifies INFERRED: grounded, approvable, not certified. */
 const INFERRED_CLAIM = "Improved release confidence for the billing organisation.";
 
-/** jsdom's Blob has no text(); FileReader is what it does implement. */
-function readBlob(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(blob);
-  });
-}
-
 function persistProfile() {
   window.localStorage.setItem(`applywise.journey.profile.${user.id}`, JSON.stringify({
     career: "QA Engineer", years: "2–3 years", arrangement: "Hybrid",
