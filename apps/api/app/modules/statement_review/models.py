@@ -93,6 +93,11 @@ class StatementReviewEventRecord(Base):
         nullable=False,
     )
     verification_revision: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Null means a direct user click (or a pre-migration legacy event).
+    # Preserves attribution after the source F08 statement is withdrawn.
+    carried_from_statement_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), nullable=True
+    )
     decided_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=now_utc, nullable=False
     )
