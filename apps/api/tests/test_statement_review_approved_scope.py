@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
+from app.modules.generation.cover_letter_contracts import select_approved_statements
 from app.modules.statement_review.contract import CurrentVerifiedStatement, VerificationStatus
 from app.modules.statement_review.models import ReviewDecision
 from app.modules.statement_review.service import StatementReviewService
@@ -44,8 +45,16 @@ def test_unfiltered_history_is_bounded_and_paginated(db_session):
         service.decide(user_id=user, statement_id=sid,
                        decision=ReviewDecision.APPROVED, expected_revision=f"v1-{n:032x}")
 
-    first = service.list_approved_statements(user_id=user)
-    second = service.list_approved_statements(user_id=user, offset=20)
+    # F13 must still be able to select a historical approved statement.
+    internal = service.list_approved_statements(user_id=user)
+    assert len(internal) == 25
+    old = select_approved_statements(service, user_id=user, statement_ids=[ids[0]])
+    assert old[0].statement_id == ids[0]
+
+    # Only the public router supplies a page limit. Its newest-first windows
+    # cannot produce more than the enforced 20-item HTTP maximum.
+    first = service.list_approved_statements(user_id=user, limit=20)
+    second = service.list_approved_statements(user_id=user, limit=20, offset=20)
     assert len(first) == 20
     assert len(second) == 5
     assert [row.statement_id for row in first] == list(reversed(ids[5:]))
