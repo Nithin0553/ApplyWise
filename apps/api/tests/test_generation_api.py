@@ -334,119 +334,126 @@ def test_providers_endpoint_lists_available_providers(client: TestClient) -> Non
     assert "stub" in response.json()["available"]
 
 
-# --- F11 cover letter endpoint --------------------------------------------
+# --- F11: server-authorized statement selection ---------------------------
+
+from tests.test_f08_f09_integration import COVERED_CLAIM, _seed, _verify
+
 
 COVER_LETTER_PAYLOAD = {
     "job_context": JOB_CONTEXT,
-    "approved_statements": [
-        {
-            "statement_id": "aaaaaaaa-0000-0000-0000-000000000001",
-            "text": "Built and maintained automated regression suites.",
-            "evidence_ids": [str(EVIDENCE_ONE_ID)],
-            "verification_status": "VERIFIED",
-            "approval_status": "APPROVED",
-        },
-        {
-            "statement_id": "aaaaaaaa-0000-0000-0000-000000000002",
-            "text": "Wrote Python test automation for a backend service.",
-            "evidence_ids": [str(EVIDENCE_TWO_ID)],
-            "verification_status": "VERIFIED",
-            "approval_status": "APPROVED",
-        },
-    ],
+    "statement_ids": ["aaaaaaaa-0000-0000-0000-000000000001"],
     "tone": "professional",
     "max_paragraphs": 3,
 }
 
 
+def _approved_letter_claim(client: TestClient, email: str) -> tuple[str, str, str]:
+    token, evidence_id = _seed(client, email)
+    statement = _verify(client, token, COVERED_CLAIM, evidence_id)
+    assert statement["status"] == "VERIFIED"
+    approved = client.post(
+        f"/api/statement-review/{statement['statement_id']}/decision",
+        headers=_auth(token),
+        json={"decision": "APPROVED", "expected_revision": statement["revision"]},
+    )
+    assert approved.status_code == 200, approved.text
+    return token, evidence_id, statement["statement_id"]
+
+
 def test_cover_letter_requires_authentication(client: TestClient) -> None:
-    response = client.post(
+    assert client.post(
         "/api/generation/cover-letter/preview", json=COVER_LETTER_PAYLOAD
+    ).status_code == 401
+
+
+def test_cover_letter_preview_uses_owned_current_f09_approvals(client: TestClient) -> None:
+    token, evidence_id, statement_id = _approved_letter_claim(
+        client, "letter-approved@example.edu"
     )
-
-    assert response.status_code == 401
-
-
-def test_cover_letter_is_scoped_to_the_token_not_the_request_body(
-    client: TestClient,
-) -> None:
-    """A caller cannot draft a letter against someone else's account.
-
-    The body below carries another user's id. It is ignored: identity comes
-    from the token, so the draft belongs to the authenticated caller.
-    """
-    token, user_id = _register(client, "letter-owner@example.edu")
-    _, other_user_id = _register(client, "letter-other@example.edu")
-
-    response = client.post(
+    result = client.post(
         "/api/generation/cover-letter/preview?provider=stub",
-        json={**COVER_LETTER_PAYLOAD, "user_id": other_user_id},
         headers=_auth(token),
+        json={**COVER_LETTER_PAYLOAD, "statement_ids": [statement_id]},
     )
-
-    assert response.status_code == 200
-    assert response.json()["user_id"] == user_id
-    assert response.json()["user_id"] != other_user_id
-
-
-def test_cover_letter_preview_returns_grounded_paragraphs(client: TestClient) -> None:
-    token, _ = _register(client, "letter@example.edu")
-
-    response = client.post(
-        "/api/generation/cover-letter/preview?provider=demo",
-        json=COVER_LETTER_PAYLOAD,
-        headers=_auth(token),
-    )
-
-    assert response.status_code == 200
-    body = response.json()
-    assert body["paragraphs"], "expected at least one paragraph"
+    assert result.status_code == 200, result.text
+    body = result.json()
+    assert body["paragraphs"]
     for paragraph in body["paragraphs"]:
-        assert paragraph["statement_ids"]
-        assert paragraph["evidence_ids"]
+        assert paragraph["statement_ids"] == [statement_id]
+        assert evidence_id in paragraph["evidence_ids"]
         assert paragraph["status"] == "CANDIDATE"
+        assert paragraph["verification_status"] == "PENDING"
+        assert paragraph["approval_status"] == "UNREVIEWED"
         assert paragraph["export_eligible"] is False
-    reasons = " ".join(item["reason"] for item in body["rejected"])
-    assert "cites unknown statement reference" in reasons
 
 
-def test_cover_letter_preview_refuses_an_unsupported_statement(
+def test_cover_letter_forged_client_approval_is_rejected(client: TestClient) -> None:
+    token, _, statement_id = _approved_letter_claim(client, "letter-forged@example.edu")
+    forged = {
+        **COVER_LETTER_PAYLOAD,
+        "statement_ids": [statement_id],
+        "approved_statements": [{
+            "statement_id": statement_id,
+            "text": "Invented my employer's revenue by 90%.",
+            "evidence_ids": [str(uuid4())],
+            "verification_status": "VERIFIED",
+            "approval_status": "APPROVED",
+        }],
+    }
+    result = client.post(
+        "/api/generation/cover-letter/preview", json=forged, headers=_auth(token)
+    )
+    assert result.status_code == 422
+
+
+def test_cover_letter_unapproved_foreign_and_missing_ids_all_fail_closed(
     client: TestClient,
 ) -> None:
-    token, _ = _register(client, "unsupported@example.edu")
-    payload = {
-        **COVER_LETTER_PAYLOAD,
-        "approved_statements": [
-            {
-                **COVER_LETTER_PAYLOAD["approved_statements"][0],
-                "verification_status": "UNSUPPORTED",
-            }
-        ],
-    }
+    owner_token, evidence_id = _seed(client, "letter-owner-f09@example.edu")
+    pending = _verify(client, owner_token, COVERED_CLAIM, evidence_id)
+    stranger_token, _ = _seed(client, "letter-stranger-f09@example.edu")
 
-    response = client.post(
-        "/api/generation/cover-letter/preview", json=payload, headers=_auth(token)
+    path = "/api/generation/cover-letter/preview?provider=stub"
+    def call(token: str, sid: str):
+        return client.post(path, headers=_auth(token),
+                           json={**COVER_LETTER_PAYLOAD, "statement_ids": [sid]})
+
+    unapproved = call(owner_token, pending["statement_id"])
+    missing = call(stranger_token, str(uuid4()))
+    foreign = call(stranger_token, pending["statement_id"])
+    assert unapproved.status_code == missing.status_code == foreign.status_code == 404
+    assert unapproved.json() == missing.json() == foreign.json()
+
+
+def test_cover_letter_stale_evidence_revokes_approval(client: TestClient) -> None:
+    token, evidence_id, statement_id = _approved_letter_claim(
+        client, "letter-stale@example.edu"
     )
+    edited = client.patch(
+        f"/api/evidence/{evidence_id}",
+        json={"description": "Now a different work history."},
+        headers=_auth(token),
+    )
+    assert edited.status_code == 200, edited.text
+    result = client.post(
+        "/api/generation/cover-letter/preview?provider=stub",
+        headers=_auth(token),
+        json={**COVER_LETTER_PAYLOAD, "statement_ids": [statement_id]},
+    )
+    assert result.status_code == 404
 
-    assert response.status_code == 422
 
-
-def test_cover_letter_preview_refuses_an_unapproved_statement(
-    client: TestClient,
+def test_cover_letter_preview_is_safe_in_production(
+    client: TestClient, monkeypatch,
 ) -> None:
-    token, _ = _register(client, "unapproved@example.edu")
-    payload = {
-        **COVER_LETTER_PAYLOAD,
-        "approved_statements": [
-            {
-                **COVER_LETTER_PAYLOAD["approved_statements"][0],
-                "approval_status": "UNREVIEWED",
-            }
-        ],
-    }
+    from app.core.config import settings
 
-    response = client.post(
-        "/api/generation/cover-letter/preview", json=payload, headers=_auth(token)
+    token, _, sid = _approved_letter_claim(client, "letter-prod-safe@example.edu")
+    monkeypatch.setattr(settings, "app_env", "production")
+    result = client.post(
+        "/api/generation/cover-letter/preview?provider=stub",
+        headers=_auth(token),
+        json={**COVER_LETTER_PAYLOAD, "statement_ids": [sid]},
     )
-
-    assert response.status_code == 422
+    assert result.status_code == 200, result.text
+    assert all(p["status"] == "CANDIDATE" for p in result.json()["paragraphs"])
