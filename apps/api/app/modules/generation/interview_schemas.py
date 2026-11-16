@@ -189,3 +189,20 @@ class InterviewPrep(BaseModel):
         return sum(
             1 for item in self.items if item.risk is DefensibilityRisk.HARD_TO_DEFEND
         )
+
+
+
+class InterviewSelectionRequest(BaseModel):
+    """F15's public API accepts only server-held F08 statement IDs."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    statement_ids: tuple[UUID, ...] = Field(
+        min_length=1, max_length=MAX_STATEMENTS_PER_REQUEST
+    )
+
+    @model_validator(mode="after")
+    def ids_are_unique(self) -> Self:
+        if len(set(self.statement_ids)) != len(self.statement_ids):
+            raise ValueError("statement_ids contains duplicate values")
+        return self
