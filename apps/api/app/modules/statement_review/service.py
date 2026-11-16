@@ -228,17 +228,18 @@ class StatementReviewService:
         *,
         user_id: UUID,
         statement_ids: tuple[UUID, ...] | None = None,
-        limit: int = 20,
+        limit: int | None = None,
         offset: int = 0,
     ) -> tuple[ApprovedStatement, ...]:
         """Owner-scoped, bounded read of currently approved F08 claims.
 
-        A resume or restored journey should request the particular F08 IDs it
-        needs. Unfiltered callers receive at most one 20-item page, newest
-        first, instead of the entire lifetime history of approvals. All paths
-        recompute F08 evidence/revision state before returning a claim.
+        F13 must be able to authorize an older saved resume: internal calls
+        with no limit therefore return the complete current owner-scoped set.
+        The HTTP route ALWAYS supplies a 1–20 limit. A restored journey can
+        request explicit F08 IDs instead. All paths recompute F08 evidence
+        and revision state before returning a claim.
         """
-        if not 1 <= limit <= 20 or not 0 <= offset <= 10_000:
+        if (limit is not None and not 1 <= limit <= 20) or not 0 <= offset <= 10_000:
             raise ValueError("Approved statement window is out of bounds.")
         if statement_ids is not None and len(statement_ids) > 20:
             raise ValueError("At most 20 statement IDs may be requested.")
@@ -283,6 +284,6 @@ class StatementReviewService:
                     approval_status="APPROVED",
                 )
             )
-            if len(result) == limit:
+            if limit is not None and len(result) == limit:
                 break
         return tuple(result)
