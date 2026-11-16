@@ -243,8 +243,9 @@
 .aw-claim-text { font-size:14px; font-weight:700; color:#2b3d57; }
 .aw-source-evidence { background:#f5f9ff; border:1px solid #dfecfa; padding:15px; border-radius:12px; font-size:12px; }
 .aw-source-evidence p { margin:7px 0 0; color:#667b94; }
-.aw-review-actions button:first-child { border-color:#ffb5bd; color:#be4251; }
-.aw-review-actions button:last-child { border-color:#0755d7; background:#0755d7; }
+.aw-review-actions button[type="button"]:first-child { border-color:#be4251; background:#be4251; color:#fff; }
+.aw-review-actions button[type="button"]:last-child { border-color:#0755d7; background:#0755d7; color:#fff; }
+.aw-review-actions button[type="button"]:disabled { background:#e9eef4; border-color:#c3cedb; color:#51637a; }
 .aw-storyboard-resume .aw-approved-line { color:#0f795f; font-size:13px; }
 .aw-resume-sidebar { display:flex; flex-direction:column; gap:15px; padding-top:25px; }
 .aw-resume-sidebar .aw-panel { padding:24px; }
