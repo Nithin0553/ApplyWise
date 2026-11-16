@@ -64,7 +64,7 @@ function seedDraft(extra: Record<string, unknown> = {}) {
     candidates: [candidate("st-1", "Built Angular front ends for a records system.")],
     verdicts: {
       "st-1": {
-        statement_id: "st-1", text: "Built Angular front ends for a records system.",
+        statement_id: "f08-st-1", text: "Built Angular front ends for a records system.",
         evidence_ids: ["ev-1"], status: "VERIFIED", revision: "v1-0123456789abcdef0123456789abcdef",
         findings: [], export_eligible: true,
       },
@@ -101,7 +101,7 @@ describe("journey draft", () => {
     getApprovedStatements.mockResolvedValue([]);
     render(<GuidedJourney user={user} token="synthetic-token" logout={vi.fn()} />);
     await screen.findByText("REVIEW & APPROVAL");
-    await waitFor(() => expect(getApprovedStatements).toHaveBeenCalledWith("synthetic-token"));
+    await waitFor(() => expect(getApprovedStatements).toHaveBeenCalledWith("synthetic-token", ["f08-st-1"]));
     // Still outstanding, because no F09 record backs it.
     expect(screen.getByText("1 claims need attention")).toBeInTheDocument();
   });
@@ -110,11 +110,25 @@ describe("journey draft", () => {
     seedProfile();
     seedDraft();
     getApprovedStatements.mockResolvedValue([{
-      statement_id: "st-1", text: "Built Angular front ends for a records system.",
+      statement_id: "f08-st-1", text: "Built Angular front ends for a records system.",
       evidence_ids: ["ev-1"], verification_status: "VERIFIED",
     }]);
     render(<GuidedJourney user={user} token="synthetic-token" logout={vi.fn()} />);
     expect(await screen.findByText("All statements reviewed")).toBeInTheDocument();
+  });
+
+
+  it("ignores unrelated approval history when restoring a specific resume", async () => {
+    seedProfile();
+    seedDraft();
+    getApprovedStatements.mockResolvedValue([{
+      statement_id: "unrelated-prior-resume", text: "A different approved claim.",
+      evidence_ids: ["ev-1"], verification_status: "VERIFIED",
+    }]);
+    render(<GuidedJourney user={user} token="synthetic-token" logout={vi.fn()} />);
+    await waitFor(() => expect(getApprovedStatements).toHaveBeenCalledWith(
+      "synthetic-token", ["f08-st-1"]));
+    expect(screen.getByText("1 claims need attention")).toBeInTheDocument();
   });
 
   it("reloads the evidence a restored journey needs to cite-check the export", async () => {
