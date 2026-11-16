@@ -40,26 +40,26 @@ export interface StatementSubmission {
 
 /** Plain-language labels. The user should never see a raw enum. */
 export const STATUS_LABEL: Record<VerificationStatus, string> = {
-  VERIFIED: "Backed by your evidence",
-  INFERRED: "Your wording, grounded in evidence",
-  UNSUPPORTED: "Not supported by your evidence",
+  VERIFIED: "Matches your experience",
+  INFERRED: "Reworded from your experience",
+  UNSUPPORTED: "Not in your experience",
 };
 
 export const STATUS_HELP: Record<VerificationStatus, string> = {
-  VERIFIED: "The evidence you cited contains what this claim says.",
+  VERIFIED: "Everything this line says appears in the experience it was written from.",
   INFERRED:
-    "Nothing here is invented, but the wording goes beyond what your evidence literally records. You can still approve it.",
+    "Nothing here is made up, but the wording goes further than what you wrote down. You can still use it.",
   UNSUPPORTED:
-    "This claim states something your evidence does not contain, so it cannot be exported.",
+    "This line says something your experience does not contain, so it cannot go on your resume.",
 };
 
 export const REASON_LABEL: Record<VerificationReason, string> = {
-  FIGURE_NOT_IN_EVIDENCE: "Figure is not in your evidence",
-  ENTITY_NOT_IN_EVIDENCE: "Names something your evidence does not mention",
-  DATE_OUTSIDE_EVIDENCE: "Date falls outside what your evidence records",
-  RANKING_NOT_IN_EVIDENCE: "Claims a ranking your evidence does not record",
-  SCOPE_NOT_IN_EVIDENCE: "Claims scope your evidence does not record",
-  EVIDENCE_NOT_AVAILABLE: "Cited evidence is no longer approved",
-  BEYOND_EVIDENCE_WORDING: "Wording goes beyond the evidence",
-  FULLY_COVERED: "Every part of this claim appears in your evidence",
+  FIGURE_NOT_IN_EVIDENCE: "This number is not in your experience",
+  ENTITY_NOT_IN_EVIDENCE: "Mentions something you have not written down",
+  DATE_OUTSIDE_EVIDENCE: "The dates do not match what you wrote down",
+  RANKING_NOT_IN_EVIDENCE: "Says you were ranked highest, which you have not written down",
+  SCOPE_NOT_IN_EVIDENCE: "Claims more than you wrote down",
+  EVIDENCE_NOT_AVAILABLE: "The experience this used is no longer confirmed",
+  BEYOND_EVIDENCE_WORDING: "The wording goes further than what you wrote down",
+  FULLY_COVERED: "Everything here appears in your experience",
 };

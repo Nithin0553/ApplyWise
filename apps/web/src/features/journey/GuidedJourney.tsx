@@ -653,8 +653,8 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
-        <button type="button" onClick={() => void openVerification()}>Verify claims</button>
-        <button type="button" onClick={() => void openReview()}>Review claims</button>
+        <button type="button" onClick={() => void openVerification()}>Check a line</button>
+        <button type="button" onClick={() => void openReview()}>My lines</button>
         <button type="button" onClick={() => void openCoverLetter()}>Cover letter</button>
         {INTERVIEW_PREP_AVAILABLE &&
           <button type="button" onClick={() => void openInterview()}>Interview prep</button>}
@@ -699,13 +699,13 @@ export function GuidedJourney({ user, token, logout }: Props) {
         </div>
       </div>
 
-      <p className="aw-muted aw-cover-intro">Written from the claims you approved, so every
-        paragraph traces back to your own evidence. This is a draft: unlike your resume it has
-        not been through verification or approval, so it is not offered as a download.</p>
+      <p className="aw-muted aw-cover-intro">Written from the lines you kept, so every paragraph
+        comes back to your own experience. This is a draft: unlike your resume it has not been
+        checked line by line, so it is not offered as a download.</p>
 
       {coverBusy && <div className="aw-cover-loading" role="status">
         <div className="aw-spinner" aria-hidden="true" />
-        <p>Drafting from your approved claims…</p>
+        <p>Writing from the lines you kept…</p>
       </div>}
 
       {!coverBusy && coverLetter && <>
@@ -758,7 +758,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       </div>
       {reviewStatementId
         ? <>
-            <button type="button" className="aw-link" onClick={() => setReviewStatementId(null)}>← All claims</button>
+            <button type="button" className="aw-link" onClick={() => setReviewStatementId(null)}>← All lines</button>
             <StatementReviewPage token={token} statementId={reviewStatementId} />
           </>
         : <ul className="aw-review-list">
@@ -767,7 +767,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
                 <span>{item.text}</span><em>{item.status}</em>
               </button>
             </li>)}
-            {!verifiedStatements.length && <li className="aw-review-empty">No claims submitted yet. Add one under Verify claims.</li>}
+            {!verifiedStatements.length && <li className="aw-review-empty">Nothing to review yet. Add a line under Check a line.</li>}
           </ul>}
     </main>}
     {stage === "interview" && <main className="aw-f15-workspace aw-fade" aria-label="Interview preparation workspace">
@@ -877,7 +877,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         </section>
         <section className="aw-panel aw-match-evidence">
           <h3>Evidence from your career profile</h3>
-          <p className="aw-muted">Requirements are compared only to your approved evidence.</p>
+          <p className="aw-muted">We only compare the job's requirements with experience you have confirmed.</p>
           {coverage.rows.length ? coverage.rows.map((item,i) =>
             <div className="aw-match-requirement" key={i} style={{animationDelay:(i * 75)+"ms"}}>
               <div><strong>{item.text}</strong><small>{item.detail}</small></div>
@@ -898,7 +898,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" className="aw-link" onClick={openEvidence}>Open evidence workspace →</button>
       </section>
       <div className="aw-summary-bar">
-        <p className="aw-muted">Every generated claim must be supported by evidence you approved.</p>
+        <p className="aw-muted">Every line we write has to come from experience you have confirmed.</p>
         <button type="button" className="aw-primary" disabled={!approvedEvidence.length}
           onClick={() => void generateResume()}>Generate resume →</button>
       </div>
@@ -907,7 +907,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <div className="aw-center-heading">
         <div className="aw-eyebrow">TAILORED RESUME CREATION</div>
         <h2>Building your resume...</h2>
-        <p className="aw-muted">Grounding statements in the evidence you approved.</p>
+        <p className="aw-muted">Writing each line from the experience you confirmed.</p>
       </div>
       <div className="aw-generating-layout">
         <div className="aw-generating-paper" aria-hidden="true">
@@ -918,7 +918,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <div className="aw-gen-heading">SKILLS</div><i/><i className="short"/>
         </div>
         <aside className="aw-panel aw-generating-checklist">
-          <div className="aw-gen-icon">✧</div><h3>Writing with evidence</h3>
+          <div className="aw-gen-icon">✧</div><h3>Writing from your experience</h3>
           <p className="aw-muted">Every statement is drafted using your approved career information.</p>
           <ul><li>✓ Reading job requirements</li><li>✓ Selecting relevant experience</li>
             <li>◌ Building resume structure</li><li>◌ Writing candidate statements</li></ul>
@@ -931,7 +931,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
     {(stage === "resume" || stage === "exporting") && <main className={`aw-resume-stage aw-fade aw-storyboard-resume ${stage === "exporting" ? "aw-exporting" : ""}`}>
       <div className="aw-storyboard-resume-head">
         <div><div className="aw-eyebrow">REVIEW &amp; APPROVAL</div>
-          <h2>{pendingCount ? "Review claims before exporting" : "Ready when you are."}</h2></div>
+          <h2>{pendingCount ? "Check each line before you download" : "Ready when you are."}</h2></div>
         <div className="aw-review-head-actions">
           {carriedCount > 0 && <span className="aw-carried-note">
             {carriedCount} {carriedCount === 1 ? "claim was" : "claims were"} already
@@ -940,9 +940,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
           {activeCandidates.some((item) => !approvedIds.includes(item.statement_id)
             && verdicts[item.statement_id]?.status === "VERIFIED") &&
             <button type="button" className="aw-link" disabled={busy}
-              onClick={() => void approveAllVerified()}>Approve all verified</button>}
+              onClick={() => void approveAllVerified()}>Use all matching lines</button>}
           <span className={pendingCount ? "aw-review-count" : "aw-review-count is-done"}>
-            {pendingCount ? pendingCount + " claims need attention" : "All statements reviewed"}
+            {pendingCount ? pendingCount + (pendingCount === 1 ? " line needs your review" : " lines need your review") : "Every line reviewed"}
           </span>
         </div>
       </div>
@@ -963,12 +963,12 @@ export function GuidedJourney({ user, token, logout }: Props) {
               {approved ? <p className="aw-approved-line">✓ {item.text}</p> :
                 <button type="button" className="aw-line-preview" aria-expanded={selected}
                   onClick={() => setSelectedId(selected ? null : item.statement_id)}>
-                  <span>• {item.text}</span><small>{selected ? "Hide evidence ↑" : "Needs approval · Review ↗"}</small>
+                  <span>• {item.text}</span><small>{selected ? "Hide details ↑" : "Review this line ↗"}</small>
                 </button>}
               {selected && !approved && <div className="aw-line-detail">
-                <div className="aw-line-detail-title"><strong>Does your evidence say this?</strong><span>Needs approval</span></div>
+                <div className="aw-line-detail-title"><strong>Does your experience say this?</strong><span>Needs your review</span></div>
                 <p className="aw-claim-text">{item.text}</p>
-                <div className="aw-source-evidence"><strong>Your source evidence</strong>
+                <div className="aw-source-evidence"><strong>Written from this part of your experience</strong>
                   {citations.map(ev => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
                 </div>
                 {verdicts[item.statement_id] && <div
@@ -983,10 +983,10 @@ export function GuidedJourney({ user, token, logout }: Props) {
                 {reviewError && <p className="aw-review-error" role="alert">{reviewError}</p>}
                 <div className="aw-review-actions">
                   <button type="button" disabled={busy}
-                    onClick={() => void decide(item.statement_id, "REJECTED")}>Deny claim</button>
+                    onClick={() => void decide(item.statement_id, "REJECTED")}>Remove this line</button>
                   <button type="button"
                     disabled={busy || verdicts[item.statement_id]?.status === "UNSUPPORTED"}
-                    onClick={() => void decide(item.statement_id, "APPROVED")}>Approve claim ✓</button>
+                    onClick={() => void decide(item.statement_id, "APPROVED")}>Use this line ✓</button>
                 </div>
               </div>}
             </div>;
@@ -998,18 +998,18 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <aside className="aw-resume-sidebar">
           <section className="aw-panel">
             {pendingCount ? <>
-              <h3>Verification queue</h3>
-              <p className="aw-muted">Select any highlighted statement to inspect its supporting evidence.</p>
+              <h3>Lines to review</h3>
+              <p className="aw-muted">Pick any highlighted line to see the experience it came from.</p>
               {activeCandidates.filter(item => !approvedIds.includes(item.statement_id)).map((item,index) =>
                 <button className="aw-queue-item" type="button" key={item.statement_id}
                   onClick={() => setSelectedId(item.statement_id)}>
-                  <strong>Statement {index+1}</strong><small>{item.text}</small><span>● Needs approval</span>
+                  <strong>Line {index+1}</strong><small>{item.text}</small><span>● Needs your review</span>
                 </button>)}
-              <div className="aw-queue-note">◇ Unsupported claims must be denied, never exported.</div>
+              <div className="aw-queue-note">◇ A line that is not in your experience has to be removed.</div>
             </> : <>
               <div className="aw-done-circle aw-review-complete" aria-hidden="true">✓</div>
               <h3>Review complete</h3>
-              <p className="aw-muted">Every remaining candidate was checked against your approved evidence and approved by you.</p>
+              <p className="aw-muted">Every line was checked against your experience, and you chose to keep it.</p>
             </>}
           </section>
           {deniedIds.length > 0 && <div className="aw-reflow-message" role="status">

@@ -78,7 +78,7 @@ async function reachReviewStage() {
   fireEvent.click(screen.getByRole("button", { name: /Match with my profile/i }));
   fireEvent.click(screen.getByRole("button", { name: /Generate resume/i }));
   expect(await screen.findByRole("heading",
-    { name: "Review claims before exporting" }, { timeout: 4000 })).toBeInTheDocument();
+    { name: "Check each line before you download" }, { timeout: 4000 })).toBeInTheDocument();
 }
 
 afterEach(() => {
@@ -115,13 +115,13 @@ describe("the journey does not overstate what its saved draft is", () => {
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
     await reachReviewStage();
-    fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review this line/i }));
     // INFERRED is approvable: only UNSUPPORTED is barred.
-    const approve = screen.getByRole("button", { name: /Approve claim/ });
+    const approve = screen.getByRole("button", { name: /Use this line/ });
     expect(approve).not.toBeDisabled();
     fireEvent.click(approve);
     await waitFor(() => expect(
-      screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument());
+      screen.queryByRole("button", { name: /Review this line/i })).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: /Save to My Applications/ }));
 

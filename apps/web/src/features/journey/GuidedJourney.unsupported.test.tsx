@@ -67,18 +67,18 @@ describe("an unsupported claim cannot be approved from the journey", () => {
     fireEvent.click(screen.getByRole("button", { name: /Match with my profile/i }));
     fireEvent.click(screen.getByRole("button", { name: /Generate resume/i }));
     expect(await screen.findByRole("heading",
-      { name: "Review claims before exporting" }, { timeout: 4000 })).toBeInTheDocument();
+      { name: "Check each line before you download" }, { timeout: 4000 })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review this line/i }));
 
     // F08's reason is shown, not hidden behind a generic message. It is shown
     // as the plain-language label rather than the raw coverage percentage,
     // which read as a confidence score the number does not support.
-    expect(await screen.findByText("Not supported by your evidence")).toBeInTheDocument();
+    expect(await screen.findByText("Not in your experience")).toBeInTheDocument();
     expect(screen.getByRole("listitem"))
-      .toHaveTextContent("Figure is not in your evidence");
+      .toHaveTextContent("This number is not in your experience");
     expect(screen.getByText(/cannot be approved or exported/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Approve claim/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Use this line/ })).toBeDisabled();
     expect(decisions).toEqual([]);
     expect(screen.getByRole("button", { name: /Save to My Applications/ })).toBeDisabled();
   }, 10000);

@@ -72,7 +72,7 @@ describe("feature pages are reachable from the workspace navigation", () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => [] })));
     renderSignedIn();
 
-    fireEvent.click(screen.getByRole("button", { name: "Verify claims" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check a line" }));
 
     expect(await screen.findByRole("main", { name: "Claim verification workspace" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Verification module connected" })).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("feature pages are reachable from the workspace navigation", () => {
 
   it("loads approved evidence on entry for a user who signs in and goes straight there", async () => {
     // Regression: `evidence` was only populated by analyzeJob(), so opening
-    // Verify claims first handed the panel an empty citable-evidence list and
+    // Check a line first handed the panel an empty citable-evidence list and
     // its Add button stayed disabled even with approved F02 records.
     const approvedId = "11111111-1111-4111-8111-111111111111";
     const fetchMock = vi.fn(async () => ({
@@ -97,7 +97,7 @@ describe("feature pages are reachable from the workspace navigation", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderSignedIn();
 
-    fireEvent.click(screen.getByRole("button", { name: "Verify claims" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check a line" }));
 
     expect(await screen.findByRole("main", { name: "Claim verification workspace" })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/evidence/", expect.objectContaining({
@@ -113,7 +113,7 @@ describe("feature pages are reachable from the workspace navigation", () => {
     })));
     renderSignedIn();
 
-    fireEvent.click(screen.getByRole("button", { name: "Verify claims" }));
+    fireEvent.click(screen.getByRole("button", { name: "Check a line" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Session expired.");
   });
@@ -131,7 +131,7 @@ describe("feature pages are reachable from the workspace navigation", () => {
     ]);
     renderSignedIn();
 
-    fireEvent.click(screen.getByRole("button", { name: "Review claims" }));
+    fireEvent.click(screen.getByRole("button", { name: "My lines" }));
 
     expect(await screen.findByRole("main", { name: "Statement review workspace" })).toBeInTheDocument();
     const claim = await screen.findByRole("button", { name: /Built automated regression suites/ });
@@ -145,9 +145,9 @@ describe("feature pages are reachable from the workspace navigation", () => {
     listStatements.mockResolvedValue([]);
     renderSignedIn();
 
-    fireEvent.click(screen.getByRole("button", { name: "Review claims" }));
+    fireEvent.click(screen.getByRole("button", { name: "My lines" }));
 
-    expect(await screen.findByText(/No claims submitted yet/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing to review yet/)).toBeInTheDocument();
   });
 
   it("opens F15 interview prep with the statements F09 reports as approved", async () => {
@@ -169,7 +169,7 @@ describe("feature pages are reachable from the workspace navigation", () => {
     listStatements.mockRejectedValue(new Error("Session expired."));
     renderSignedIn();
 
-    fireEvent.click(screen.getByRole("button", { name: "Review claims" }));
+    fireEvent.click(screen.getByRole("button", { name: "My lines" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Session expired.");
   });

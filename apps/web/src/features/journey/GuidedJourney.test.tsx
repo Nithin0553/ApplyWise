@@ -193,14 +193,14 @@ describe("ApplyWise guided journey", () => {
     expect(await screen.findByRole("heading", { name: "Here's what the role requires." }, { timeout: 4000 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Match with my profile/i }));
     fireEvent.click(screen.getByRole("button", { name: /Generate resume/i }));
-    expect(await screen.findByRole("heading", { name: "Review claims before exporting" }, { timeout: 4000 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Check each line before you download" }, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Save to My Applications/ })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: /Needs approval · Review/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Review this line/i }));
     expect(screen.getAllByText(/Tested REST APIs/).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button", { name: /Approve claim/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Use this line/ }));
     // The approval is a server round trip through F09 now, not a state update.
     await waitFor(() => expect(
-      screen.queryByRole("button", { name: /Needs approval · Review/i })).not.toBeInTheDocument());
+      screen.queryByRole("button", { name: /Review this line/i })).not.toBeInTheDocument());
     expect(requests).toContain("/api/verification/statements");
     expect(requests).toContain(`/api/statement-review/${verifiedId}/decision`);
     fireEvent.click(screen.getByRole("button", { name: /Save to My Applications/ }));

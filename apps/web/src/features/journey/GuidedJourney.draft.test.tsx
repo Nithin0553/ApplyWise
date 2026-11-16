@@ -103,7 +103,7 @@ describe("journey draft", () => {
     await screen.findByText("REVIEW & APPROVAL");
     await waitFor(() => expect(getApprovedStatements).toHaveBeenCalledWith("synthetic-token", ["f08-st-1"]));
     // Still outstanding, because no F09 record backs it.
-    expect(screen.getByText("1 claims need attention")).toBeInTheDocument();
+    expect(screen.getByText("1 line needs your review")).toBeInTheDocument();
   });
 
   it("restores an approval the server does confirm", async () => {
@@ -114,7 +114,7 @@ describe("journey draft", () => {
       evidence_ids: ["ev-1"], verification_status: "VERIFIED",
     }]);
     render(<GuidedJourney user={user} token="synthetic-token" logout={vi.fn()} />);
-    expect(await screen.findByText("All statements reviewed")).toBeInTheDocument();
+    expect(await screen.findByText("Every line reviewed")).toBeInTheDocument();
   });
 
 
@@ -128,7 +128,7 @@ describe("journey draft", () => {
     render(<GuidedJourney user={user} token="synthetic-token" logout={vi.fn()} />);
     await waitFor(() => expect(getApprovedStatements).toHaveBeenCalledWith(
       "synthetic-token", ["f08-st-1"]));
-    expect(screen.getByText("1 claims need attention")).toBeInTheDocument();
+    expect(screen.getByText("1 line needs your review")).toBeInTheDocument();
   });
 
   it("reloads the evidence a restored journey needs to cite-check the export", async () => {
