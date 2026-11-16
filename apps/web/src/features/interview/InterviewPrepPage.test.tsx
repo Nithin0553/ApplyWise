@@ -64,7 +64,7 @@ const PREP: InterviewPrep = {
 };
 
 function mockFetch(body: unknown, ok = true, status = 200) {
-  const fetchMock = vi.fn(async () => ({
+  const fetchMock = vi.fn(async (_path: string, _options?: RequestInit) => ({
     ok,
     status,
     json: async () => body,
