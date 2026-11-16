@@ -10,7 +10,7 @@
  * mocking this module, and so lifting the gate is one edit in one place once
  * F15 is served in production.
  */
-export const INTERVIEW_PREP_AVAILABLE: boolean = import.meta.env.DEV;
+export const INTERVIEW_PREP_AVAILABLE: boolean = true;
 
 /** Shown instead of a broken screen if the stage is reached while gated off. */
 export const INTERVIEW_PREP_UNAVAILABLE =
