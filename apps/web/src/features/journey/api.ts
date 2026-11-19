@@ -1,3 +1,4 @@
+/** HTTP client for the guided journey: evidence, applications and versions. */
 import type { CandidateStatement, GenerationResult } from "../tailoring/types";
 import type { ApprovedStatement } from "../interview/types";
 

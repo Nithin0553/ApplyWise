@@ -1,3 +1,9 @@
+"""F02 HTTP routes for evidence entry, approval and F03 resume import.
+
+Every route is scoped to the authenticated user; evidence is never addressable
+across accounts, because it is the sole source the generated resume may draw on.
+"""
+
 from __future__ import annotations
 
 from uuid import UUID

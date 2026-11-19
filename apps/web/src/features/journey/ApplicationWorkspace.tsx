@@ -1,3 +1,4 @@
+/** Workspace for one application: its status, history and saved versions. */
 import { useState, type FormEvent } from "react";
 import { ResumeVersionHistory } from "./ResumeVersionHistory";
 import { ResumePage } from "../resume/ResumePage";

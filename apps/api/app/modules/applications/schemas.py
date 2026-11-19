@@ -1,3 +1,10 @@
+"""F13 request and response models, including the trusted version snapshot.
+
+ProvenanceOrigin is the field F10 reads before exporting: only F09_APPROVED
+content may leave the system, and the snapshot validator rejects a claim whose
+cited evidence is absent from the same snapshot.
+"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

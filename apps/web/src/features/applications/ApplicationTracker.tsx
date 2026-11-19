@@ -1,3 +1,4 @@
+/** F13 list of tracked applications with their current status. */
 import "./applications.css";
 
 import {

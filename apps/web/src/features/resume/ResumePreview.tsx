@@ -1,3 +1,4 @@
+/** F10 on-screen preview of the resume as it will be exported. */
 import type { ResumeVersionSnapshot } from "../applications/api";
 import { buildSections, entryLabel } from "./sections";
 

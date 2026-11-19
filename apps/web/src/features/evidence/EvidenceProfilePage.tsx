@@ -1,3 +1,9 @@
+/**
+ * F02 evidence profile: enter, edit and approve career evidence.
+ *
+ * Approval here is what later permits generation, so the page keeps approved
+ * and unconfirmed records visibly distinct rather than listing them together.
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../auth/AuthContext";

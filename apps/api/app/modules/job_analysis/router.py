@@ -1,3 +1,9 @@
+"""F04 job description analysis routes.
+
+Prototype surface kept behind its own prefix so the parser can be exercised
+independently of the journey that normally drives it.
+"""
+
 from fastapi import APIRouter, HTTPException
 
 from .contracts import AnalysisRequest, AnalysisResult

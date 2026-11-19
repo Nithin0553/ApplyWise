@@ -1,3 +1,9 @@
+"""F13 ORM tables for applications and their stored resume versions.
+
+A resume version is immutable once written: tracking an application must not
+be able to alter a version the user already approved and exported.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, date, datetime

@@ -1,3 +1,4 @@
+/** F04 page for analysing a pasted job description. */
 import { useState } from "react";
 import type { AnalysisResult, Requirement } from "./contract";
 import "./job-analysis.css";

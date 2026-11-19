@@ -1,3 +1,9 @@
+"""F05 and F06 result types for requirement matching and content selection.
+
+A match records which approved evidence supports a requirement and how well,
+including the gaps, so an uncovered requirement is reported rather than filled.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

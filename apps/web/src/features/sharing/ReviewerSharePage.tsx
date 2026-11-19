@@ -1,3 +1,9 @@
+/**
+ * F14 read-only page a reviewer reaches with a share secret.
+ *
+ * A reviewer may comment but never edit: nothing here can change the version
+ * or the evidence behind it.
+ */
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../auth";

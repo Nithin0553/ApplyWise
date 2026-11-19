@@ -1,3 +1,10 @@
+"""F02 request and response models, including the F08 grounding context.
+
+EvidenceGroundingContext is the live view F08 verifies against. It carries the
+current content and approval time of each cited record, so a claim is checked
+against evidence as it stands now rather than as it stood when generated.
+"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

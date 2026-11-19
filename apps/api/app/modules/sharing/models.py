@@ -1,3 +1,9 @@
+"""F14 ORM tables for resume shares and peer feedback.
+
+A share stores only a digest of its secret, so the database cannot be read to
+recover a link that was issued to a reviewer.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

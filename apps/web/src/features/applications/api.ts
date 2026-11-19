@@ -1,3 +1,4 @@
+/** F13 HTTP client for applications and stored resume versions. */
 import type {
   ApplicationFormValues,
   ApplicationStatus,

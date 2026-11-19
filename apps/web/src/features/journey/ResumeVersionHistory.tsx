@@ -1,3 +1,9 @@
+/**
+ * F13 version history for one application.
+ *
+ * Marks what changed between versions so a user can see which claims were
+ * added or reworded rather than comparing two resumes line by line.
+ */
 import { useEffect, useMemo, useState } from "react";
 
 import { getVersions, type JourneyResumeVersion } from "./api";

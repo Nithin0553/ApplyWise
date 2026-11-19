@@ -1,3 +1,10 @@
+"""Process configuration read from the environment.
+
+The secret key is validated rather than defaulted silently: a deployment that
+keeps the placeholder is refused at startup instead of signing tokens with a
+value that is published in the repository.
+"""
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

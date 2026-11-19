@@ -1,3 +1,4 @@
+/** F14 page for sharing a resume version with a reviewer. */
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../auth";

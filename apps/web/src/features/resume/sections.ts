@@ -1,3 +1,10 @@
+/**
+ * F10 client-side grouping of approved statements into resume sections.
+ *
+ * Mirrors the server grouping rule so the preview matches the exported file.
+ * The server remains authoritative: this exists to show the user what they
+ * will get, never to decide what may be exported.
+ */
 import type {
   EvidenceSnapshotItem,
   ProvenanceSnapshotItem,

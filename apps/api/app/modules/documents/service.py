@@ -1,3 +1,10 @@
+"""F10 export eligibility gate.
+
+The single place that decides whether a stored version may be exported. It
+refuses anything whose provenance is not F09_APPROVED, so an unverified or
+merely user-edited draft cannot reach a downloadable file.
+"""
+
 from __future__ import annotations
 
 from app.modules.applications.schemas import (

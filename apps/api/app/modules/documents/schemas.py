@@ -1,3 +1,9 @@
+"""F10 renderable document shape: sections, entries and export formats.
+
+Describes the document to be rendered, not the approval that permits it; the
+eligibility decision belongs to service.py so no renderer can bypass it.
+"""
+
 from __future__ import annotations
 
 from enum import StrEnum

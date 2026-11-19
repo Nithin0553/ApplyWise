@@ -1,3 +1,4 @@
+/** F10 client for downloading an approved resume as PDF or Word. */
 export type ResumeExportFormat = "pdf" | "docx";
 export type ResumeExportTemplate = "standard" | "compact";
 

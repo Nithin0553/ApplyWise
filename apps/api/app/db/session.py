@@ -1,3 +1,9 @@
+"""Request-scoped database session dependency.
+
+One session per request, closed when the request ends, so a failed request
+cannot leave a transaction open for the next one to inherit.
+"""
+
 from collections.abc import Generator
 
 from sqlalchemy import create_engine

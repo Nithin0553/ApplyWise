@@ -1,3 +1,10 @@
+/**
+ * The guided journey: evidence, posting, generation, review, approval, export.
+ *
+ * This is the only path that reaches an export. Approvals are never restored
+ * from the saved draft; they are re-fetched from the server, because the draft
+ * is browser state and an approval must be one the server still recognises.
+ */
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";

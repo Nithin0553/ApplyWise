@@ -1,3 +1,10 @@
+"""Market skill demand result types.
+
+Reports how often a skill appears across a collection of postings and how the
+user evidence compares, as advisory context only: nothing here can approve a
+claim or widen what the resume is allowed to say.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

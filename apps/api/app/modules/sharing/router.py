@@ -1,3 +1,10 @@
+"""F14 HTTP routes for issuing, resolving and revoking resume shares.
+
+Reviewer access is granted by the share secret alone and is read-only: a
+reviewer may comment on a version but can never alter it or the evidence
+behind it.
+"""
+
 from __future__ import annotations
 
 from uuid import UUID

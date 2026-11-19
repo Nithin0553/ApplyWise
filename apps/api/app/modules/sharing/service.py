@@ -1,3 +1,10 @@
+"""F14 share lifecycle and peer feedback storage.
+
+Secrets are generated server-side and stored only as digests, expiry is
+validated on creation, and revocation is immediate: a revoked share stops
+resolving rather than merely being hidden.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable

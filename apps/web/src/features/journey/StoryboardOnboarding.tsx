@@ -1,3 +1,4 @@
+/** First-run questions that seed the journey with the user's target role. */
 import { useEffect, useRef, useState } from "react";
 
 export interface Profile {

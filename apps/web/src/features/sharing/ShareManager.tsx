@@ -1,3 +1,4 @@
+/** F14 management of issued shares, including revoking one. */
 import "./sharing.css";
 
 import {

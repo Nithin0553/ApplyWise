@@ -1,3 +1,4 @@
+/** F10 page for previewing and downloading an approved resume. */
 import { useEffect, useState } from "react";
 
 import { listResumeVersions } from "../applications/api";

@@ -1,3 +1,4 @@
+/** F14 public surface: sharing, peer feedback and the reviewer page. */
 export { PeerFeedbackPanel } from "./PeerFeedbackPanel";
 export { ReviewerSharePage } from "./ReviewerSharePage";
 export { ShareManager } from "./ShareManager";

@@ -1,3 +1,9 @@
+"""FastAPI application wiring: routers, CORS and the health probe.
+
+F01 hides the interactive API documentation outside development, so the
+schema is reachable locally but not served from a deployed environment.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
