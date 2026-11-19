@@ -1,7 +1,8 @@
 """Shared test fixtures.
 
 Tests run against an in-memory SQLite database instead of the real
-PostgreSQL instance so `pytest` has no external dependency. SQLite is
+PostgreSQL instance, and against the scripted AI provider rather than a real
+one, so `pytest` has no external dependency. SQLite is
 compatible with the column types used so far (String, Boolean, DateTime);
 a feature introducing a Postgres-only type should extend this fixture
 rather than assume Postgres is always available in CI.
@@ -15,6 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
@@ -22,6 +24,25 @@ from app.main import app
 # Import every module's models so Base.metadata is complete, mirroring
 # migrations/env.py.
 from app.modules.auth import models as auth_models  # noqa: F401
+
+
+@pytest.fixture(autouse=True)
+def offline_ai_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test may call a real AI provider.
+
+    Routes that do not take a provider override read ``AI_PROVIDER`` from the
+    environment, so a developer who has set it to a real provider in their
+    .env would otherwise have the suite make live API calls: slow,
+    non-deterministic, billed, and green or red depending on whose machine it
+    ran on. This pins every test to the scripted provider and removes the key,
+    so leaving the machine is not possible rather than merely discouraged.
+
+    A test that wants to exercise a real provider's parsing constructs it
+    directly with a stubbed httpx transport, as test_anthropic_provider.py
+    does.
+    """
+    monkeypatch.setattr(settings, "ai_provider", "stub")
+    monkeypatch.setattr(settings, "ai_api_key", None)
 
 
 @pytest.fixture()

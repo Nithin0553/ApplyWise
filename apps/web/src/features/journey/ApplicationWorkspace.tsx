@@ -1,3 +1,4 @@
+/** Workspace for one application: its status, history and saved versions. */
 import { useState, type FormEvent } from "react";
 import { ResumeVersionHistory } from "./ResumeVersionHistory";
 import { ResumePage } from "../resume/ResumePage";
@@ -9,6 +10,7 @@ import {
 
 interface Props {
   token: string;
+  fullName: string;
   applications: JourneyApplication[];
   versionCounts: Record<string, number>;
   onChange: (application: JourneyApplication) => void;
@@ -28,7 +30,7 @@ function formatDate(value?: string | null): string {
 
 /** F13 application records are editable; historical resume versions remain immutable. */
 export function ApplicationWorkspace({
-  token, applications, versionCounts, onChange, onNewJob, onEditProfile,
+  token, fullName, applications, versionCounts, onChange, onNewJob, onEditProfile,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
@@ -166,6 +168,9 @@ export function ApplicationWorkspace({
     key={item.id}
     token={token}
     applicationId={item.id}
+    fullName={fullName}
+    roleTitle={item.role_title}
+    companyName={item.company_name}
   />
 )}
         <div className="aw-app-detail-cols">

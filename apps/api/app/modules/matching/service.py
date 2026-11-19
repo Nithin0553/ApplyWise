@@ -1,3 +1,11 @@
+"""F05 requirement-to-evidence matching and F06 content selection.
+
+Decides what the resume should talk about, before any sentence exists. It
+ranks approved evidence against the posting requirements and cannot assert
+anything: whether a written sentence is supported is F08 decision, made later
+and without sight of the posting.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

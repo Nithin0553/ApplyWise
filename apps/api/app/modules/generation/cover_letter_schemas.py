@@ -91,6 +91,21 @@ class RejectedParagraph(BaseModel):
     reason: str
 
 
+class CoverLetterPdfRequest(BaseModel):
+    """Paragraphs to lay out as a letter.
+
+    The author's name is NOT a field: it comes from the authenticated session,
+    like every other identity in this module. The paragraphs are the caller's
+    draft, and rendering them asserts nothing about them -- see
+    ``cover_letter_pdf``.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    company: str | None = Field(default=None, max_length=200)
+    paragraphs: tuple[str, ...] = Field(min_length=1, max_length=12)
+
+
 class CoverLetterDraft(BaseModel):
     model_config = ConfigDict(frozen=True)
 

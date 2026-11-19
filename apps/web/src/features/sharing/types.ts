@@ -1,3 +1,4 @@
+/** F14 share and peer feedback types, including share status derivation. */
 export type ShareGrantStatus = "active" | "expired" | "revoked";
 
 export interface ShareGrantSummary {

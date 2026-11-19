@@ -1,3 +1,10 @@
+"""F02 provider interface other modules depend on.
+
+F07, F08 and F09 consume approved evidence through this Protocol rather than
+querying F02 tables, so the rule that only approved records are visible is
+enforced in one place.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

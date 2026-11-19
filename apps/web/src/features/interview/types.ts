@@ -70,10 +70,10 @@ export const RISK_LABEL: Record<DefensibilityRisk, string> = {
 
 /** Why a statement was flagged, phrased for the person rehearsing. */
 export const SIGNAL_LABEL: Record<SignalCode, string> = {
-  UNSOURCED_NUMBER: "Figure is not in your evidence",
-  UNSOURCED_SUPERLATIVE: "Claims a ranking your evidence does not record",
-  UNSOURCED_LEADERSHIP: "Claims scope your evidence does not record",
-  THIN_EVIDENCE: "Your evidence is brief",
-  INFERRED_STATEMENT: "Inferred rather than directly verified",
-  SINGLE_SOURCE: "Rests on a single evidence item",
+  UNSOURCED_NUMBER: "This number is not in your experience",
+  UNSOURCED_SUPERLATIVE: "Says you were ranked highest, which you have not written down",
+  UNSOURCED_LEADERSHIP: "Claims more than you wrote down",
+  THIN_EVIDENCE: "What you wrote down here is short",
+  INFERRED_STATEMENT: "Reworded rather than taken word for word",
+  SINGLE_SOURCE: "Rests on one piece of your experience",
 };

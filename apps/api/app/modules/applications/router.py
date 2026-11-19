@@ -1,3 +1,9 @@
+"""F13 HTTP routes for application tracking and resume versions.
+
+Saving a reviewed draft is the gate between F09 approval and F10 export, so
+this router refuses content whose provenance is not server-confirmed.
+"""
+
 from __future__ import annotations
 
 from uuid import UUID

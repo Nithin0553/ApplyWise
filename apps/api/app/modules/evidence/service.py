@@ -1,3 +1,9 @@
+"""F02 evidence lifecycle: create, update, approve and expose approved records.
+
+Status transitions are validated rather than assigned, and only approved
+records are returned to the modules that generate and verify claims.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

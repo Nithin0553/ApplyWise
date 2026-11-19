@@ -1,3 +1,4 @@
+/** F05 page showing how approved evidence matches a posting's requirements. */
 import { useEffect, useMemo, useState } from "react";
 
 import { ApiError, fetchApprovedEvidence, generateStatements } from "./api";

@@ -1,3 +1,10 @@
+"""F13 application lifecycle rules and resume version storage.
+
+Status changes are checked against an explicit transition table rather than
+assigned freely, so an application cannot move out of a terminal state or skip
+the states the tracker reports on.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, date, datetime

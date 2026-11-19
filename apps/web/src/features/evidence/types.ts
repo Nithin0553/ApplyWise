@@ -1,3 +1,4 @@
+/** F02 evidence types, form values and the labels shown for each type. */
 export type EvidenceType =
   | "work_experience"
   | "education"

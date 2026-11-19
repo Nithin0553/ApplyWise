@@ -1,17 +1,28 @@
+/** F10 page for previewing and downloading an approved resume. */
 import { useEffect, useState } from "react";
 
 import { listResumeVersions } from "../applications/api";
 import type { ResumeVersionApiRecord } from "../applications/api";
 import { downloadResume, type ResumeExportFormat } from "./api";
 import { ResumePreview } from "./ResumePreview";
+import { isTrustedVersion } from "./sections";
 import "./ResumePage.css";
 
 interface Props {
   token: string;
   applicationId: string;
+  fullName?: string;
+  roleTitle?: string;
+  companyName?: string | null;
 }
 
-export function ResumePage({ token, applicationId }: Props) {
+export function ResumePage({
+  token,
+  applicationId,
+  fullName,
+  roleTitle,
+  companyName,
+}: Props) {
   const [template, setTemplate] = useState<"standard" | "compact">("standard");
   const [versions, setVersions] = useState<ResumeVersionApiRecord[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState("");
@@ -36,7 +47,11 @@ export function ResumePage({ token, applicationId }: Props) {
         );
 
         setVersions(ordered);
-        setSelectedVersionId(ordered[0]?.id ?? "");
+        // Prefer a version the server will render. Falling back to the
+        // newest keeps the page honest when none is exportable: the user
+        // sees the draft and the reason, rather than an empty page.
+        const exportable = ordered.find((record) => isTrustedVersion(record.snapshot));
+        setSelectedVersionId((exportable ?? ordered[0])?.id ?? "");
       })
       .catch((cause: unknown) => {
         if (!active) return;
@@ -55,6 +70,11 @@ export function ResumePage({ token, applicationId }: Props) {
       active = false;
     };
   }, [token, applicationId]);
+
+  const selectedVersion = versions.find((item) => item.id === selectedVersionId);
+  const exportable = selectedVersion
+    ? isTrustedVersion(selectedVersion.snapshot)
+    : false;
 
   async function handleDownload(format: ResumeExportFormat) {
     if (!selectedVersionId || downloading || loading) return;
@@ -101,12 +121,6 @@ export function ResumePage({ token, applicationId }: Props) {
         <p>Choose a clear layout for your approved experience.</p>
       </header>
 
-      <p className="prototype-notice">
-        The preview below contains fictional sample content for layout
-        demonstration only. Downloaded documents use your selected saved
-        resume version and are validated by the server.
-      </p>
-
       <div className="resume-layout">
         <aside className="resume-controls" aria-labelledby="settings-heading">
 
@@ -128,6 +142,7 @@ export function ResumePage({ token, applicationId }: Props) {
               {versions.map((version) => (
                 <option key={version.id} value={version.id}>
                   Version {version.version_number}
+                  {isTrustedVersion(version.snapshot) ? " — final" : " — draft"}
                 </option>
               ))}
             </select>
@@ -136,8 +151,10 @@ export function ResumePage({ token, applicationId }: Props) {
           )}
 
           <p className="template-description">
-            Saved versions are historical records. Export eligibility is
-            checked when you download.
+            Saved versions are historical records. A draft is the copy kept
+            when a resume is saved here; a final version is one you approved
+            and downloaded. Only final versions can be exported, and the
+            server re-checks every approval at download time.
           </p>
 
           <label htmlFor="resume-template">Resume template</label>
@@ -171,8 +188,11 @@ onChange={(event) => {
           <h3>Export your resume</h3>
 
           <p id="export-note">
-            Downloads use your selected saved resume version and require
-            current verification and approval.
+            {!selectedVersionId
+              ? "Select a saved resume version to export."
+              : exportable
+                ? "Downloads use the selected version and require current verification and approval."
+                : "This version is a draft and cannot be exported. Open the resume from your journey, approve the claims and download there: that creates a final version, which appears here."}
           </p>
 
           {error && (
@@ -181,35 +201,47 @@ onChange={(event) => {
             </p>
           )}
 
-          <div className="export-actions">
-            <button
-              type="button"
-              disabled={loading || downloading || !selectedVersionId}
-              aria-describedby="export-note"
-              onClick={() => void handleDownload("pdf")}
-            >
-              {downloading ? "Preparing download..." : "Download PDF"}
-            </button>
+          {exportable && (
+            <div className="export-actions">
+              <button
+                type="button"
+                disabled={loading || downloading}
+                aria-describedby="export-note"
+                onClick={() => void handleDownload("pdf")}
+              >
+                {downloading ? "Preparing download..." : "Download PDF"}
+              </button>
 
-            <button
-              type="button"
-              disabled={loading || downloading || !selectedVersionId}
-              aria-describedby="export-note"
-              onClick={() => void handleDownload("docx")}
-            >
-              {downloading ? "Preparing download..." : "Download Word"}
-            </button>
-          </div>
+              <button
+                type="button"
+                disabled={loading || downloading}
+                aria-describedby="export-note"
+                onClick={() => void handleDownload("docx")}
+              >
+                {downloading ? "Preparing download..." : "Download Word"}
+              </button>
+            </div>
+          )}
 
         </aside>
 
         <section className="preview-area" aria-labelledby="preview-heading">
           <div className="preview-heading">
             <h3 id="preview-heading">Resume preview</h3>
-            <span>Sample content</span>
+            <span>
+              {selectedVersion
+                ? `Version ${selectedVersion.version_number}`
+                : "No version selected"}
+            </span>
           </div>
 
-          <ResumePreview template={template} />
+          <ResumePreview
+            template={template}
+            snapshot={selectedVersion?.snapshot}
+            fullName={fullName}
+            targetRole={roleTitle}
+            company={companyName}
+          />
         </section>
       </div>
     </section>

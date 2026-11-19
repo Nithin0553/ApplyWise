@@ -1,3 +1,10 @@
+"""F02 ORM table for a user career evidence record.
+
+Approval is stored as a timestamp as well as a status, because F08 binds a
+verification revision to the evidence content and its approval time: editing
+an approved record invalidates the approvals derived from it.
+"""
+
 from __future__ import annotations
 
 from datetime import UTC, date, datetime

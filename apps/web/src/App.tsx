@@ -1,3 +1,10 @@
+/**
+ * Application shell and authentication gate.
+ *
+ * Decides what an unauthenticated visitor may see. A reviewer arriving with an
+ * F14 share secret is routed to the read-only share page without signing in;
+ * everyone else reaches the journey only once authenticated.
+ */
 import { useEffect, useState } from "react";
 
 import { AuthProvider, LoginForm, RegisterForm, useAuth } from "./features/auth";

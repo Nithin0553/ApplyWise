@@ -1,3 +1,4 @@
+/** F14 HTTP client for issuing, resolving and revoking resume shares. */
 import type {
   PeerFeedbackSummary,
   ShareableResumeVersion,

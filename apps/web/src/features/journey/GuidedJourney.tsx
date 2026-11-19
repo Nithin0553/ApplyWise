@@ -1,19 +1,34 @@
+/**
+ * The guided journey: evidence, posting, generation, review, approval, export.
+ *
+ * This is the only path that reaches an export. Approvals are never restored
+ * from the saved draft; they are re-fetched from the server, because the draft
+ * is browser state and an approval must be one the server still recognises.
+ */
 import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
 import type { User } from "../auth/types";
 import type { CandidateStatement } from "../tailoring/types";
 import { SharingPage } from "../sharing";
 import {
-  addEvidence, downloadReviewedText, estimateOverlap,
+  addEvidence, estimateOverlap,
   generateCandidates, getApplications, getApprovedStatements, getEvidence, getVersionCounts,
-  readRequirements, saveReviewedResume,
+  assessRequirements, downloadCoverLetterPdf, finalizeResume, generateCoverLetter,
+  readRequirements, saveBlob,
+  saveReviewedResume, suggestJobContext,
+  type CoverLetterDraft, type CoverLetterTone, type RequirementAssessment,
   type JourneyApplication, type JourneyEvidence,
 } from "./api";
 import "./journey.css";
 import { ApplicationWorkspace } from "./ApplicationWorkspace";
 import { StoryboardOnboarding, EMPTY_PROFILE, type Profile } from "./StoryboardOnboarding";
 import { EvidenceManager } from "../evidence/EvidenceProfilePage";
-import { VerificationPanel, listStatements, type VerifiedStatementView } from "../verification";
+import {
+  VerificationPanel, listStatements, submitStatement, type VerifiedStatementView,
+} from "../verification";
+import { REASON_LABEL, STATUS_LABEL } from "../verification/types";
+import { carryForwardReview, decideStatement } from "../review";
 import { StatementReviewPage } from "../review";
+import { downloadResume, type ResumeExportFormat } from "../resume/api";
 import { InterviewPrepPage, type ApprovedStatement } from "../interview";
 import {
   INTERVIEW_PREP_AVAILABLE, INTERVIEW_PREP_UNAVAILABLE,
@@ -22,7 +37,7 @@ import {
 interface Props { user: User; token: string; logout: () => void }
 type Stage = "setup" | "preparing" | "ready" | "paste" | "analyzing" | "analysis" |
   "match" | "generating" | "resume" | "exporting" | "applications" | "sharing" | "evidence" |
-  "verification" | "review" | "interview";
+  "verification" | "review" | "interview" | "cover-letter";
 function localProfileKey(id: string) { return `applywise.journey.profile.${id}`; }
 function readProfile(id: string): Profile | null {
   try {
@@ -32,7 +47,49 @@ function readProfile(id: string): Profile | null {
     return value && typeof value.career === "string" && value.career ? value : null;
   } catch { return null; }
 }
+// Only the profile used to survive a reload, so a refresh sent the user back
+// to the empty job box and threw away the extracted requirements, the
+// requirement match and the generated claims -- every one of which costs a
+// live model call to rebuild. The draft below is the recoverable part of the
+// journey. Approvals are deliberately NOT in it: an F09 approval is a server
+// record bound to one verification revision, so letting the browser assert
+// "approved" would survive an evidence change that should have invalidated
+// it. Those are re-fetched from the server on restore.
+type ResumableStage = "paste" | "analysis" | "match" | "resume";
+const RESUMABLE: readonly ResumableStage[] = ["paste", "analysis", "match", "resume"];
+interface JourneyDraft {
+  stage: ResumableStage;
+  job: string;
+  role: string;
+  company: string;
+  requirements: string[];
+  candidates: CandidateStatement[];
+  verdicts: Record<string, VerifiedStatementView>;
+  deniedIds: string[];
+}
+function localDraftKey(id: string) { return `applywise.journey.draft.${id}`; }
+function readDraft(id: string): JourneyDraft | null {
+  try {
+    const raw = localStorage.getItem(localDraftKey(id));
+    if (!raw) return null;
+    const value = JSON.parse(raw) as JourneyDraft;
+    if (!value || !RESUMABLE.includes(value.stage)) return null;
+    if (!Array.isArray(value.candidates) || !Array.isArray(value.requirements)) return null;
+    return value;
+  } catch { return null; }
+}
+
+// Mirrors MAX_STATEMENTS_PER_REQUEST in interview_schemas.py. Sending more
+// is rejected as a validation error, which the page could only report as a
+// generic failure.
+const INTERVIEW_STATEMENT_LIMIT = 20;
+
 const delay = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+/** The letter as plain text, for the clipboard. */
+function letterText(draft: CoverLetterDraft): string {
+  return draft.paragraphs.map((item) => item.text).join("\n\n");
+}
 
 function Spinner({ title, description }: { title: string; description: string }) {
   return <main className="aw-center-state aw-fade" role="status">
@@ -43,16 +100,17 @@ function Spinner({ title, description }: { title: string; description: string })
 
 export function GuidedJourney({ user, token, logout }: Props) {
   const stored = readProfile(user.id);
+  const draft = stored ? readDraft(user.id) : null;
   const [profile, setProfile] = useState<Profile>(stored ?? EMPTY_PROFILE);
-  const [stage, setStage] = useState<Stage>(stored ? "paste" : "setup");
-  const [job, setJob] = useState("");
-  const [role, setRole] = useState("");
-  const [company, setCompany] = useState("");
-  const [requirements, setRequirements] = useState<string[]>([]);
+  const [stage, setStage] = useState<Stage>(stored ? (draft?.stage ?? "paste") : "setup");
+  const [job, setJob] = useState(draft?.job ?? "");
+  const [role, setRole] = useState(draft?.role ?? "");
+  const [company, setCompany] = useState(draft?.company ?? "");
+  const [requirements, setRequirements] = useState<string[]>(draft?.requirements ?? []);
   const [evidence, setEvidence] = useState<JourneyEvidence[]>([]);
-  const [candidates, setCandidates] = useState<CandidateStatement[]>([]);
+  const [candidates, setCandidates] = useState<CandidateStatement[]>(draft?.candidates ?? []);
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
-  const [deniedIds, setDeniedIds] = useState<string[]>([]);
+  const [deniedIds, setDeniedIds] = useState<string[]>(draft?.deniedIds ?? []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [savedApplications, setSavedApplications] = useState<JourneyApplication[]>([]);
   const [versionCounts, setVersionCounts] = useState<Record<string, number>>({});
@@ -62,13 +120,80 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const [verifiedStatements, setVerifiedStatements] = useState<VerifiedStatementView[]>([]);
   const [reviewStatementId, setReviewStatementId] = useState<string | null>(null);
   const [approvedStatements, setApprovedStatements] = useState<ApprovedStatement[]>([]);
+  // F07 proposes; F08 decides. Keyed by the candidate id so the document
+  // keeps its order while decisions are made against F08's own records.
+  const [verdicts, setVerdicts] = useState<Record<string, VerifiedStatementView>>(draft?.verdicts ?? {});
+  const [reviewError, setReviewError] = useState("");
   const [loadingEvidence, setLoadingEvidence] = useState(false);
+  const [assessments, setAssessments] = useState<RequirementAssessment[]>([]);
+  const [assessing, setAssessing] = useState(false);
+  // The application and trusted version behind the PDF/Word downloads, kept
+  // so a second download does not finalize a second time.
+  const [carriedCount, setCarriedCount] = useState(0);
+  const [coverLetter, setCoverLetter] = useState<CoverLetterDraft | null>(null);
+  const [coverTone, setCoverTone] = useState<CoverLetterTone>("professional");
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [finalApplicationId, setFinalApplicationId] = useState<string | null>(null);
+  const [finalVersionId, setFinalVersionId] = useState<string | null>(null);
+
+  // Keep the recoverable journey in step with the screen.
+  useEffect(() => {
+    if (!RESUMABLE.includes(stage as ResumableStage)) return;
+    const resumable = stage as ResumableStage;
+    try {
+      localStorage.setItem(localDraftKey(user.id), JSON.stringify({
+        stage: resumable, job, role, company, requirements, candidates, verdicts, deniedIds,
+      } satisfies JourneyDraft));
+    } catch { /* a full or disabled store must not break the journey */ }
+  }, [user.id, stage, job, role, company, requirements, candidates, verdicts, deniedIds]);
+
+  // A restored journey asks the server which claims are approved, because the
+  // browser is not allowed to be the authority on that. It reloads the
+  // evidence in the same pass: the export checks every claim's citations
+  // against this list, so a journey restored without it fails that check on
+  // evidence that is approved and present.
+  useEffect(() => {
+    if (!draft?.candidates.length) return;
+    let live = true;
+    void (async () => {
+      try {
+        const currentF08Ids = draft.candidates
+          .map((item) => draft.verdicts?.[item.statement_id]?.statement_id)
+          .filter((id): id is string => Boolean(id));
+        const [approved, records] = await Promise.all([
+          currentF08Ids.length ? getApprovedStatements(token, currentF08Ids) : Promise.resolve([]),
+          getEvidence(token),
+        ]);
+        if (!live) return;
+        setEvidence(records);
+        const ids = new Set(approved.map((item) => item.statement_id));
+        // F07 candidate IDs differ from the F08 IDs reviewed by F09.
+        // Translate through the stored verdict map, never infer approval from
+        // client-side draft flags or unrelated historical approvals.
+        setApprovedIds(draft.candidates.filter((item) =>
+          ids.has(draft.verdicts?.[item.statement_id]?.statement_id ?? ""))
+          .map((item) => item.statement_id));
+      } catch { /* leave them unreviewed; the user can approve again */ }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (stage !== "ready") return;
     const t = window.setTimeout(() => setStage("paste"), 1500);
     return () => window.clearTimeout(t);
   }, [stage]);
+
+  /** The journey is over: stop restoring it at the next sign-in.
+   *
+   * Without this a finished journey came back on every sign-in, parked on
+   * review and approval, asking again for approvals the user had already
+   * given -- and the way out, New job, was the one screen it never showed.
+   */
+  function clearJourneyDraft() {
+    try { localStorage.removeItem(localDraftKey(user.id)); } catch { /* ignore */ }
+  }
 
   function changeStage(next: Stage) {
     setError("");
@@ -99,13 +224,30 @@ export function GuidedJourney({ user, token, logout }: Props) {
     if (!job.trim()) return;
     setError(""); setStage("analyzing");
     const lines = job.trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    // Fallback title: the first line, which is only right when the posting
+    // happens to open with the role. "Acme is seeking a talented Senior
+    // Engineer" becomes the whole sentence, which is why the model is asked.
     const first = lines[0]?.replace(/^job title:\s*/i, "").slice(0, 120) ?? "";
-    setRole((current) => current || (first.length < 90 ? first : profile.career));
     const reqs = readRequirements(job);
     try {
-      const [records] = await Promise.all([getEvidence(token), delay(850)]);
+      const [records, suggestion] = await Promise.all([
+        getEvidence(token),
+        // Best effort only: the fallback below is already usable, so a provider
+        // failure must not stop the user reaching the next screen.
+        suggestJobContext(token, job).catch(() => null),
+        delay(850),
+      ]);
       setEvidence(records);
-      setRequirements(reqs);
+      setRole((current) =>
+        current || suggestion?.role_title || (first.length < 90 ? first : profile.career));
+      if (suggestion?.company_name) {
+        setCompany((current) => current || suggestion.company_name);
+      }
+      // readRequirements() takes the first ten long lines, so on a posting
+      // without bullet characters it returns the metadata block and stops
+      // before the duties. The model reads the whole posting, so prefer it and
+      // keep the heuristic only for when it returns nothing.
+      setRequirements(suggestion?.requirements?.length ? suggestion.requirements : reqs);
       setStage("analysis");
     } catch (err) {
       setStage("paste");
@@ -124,13 +266,84 @@ export function GuidedJourney({ user, token, logout }: Props) {
       }, available.map((item) => item.id));
       if (!result.statements.length) throw new Error("No grounded statements were returned. Add more approved evidence.");
       setCandidates(result.statements);
-      setApprovedIds([]); setDeniedIds([]);
+      setApprovedIds([]); setDeniedIds([]); setReviewError("");
+      const checked = await verifyCandidates(result.statements);
+      setVerdicts(checked);
+      setApprovedIds(await carryForwardApprovals(result.statements, checked));
       await delay(500);
       setStage("resume");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resume generation could not complete.");
       setStage("match");
     }
+  }
+
+  /** Submit each F07 candidate to F08 and keep the verdict it returns.
+   *
+   * A candidate is born `verification_status: "PENDING"`, so until this runs
+   * nothing in the document has been checked against anything. F08 classifies
+   * it server-side against the user's own approved evidence; the client never
+   * decides what a claim is worth.
+   */
+  /** Reuse approvals the user already gave for word-for-word identical claims.
+   *
+   * Regenerating mints new statement ids, so without this the same sentence,
+   * backed by the same evidence, is put to the user again every time. The
+   * server decides: it carries an approval only when the derived revision
+   * matches one of this user's own approvals, which means the claim, the
+   * evidence behind it and F08's classification are all unchanged. Each reply
+   * is read rather than assumed, so a statement counts as approved here only
+   * because the server says it is.
+   */
+  async function carryForwardApprovals(
+    items: CandidateStatement[],
+    checked: Record<string, VerifiedStatementView>,
+  ): Promise<string[]> {
+    const carried = await Promise.all(items.map(async (item) => {
+      const verdict = checked[item.statement_id];
+      if (!verdict || verdict.status === "UNSUPPORTED") return null;
+      try {
+        const review = await carryForwardReview(token, verdict.statement_id);
+        return review.review_status === "APPROVED" ? item.statement_id : null;
+      } catch {
+        // Carrying forward is a convenience. If it fails the user reviews
+        // the claim by hand, which is the behaviour without this at all.
+        return null;
+      }
+    }));
+    const ids = carried.filter((value): value is string => value !== null);
+    setCarriedCount(ids.length);
+    return ids;
+  }
+
+  async function verifyCandidates(items: CandidateStatement[]) {
+    const entries = await Promise.all(items.map(async (item) => {
+      const verdict = await submitStatement(token, {
+        text: item.text, evidence_ids: item.evidence_ids,
+      });
+      return [item.statement_id, verdict] as const;
+    }));
+    return Object.fromEntries(entries) as Record<string, VerifiedStatementView>;
+  }
+
+  /** Record an approval or rejection through F09, not in component state.
+   *
+   * `expected_revision` is what makes the decision trustworthy: F09 refuses it
+   * if the claim or any cited evidence changed since this verdict was read, and
+   * refuses approval of an UNSUPPORTED claim outright (409).
+   */
+  async function decide(candidateId: string, decision: "APPROVED" | "REJECTED") {
+    const verdict = verdicts[candidateId];
+    if (!verdict || busy) return;
+    setBusy(true); setReviewError("");
+    try {
+      await decideStatement(token, verdict.statement_id, decision, verdict.revision);
+      if (decision === "APPROVED") setApprovedIds((current) => [...current, candidateId]);
+      else setDeniedIds((current) => [...current, candidateId]);
+      setSelectedId(null);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : "Could not record your decision.");
+    } finally { setBusy(false); }
   }
 
   // F08, F09 and F15 each shipped a finished page that nothing imported, so
@@ -157,6 +370,69 @@ export function GuidedJourney({ user, token, logout }: Props) {
     }
   }
 
+  /** F11 drafts from approved statements, not from raw evidence.
+   *
+   * Each paragraph is a CANDIDATE: new prose that has not been through F08 or
+   * F09, so it is never export-eligible and is labelled as a draft on screen.
+   */
+  async function openCoverLetter() {
+    setError("");
+    changeStage("cover-letter");
+    if (coverLetter || coverBusy) return;
+    await draftCoverLetter();
+  }
+
+  async function downloadCoverLetter() {
+    if (!coverLetter || coverBusy) return;
+    setCoverBusy(true); setError("");
+    try {
+      const safeName = (user.full_name.trim() || "cover-letter")
+        .replace(/[^a-z0-9_-]+/gi, "-");
+      saveBlob(await downloadCoverLetterPdf(token, {
+        company: company || null,
+        paragraphs: coverLetter.paragraphs.map((item) => item.text),
+      }), `${safeName}-cover-letter.pdf`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not prepare the PDF.");
+    } finally { setCoverBusy(false); }
+  }
+
+  async function draftCoverLetter() {
+    const approvedStatements = candidates
+      .filter((item) => approvedIds.includes(item.statement_id))
+      .map((item) => {
+        const verdict = verdicts[item.statement_id];
+        if (!verdict || verdict.status === "UNSUPPORTED") return null;
+        return {
+          statement_id: verdict.statement_id,
+          text: verdict.text,
+          evidence_ids: verdict.evidence_ids,
+          verification_status: verdict.status,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+    if (!approvedStatements.length) {
+      setError("Approve at least one claim before drafting a cover letter.");
+      return;
+    }
+    setCoverBusy(true); setError("");
+    try {
+      setCoverLetter(await generateCoverLetter(token, {
+        job_context: {
+          job_title: role || profile.career || "Target position",
+          company: company || null,
+          description: job || "No description supplied.",
+          requirements: requirements.slice(0, 20),
+        },
+        approved_statements: approvedStatements,
+        tone: coverTone,
+        max_paragraphs: 3,
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not draft a cover letter.");
+    } finally { setCoverBusy(false); }
+  }
+
   async function openInterview() {
     setError("");
     if (!INTERVIEW_PREP_AVAILABLE) {
@@ -166,16 +442,124 @@ export function GuidedJourney({ user, token, logout }: Props) {
     }
     setStage("interview");
     try {
-      // Server-authoritative: F09 decides what counts as approved, not the client.
-      setApprovedStatements(await getApprovedStatements(token));
+      // Prepare for THIS application, not for every claim ever approved.
+      //
+      // /approved returns the user's whole approval history across every
+      // resume they have generated, and that list only grows -- faster now
+      // that identical claims carry their approval forward. Interview prep
+      // caps a request at 20 statements, so after a few applications the
+      // route returned 422 and the page said it was unavailable. The claims
+      // on the resume in front of the user are also the ones worth
+      // rehearsing, so prefer those and fall back to the server list.
+      const current = candidates
+        .filter((item) => approvedIds.includes(item.statement_id))
+        .map((item) => verdicts[item.statement_id])
+        .filter((verdict): verdict is VerifiedStatementView =>
+          Boolean(verdict) && verdict.status !== "UNSUPPORTED")
+        .map((verdict) => ({
+          statement_id: verdict.statement_id,
+          text: verdict.text,
+          evidence_ids: verdict.evidence_ids,
+          verification_status: verdict.status as "VERIFIED" | "INFERRED",
+        }));
+      const statements = current.length ? current : await getApprovedStatements(token);
+      setApprovedStatements(statements.slice(0, INTERVIEW_STATEMENT_LIMIT));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load approved statements.");
     }
   }
 
+  /** Enter the match screen, asking the provider how well the evidence answers.
+   *
+   * Best effort: on failure the screen falls back to the browser word count it
+   * used before, and says which of the two it is showing.
+   */
+  async function openMatch() {
+    setError(""); changeStage("match");
+    const ids = evidence.filter((item) => item.status === "approved").map((item) => item.id);
+    if (!requirements.length || !ids.length) { setAssessments([]); return; }
+    setAssessing(true);
+    try {
+      const result = await assessRequirements(token, requirements, ids);
+      // A body without the list is treated as no answer, not as zero coverage:
+      // showing 0% because a response was malformed would be a lie.
+      setAssessments(Array.isArray(result?.assessments) ? result.assessments : []);
+    } catch {
+      setAssessments([]);
+    } finally { setAssessing(false); }
+  }
+
+  /** Download the approved statements as a real document.
+   *
+   * Saving to Applications stores a historical draft, which F10 refuses to
+   * render by design. This takes the other road: F13 materialises a trusted version from
+   * the F09-approved statements and F10 renders that. The server re-checks
+   * every approval and its evidence first, so a claim approved against
+   * evidence that has since changed stops here rather than reaching a PDF.
+   */
+  async function downloadFinal(format: ResumeExportFormat) {
+    const approved = candidates.filter((item) => approvedIds.includes(item.statement_id));
+    const statementIds = approved
+      .map((item) => verdicts[item.statement_id]?.statement_id)
+      .filter((value): value is string => Boolean(value));
+    if (!statementIds.length || busy) return;
+    setBusy(true); setError("");
+    try {
+      // Whatever route reached this screen, cite-checking needs the current
+      // evidence, so load it when the journey does not already hold it.
+      let records = evidence;
+      if (!records.length) {
+        records = await getEvidence(token);
+        setEvidence(records);
+      }
+      let applicationId = finalApplicationId;
+      if (!applicationId) {
+        const application = await saveReviewedResume(
+          token, { role, company, description: job }, records, approved);
+        applicationId = application.id;
+        setFinalApplicationId(applicationId);
+      }
+      let versionId = finalVersionId;
+      if (!versionId) {
+        versionId = (await finalizeResume(token, applicationId, statementIds)).id;
+        setFinalVersionId(versionId);
+      }
+      const safeName = (user.full_name.trim() || "resume").replace(/[^a-z0-9_-]+/gi, "-");
+      clearJourneyDraft();
+      saveBlob(await downloadResume(token, versionId, format, "standard"),
+        `${safeName}-resume.${format}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not prepare the document.");
+    } finally { setBusy(false); }
+  }
+
+  /** Approve every claim F08 verified, in one action.
+   *
+   * Approval is still a decision the person makes and is still recorded
+   * against each claim's exact verification revision -- this only spares them
+   * clicking through claims they have no reason to question. INFERRED claims
+   * are left alone deliberately: grounded is not certified, and whether to
+   * stand behind one is exactly the judgement that should not be batched.
+   */
+  async function approveAllVerified() {
+    const ready = activeCandidates.filter((item) =>
+      !approvedIds.includes(item.statement_id)
+      && verdicts[item.statement_id]?.status === "VERIFIED");
+    for (const item of ready) {
+      await decide(item.statement_id, "APPROVED");
+    }
+  }
+
   function newJob() {
+    try { localStorage.removeItem(localDraftKey(user.id)); } catch { /* ignore */ }
     setJob(""); setRole(""); setCompany("");
     setRequirements([]); setCandidates([]); setApprovedIds([]); setDeniedIds([]);
+    setAssessments([]); setVerdicts({}); setCarriedCount(0);
+    // The letter is written from one job's approved claims. Carrying it into
+    // the next job would show the previous employer's letter under a new
+    // heading until the user noticed and redrafted.
+    setCoverLetter(null);
+    setFinalApplicationId(null); setFinalVersionId(null);
     changeStage("paste");
   }
 
@@ -219,7 +603,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
     setBusy(true); setError("");
     try {
       await saveReviewedResume(token, { role, company, description: job }, evidence, approved);
-      downloadReviewedText(user.full_name, { role, company }, approved);
+      clearJourneyDraft();
       setStage("exporting");
       await delay(1200);
       await openApplications();
@@ -233,6 +617,40 @@ export function GuidedJourney({ user, token, logout }: Props) {
   const pendingCount = candidates.filter((item) => !approvedIds.includes(item.statement_id) && !deniedIds.includes(item.statement_id)).length;
   const approvedEvidence = evidence.filter((item) => item.status === "approved");
   const match = estimateOverlap(requirements, approvedEvidence);
+  const LABEL = { COVERED: "Covered", PARTIAL: "Partly covered", MISSING: "Not evidenced" } as const;
+  const TONE = { COVERED: "aw-approved", PARTIAL: "aw-partial", MISSING: "aw-missing" } as const;
+  // The assessed view when the provider answered, the old word count when it
+  // did not. The screen says which, because the two mean very different things.
+  const coverage = assessments.length
+    ? {
+        assessed: true,
+        percentage: Math.round(
+          100 * assessments.filter((item) => item.coverage === "COVERED").length / assessments.length),
+        covered: assessments.filter((item) => item.coverage === "COVERED").length,
+        partial: assessments.filter((item) => item.coverage === "PARTIAL").length,
+        missing: assessments.filter((item) => item.coverage === "MISSING").length,
+        rows: assessments.map((item) => ({
+          text: item.requirement,
+          detail: item.note || "No note supplied.",
+          label: LABEL[item.coverage],
+          tone: TONE[item.coverage],
+        })),
+      }
+    : {
+        assessed: false,
+        percentage: match.percentage,
+        covered: match.matched.filter((item) => item.matches.length).length,
+        partial: 0,
+        missing: match.matched.filter((item) => !item.matches.length).length,
+        rows: match.matched.map((item) => ({
+          text: item.text,
+          detail: item.matches.length
+            ? item.matches.join(", ")
+            : "No matching keywords in approved evidence",
+          label: item.matches.length ? "Keyword match" : "Not found",
+          tone: item.matches.length ? "aw-approved" : "aw-missing",
+        })),
+      };
   const initials = user.full_name.trim().split(/\s+/).slice(0, 2).map((x) => x[0]?.toUpperCase()).join("") || "?";
 
   return <div className="aw-journey">
@@ -242,8 +660,9 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" onClick={newJob}>New job</button>
         <button type="button" onClick={openEvidence}>Evidence</button>
         <button type="button" onClick={() => void openApplications()}>Applications</button>
-        <button type="button" onClick={() => void openVerification()}>Verify claims</button>
-        <button type="button" onClick={() => void openReview()}>Review claims</button>
+        <button type="button" onClick={() => void openVerification()}>Check a line</button>
+        <button type="button" onClick={() => void openReview()}>My lines</button>
+        <button type="button" onClick={() => void openCoverLetter()}>Cover letter</button>
         {INTERVIEW_PREP_AVAILABLE &&
           <button type="button" onClick={() => void openInterview()}>Interview prep</button>}
         <button type="button" onClick={() => changeStage("sharing")}>Peer review</button>
@@ -265,13 +684,88 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <VerificationPanel token={token} evidenceIds={approvedEvidence.map((item) => item.id)}
           onBack={() => changeStage("paste")} />
       </main>)}
+    {stage === "cover-letter" && <main className="aw-cover-stage aw-fade" aria-label="Cover letter workspace">
+      <div className="aw-cover-head">
+        <div>
+          <div className="aw-eyebrow">COVER LETTER</div>
+          <h2>{coverLetter ? "Your draft letter" : "Draft a cover letter"}</h2>
+        </div>
+        <div className="aw-cover-controls">
+          <label>Tone
+            <select value={coverTone} disabled={coverBusy}
+              onChange={(event) => setCoverTone(event.target.value as CoverLetterTone)}>
+              <option value="professional">Professional</option>
+              <option value="warm">Warm</option>
+              <option value="direct">Direct</option>
+            </select>
+          </label>
+          <button type="button" className="aw-primary" disabled={coverBusy}
+            onClick={() => void draftCoverLetter()}>
+            {coverBusy ? "Drafting…" : coverLetter ? "Draft again" : "Draft letter"}
+          </button>
+        </div>
+      </div>
+
+      <p className="aw-muted aw-cover-intro">Written from the lines you kept, so every paragraph
+        comes back to your own experience. This is a draft: unlike your resume it has not been
+        checked line by line, so it is not offered as a download.</p>
+
+      {coverBusy && <div className="aw-cover-loading" role="status">
+        <div className="aw-spinner" aria-hidden="true" />
+        <p>Writing from the lines you kept…</p>
+      </div>}
+
+      {!coverBusy && coverLetter && <>
+        <article className="aw-document aw-letter">
+          <header className="aw-letter-head">
+            <h3>{user.full_name}</h3>
+            <p>{user.email}</p>
+          </header>
+          <p className="aw-letter-date">{new Date(coverLetter.generated_at).toLocaleDateString(
+            undefined, { year: "numeric", month: "long", day: "numeric" })}</p>
+          {company && <p className="aw-letter-to">{company}</p>}
+          <p className="aw-letter-greeting">Dear Hiring Manager,</p>
+          {coverLetter.paragraphs.map((paragraph) =>
+            <p key={paragraph.paragraph_id}>{paragraph.text}</p>)}
+          <p className="aw-letter-signoff">Sincerely,<br />{user.full_name}</p>
+        </article>
+        <div className="aw-cover-actions">
+          <button type="button" className="aw-primary" disabled={coverBusy}
+            onClick={() => void downloadCoverLetter()}>Download PDF</button>
+          <button type="button" className="aw-link"
+            onClick={() => void navigator.clipboard?.writeText(letterText(coverLetter))}>
+            Copy letter
+          </button>
+          <span className="aw-muted">Drafted by {coverLetter.provider} · {
+            coverLetter.paragraphs.length} {coverLetter.paragraphs.length === 1
+              ? "paragraph" : "paragraphs"}, each citing claims you approved</span>
+        </div>
+        {coverLetter.rejected.length > 0 && <section className="aw-panel aw-cover-rejected">
+          <h3>{coverLetter.rejected.length} paragraph{
+            coverLetter.rejected.length === 1 ? "" : "s"} discarded</h3>
+          <p className="aw-muted">These failed the grounding checks and were left out. Shown
+            because a quietly shorter letter is harder to trust than a stated rejection.</p>
+          {coverLetter.rejected.map((item, index) => <p key={index} className="aw-muted">
+            <strong>{item.reason}</strong> — {item.text.slice(0, 160)}
+          </p>)}
+        </section>}
+      </>}
+
+      {!coverBusy && !coverLetter && <div className="aw-cover-empty">
+        <p className="aw-muted">Nothing drafted yet.</p>
+      </div>}
+
+      <button className="aw-link aw-back-review" type="button"
+        onClick={() => changeStage("resume")}>← Back to resume</button>
+    </main>}
+
     {stage === "review" && <main className="aw-f09-workspace aw-fade" aria-label="Statement review workspace">
       <div className="aw-evidence-header">
         <button type="button" className="aw-link" onClick={() => changeStage("paste")}>← Back to application</button>
       </div>
       {reviewStatementId
         ? <>
-            <button type="button" className="aw-link" onClick={() => setReviewStatementId(null)}>← All claims</button>
+            <button type="button" className="aw-link" onClick={() => setReviewStatementId(null)}>← All lines</button>
             <StatementReviewPage token={token} statementId={reviewStatementId} />
           </>
         : <ul className="aw-review-list">
@@ -280,7 +774,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
                 <span>{item.text}</span><em>{item.status}</em>
               </button>
             </li>)}
-            {!verifiedStatements.length && <li className="aw-review-empty">No claims submitted yet. Add one under Verify claims.</li>}
+            {!verifiedStatements.length && <li className="aw-review-empty">Nothing to review yet. Add a line under Check a line.</li>}
           </ul>}
     </main>}
     {stage === "interview" && <main className="aw-f15-workspace aw-fade" aria-label="Interview preparation workspace">
@@ -355,7 +849,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <div className="aw-summary-bar">
         <div className="aw-chips"><span className="aw-chip is-blue">{requirements.length} extracted requirements</span>
           <span className="aw-chip is-green">Your posting</span><span className="aw-chip">Review before tailoring</span></div>
-        <button type="button" className="aw-primary" onClick={() => changeStage("match")}>Match with my profile →</button>
+        <button type="button" className="aw-primary" onClick={() => void openMatch()}>Match with my profile →</button>
       </div>
     </main>}
 
@@ -367,26 +861,34 @@ export function GuidedJourney({ user, token, logout }: Props) {
       </div>
       <div className="aw-center-heading"><div className="aw-eyebrow">YOUR EVIDENCE MATCH</div>
         <h2>You're making a grounded match.</h2>
-        <p className="aw-muted">Each match is based on words found in approved career evidence.</p></div>
+        <p className="aw-muted">{coverage.assessed
+          ? "Each requirement is assessed against the evidence you approved."
+          : "Each match is based on words found in approved career evidence."}</p></div>
       <div className="aw-match-layout">
         <section className="aw-panel aw-match-overview">
           <h3>Overall match</h3>
-          <div className="aw-match-circle" style={{"--percent": match.percentage + "%"} as CSSProperties}>
-            <strong>{match.percentage}%</strong></div>
-          <p className="aw-center aw-muted">Estimated keyword overlap</p>
+          <div className="aw-match-circle" style={{"--percent": coverage.percentage + "%"} as CSSProperties}>
+            <strong>{coverage.percentage}%</strong></div>
+          <p className="aw-estimate-note">{coverage.assessed
+            ? "Assessed against the evidence you approved. Advisory only: it shows what you can currently evidence, not whether anything you write is supported. That check is separate and does not use a language model."
+            : "Keyword overlap between these requirements and your approved evidence, counted in your browser. This is not verification: nothing here says whether any claim is supported by your evidence."}</p>
+          <p className="aw-center aw-muted">{assessing
+            ? "Assessing your evidence…"
+            : coverage.assessed ? "Requirements your evidence covers" : "Estimated keyword overlap"}</p>
           <div className="aw-match-key">
-            <span><i className="is-found"/> Requirements with overlap <strong>{match.matched.filter(x => x.matches.length).length}</strong></span>
-            <span><i className="is-missing"/> No keyword overlap <strong>{match.matched.filter(x => !x.matches.length).length}</strong></span>
+            <span><i className="is-found"/> {coverage.assessed ? "Covered" : "Requirements with overlap"} <strong>{coverage.covered}</strong></span>
+            {coverage.assessed && <span><i className="is-partial"/> Partly covered <strong>{coverage.partial}</strong></span>}
+            <span><i className="is-missing"/> {coverage.assessed ? "Not evidenced" : "No keyword overlap"} <strong>{coverage.missing}</strong></span>
           </div>
           <p className="aw-card-footnote">This is not a validated ATS or hiring-success score.</p>
         </section>
         <section className="aw-panel aw-match-evidence">
           <h3>Evidence from your career profile</h3>
-          <p className="aw-muted">Requirements are compared only to your approved evidence.</p>
-          {match.matched.length ? match.matched.map((item,i) =>
+          <p className="aw-muted">We only compare the job's requirements with experience you have confirmed.</p>
+          {coverage.rows.length ? coverage.rows.map((item,i) =>
             <div className="aw-match-requirement" key={i} style={{animationDelay:(i * 75)+"ms"}}>
-              <div><strong>{item.text}</strong><small>{item.matches.length ? item.matches.join(", ") : "No matching keywords in approved evidence"}</small></div>
-              <span className={item.matches.length ? "aw-approved" : "aw-missing"}>{item.matches.length ? "Keyword match" : "Not found"}</span>
+              <div><strong>{item.text}</strong><small>{item.detail}</small></div>
+              <span className={item.tone}>{item.label}</span>
             </div>) : <p className="aw-muted">No separate requirements were detected in this posting.</p>}
         </section>
       </div>
@@ -403,7 +905,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
         <button type="button" className="aw-link" onClick={openEvidence}>Open evidence workspace →</button>
       </section>
       <div className="aw-summary-bar">
-        <p className="aw-muted">Every generated claim must be supported by evidence you approved.</p>
+        <p className="aw-muted">Every line we write has to come from experience you have confirmed.</p>
         <button type="button" className="aw-primary" disabled={!approvedEvidence.length}
           onClick={() => void generateResume()}>Generate resume →</button>
       </div>
@@ -412,7 +914,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
       <div className="aw-center-heading">
         <div className="aw-eyebrow">TAILORED RESUME CREATION</div>
         <h2>Building your resume...</h2>
-        <p className="aw-muted">Grounding statements in the evidence you approved.</p>
+        <p className="aw-muted">Writing each line from the experience you confirmed.</p>
       </div>
       <div className="aw-generating-layout">
         <div className="aw-generating-paper" aria-hidden="true">
@@ -423,7 +925,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <div className="aw-gen-heading">SKILLS</div><i/><i className="short"/>
         </div>
         <aside className="aw-panel aw-generating-checklist">
-          <div className="aw-gen-icon">✧</div><h3>Writing with evidence</h3>
+          <div className="aw-gen-icon">✧</div><h3>Writing from your experience</h3>
           <p className="aw-muted">Every statement is drafted using your approved career information.</p>
           <ul><li>✓ Reading job requirements</li><li>✓ Selecting relevant experience</li>
             <li>◌ Building resume structure</li><li>◌ Writing candidate statements</li></ul>
@@ -436,10 +938,20 @@ export function GuidedJourney({ user, token, logout }: Props) {
     {(stage === "resume" || stage === "exporting") && <main className={`aw-resume-stage aw-fade aw-storyboard-resume ${stage === "exporting" ? "aw-exporting" : ""}`}>
       <div className="aw-storyboard-resume-head">
         <div><div className="aw-eyebrow">REVIEW &amp; APPROVAL</div>
-          <h2>{pendingCount ? "Review claims before exporting" : "Ready when you are."}</h2></div>
-        <span className={pendingCount ? "aw-review-count" : "aw-review-count is-done"}>
-          {pendingCount ? pendingCount + " claims need attention" : "All statements reviewed"}
-        </span>
+          <h2>{pendingCount ? "Check each line before you download" : "Ready when you are."}</h2></div>
+        <div className="aw-review-head-actions">
+          {carriedCount > 0 && <span className="aw-carried-note">
+            {carriedCount} {carriedCount === 1 ? "claim was" : "claims were"} already
+            approved by you, word for word, against the same evidence
+          </span>}
+          {activeCandidates.some((item) => !approvedIds.includes(item.statement_id)
+            && verdicts[item.statement_id]?.status === "VERIFIED") &&
+            <button type="button" className="aw-link" disabled={busy}
+              onClick={() => void approveAllVerified()}>Use all matching lines</button>}
+          <span className={pendingCount ? "aw-review-count" : "aw-review-count is-done"}>
+            {pendingCount ? pendingCount + (pendingCount === 1 ? " line needs your review" : " lines need your review") : "Every line reviewed"}
+          </span>
+        </div>
       </div>
       <div className="aw-resume-layout">
         <article className={`aw-document ${selectedId ? "aw-document-dim" : ""}`}>
@@ -458,18 +970,30 @@ export function GuidedJourney({ user, token, logout }: Props) {
               {approved ? <p className="aw-approved-line">✓ {item.text}</p> :
                 <button type="button" className="aw-line-preview" aria-expanded={selected}
                   onClick={() => setSelectedId(selected ? null : item.statement_id)}>
-                  <span>• {item.text}</span><small>{selected ? "Hide evidence ↑" : "Needs approval · Review ↗"}</small>
+                  <span>• {item.text}</span><small>{selected ? "Hide details ↑" : "Review this line ↗"}</small>
                 </button>}
               {selected && !approved && <div className="aw-line-detail">
-                <div className="aw-line-detail-title"><strong>Evidence review · Experience claim</strong><span>Needs approval</span></div>
+                <div className="aw-line-detail-title"><strong>Does your experience say this?</strong><span>Needs your review</span></div>
                 <p className="aw-claim-text">{item.text}</p>
-                <div className="aw-source-evidence"><strong>Your source evidence</strong>
+                <div className="aw-source-evidence"><strong>Written from this part of your experience</strong>
                   {citations.map(ev => <p key={ev.id}><b>{ev.title}:</b> {ev.description || ev.role || ev.title}</p>)}
                 </div>
-                <p className="aw-review-note">Check this claim against your actual experience. Automatic verification is not yet integrated.</p>
+                {verdicts[item.statement_id] && <div
+                  className={`aw-verdict is-${verdicts[item.statement_id].status.toLowerCase()}`}>
+                  <strong>{STATUS_LABEL[verdicts[item.statement_id].status]}</strong>
+                  <ul>{verdicts[item.statement_id].findings.map((finding, position) =>
+                    <li key={position}>{REASON_LABEL[finding.reason] ?? finding.detail}</li>)}</ul>
+                </div>}
+                <p className="aw-review-note">{verdicts[item.statement_id]?.status === "UNSUPPORTED"
+                  ? "This claim states something your approved evidence does not contain, so it cannot be approved or exported."
+                  : "Approving means you are willing to put this sentence on your resume. Your approval is recorded against this exact wording and the evidence behind it, so if either changes it is checked again."}</p>
+                {reviewError && <p className="aw-review-error" role="alert">{reviewError}</p>}
                 <div className="aw-review-actions">
-                  <button type="button" onClick={() => { setDeniedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Deny claim</button>
-                  <button type="button" onClick={() => { setApprovedIds(current => [...current, item.statement_id]); setSelectedId(null); }}>Approve claim ✓</button>
+                  <button type="button" disabled={busy}
+                    onClick={() => void decide(item.statement_id, "REJECTED")}>Remove this line</button>
+                  <button type="button"
+                    disabled={busy || verdicts[item.statement_id]?.status === "UNSUPPORTED"}
+                    onClick={() => void decide(item.statement_id, "APPROVED")}>Use this line ✓</button>
                 </div>
               </div>}
             </div>;
@@ -477,24 +1001,22 @@ export function GuidedJourney({ user, token, logout }: Props) {
           {!activeCandidates.length && <p className="aw-muted">All candidate statements have been denied. Go back to matching to generate a different draft.</p>}
           {profile.focus.length > 0 && <><h4>Technical skills</h4>
             <p className="aw-skill-line">{profile.focus.join(" · ")}</p></>}
-          {approvedEvidence.length > 0 && <><h4>Evidence sources</h4>
-            <p className="aw-source-list">{approvedEvidence.slice(0,6).map(e => e.title).join(" · ")}</p></>}
         </article>
         <aside className="aw-resume-sidebar">
           <section className="aw-panel">
             {pendingCount ? <>
-              <h3>Verification queue</h3>
-              <p className="aw-muted">Select any highlighted statement to inspect its supporting evidence.</p>
+              <h3>Lines to review</h3>
+              <p className="aw-muted">Pick any highlighted line to see the experience it came from.</p>
               {activeCandidates.filter(item => !approvedIds.includes(item.statement_id)).map((item,index) =>
                 <button className="aw-queue-item" type="button" key={item.statement_id}
                   onClick={() => setSelectedId(item.statement_id)}>
-                  <strong>Statement {index+1}</strong><small>{item.text}</small><span>● Needs approval</span>
+                  <strong>Line {index+1}</strong><small>{item.text}</small><span>● Needs your review</span>
                 </button>)}
-              <div className="aw-queue-note">◇ Unsupported claims must be denied, never exported.</div>
+              <div className="aw-queue-note">◇ A line that is not in your experience has to be removed.</div>
             </> : <>
               <div className="aw-done-circle aw-review-complete" aria-hidden="true">✓</div>
               <h3>Review complete</h3>
-              <p className="aw-muted">Every remaining candidate has been reviewed by you. Automated verification is not yet available.</p>
+              <p className="aw-muted">Every line was checked against your experience, and you chose to keep it.</p>
             </>}
           </section>
           {deniedIds.length > 0 && <div className="aw-reflow-message" role="status">
@@ -503,8 +1025,17 @@ export function GuidedJourney({ user, token, logout }: Props) {
           <button className="aw-link aw-back-review" type="button" onClick={() => changeStage("match")}>← Back to evidence</button>
           <button type="button" className="aw-primary aw-export-button"
             disabled={busy || pendingCount !== 0 || approvedIds.length === 0}
-            onClick={() => void exportReviewed()}>Export reviewed resume →</button>
-          <p className="aw-export-hint">Downloads a reviewed .txt resume and saves a version under Applications. PDF/DOCX export and F08 verification are not yet available.</p>
+            onClick={() => void exportReviewed()}>Save to My Applications →</button>
+          <div className="aw-final-downloads">
+            <button type="button" disabled={busy || !approvedIds.length}
+              onClick={() => void downloadFinal("pdf")}>Download PDF</button>
+            <button type="button" disabled={busy || !approvedIds.length}
+              onClick={() => void downloadFinal("docx")}>Download Word</button>
+          </div>
+          <p className="aw-export-hint">PDF and Word are rendered from a finalized version: the server
+            re-checks every approval and its evidence before writing the file. Saving to My
+            Applications keeps a historical draft for your records, which is deliberately not
+            exportable on its own.</p>
         </aside>
       </div>
       {stage === "exporting" && <div className="aw-export-toast" role="status">✓ Resume saved to your Applications</div>}
@@ -512,6 +1043,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
 
     {stage === "applications" && <ApplicationWorkspace
       token={token}
+      fullName={user.full_name}
       applications={savedApplications}
       versionCounts={versionCounts}
       onChange={onApplicationChanged}

@@ -1,3 +1,9 @@
+/**
+ * F13 applications page: tracked applications and their saved resume versions.
+ *
+ * Shows the resume as it was approved, so a user can see what they sent rather
+ * than regenerating it and getting different wording.
+ */
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../auth";

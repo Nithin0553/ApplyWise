@@ -84,6 +84,58 @@ class CoverLetterResponse:
     paragraphs: tuple[RawParagraph, ...]
 
 
+@dataclass(frozen=True)
+class JobContextRequest:
+    """A pasted job description, as the user supplied it."""
+
+    description: str
+
+
+@dataclass(frozen=True)
+class JobContextSuggestion:
+    """Role title and employer read out of a description. Both may be empty.
+
+    A suggestion only pre-fills two editable fields. It never reaches evidence,
+    verification or approval, so a wrong answer costs the user a correction and
+    nothing more -- which is why an empty string is an acceptable answer and a
+    guess is not required.
+    """
+
+    role_title: str
+    company_name: str
+    # What the posting actually asks for. Empty when the provider could not
+    # read them, which the caller treats as "use the old heuristic".
+    requirements: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RequirementMatchRequest:
+    """Requirements to assess, against the evidence the user has approved."""
+
+    requirements: tuple[str, ...]
+    evidence: tuple[PromptEvidence, ...]
+
+
+@dataclass(frozen=True)
+class RequirementAssessment:
+    """How well one requirement is answered by the cited evidence.
+
+    Advisory only. This says what the user can currently speak to and where
+    the gaps are; it decides nothing about whether a written claim is
+    supported, which remains F08's job and stays deterministic.
+    """
+
+    requirement: str
+    coverage: str  # COVERED | PARTIAL | MISSING
+    cited_refs: tuple[str, ...]
+    note: str
+
+
+@dataclass(frozen=True)
+class RequirementMatchResponse:
+    assessments: tuple[RequirementAssessment, ...]
+
+
 class AIProviderError(Exception):
     """Raised by a provider when it is unavailable or cannot answer."""
 
@@ -99,4 +151,12 @@ class AIProvider(Protocol):
         ...
 
     def generate_cover_letter(self, request: CoverLetterRequest) -> CoverLetterResponse:
+        ...
+
+    def suggest_job_context(self, request: JobContextRequest) -> JobContextSuggestion:
+        ...
+
+    def assess_requirements(
+        self, request: RequirementMatchRequest
+    ) -> RequirementMatchResponse:
         ...

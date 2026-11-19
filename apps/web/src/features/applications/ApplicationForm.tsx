@@ -1,3 +1,4 @@
+/** F13 form for recording a new application. */
 import type { FormEvent } from "react";
 
 import "./applications.css";

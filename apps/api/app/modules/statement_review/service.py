@@ -142,6 +142,73 @@ class StatementReviewService:
         self.session.flush()
         return self._view(current, record)
 
+    def carry_forward(self, *, user_id: UUID, statement_id: UUID) -> StatementReviewView:
+        """Apply an approval this user already made for identical content.
+
+        The revision is derived from the material: the claim's text, the
+        evidence it cites, the current content and approval time of each cited
+        record, and the classification. Two statements with the same revision
+        are therefore the same assertion backed by the same evidence, whatever
+        ids they carry. Regenerating a resume mints new statement ids for
+        claims whose wording did not change, and without this the user is
+        asked to approve sentences they have already approved, word for word,
+        against the same records.
+
+        This makes no new judgement. It looks for one of this user's own
+        APPROVED reviews whose revision equals this statement's current
+        revision and records the same decision here. Change the wording or the
+        evidence by one character and the revision differs, so nothing is
+        carried and the user is asked, which is the behaviour that matters.
+        """
+        current = self._verified(user_id=user_id, statement_id=statement_id)
+
+        # Never carry an approval onto something F08 will not stand behind.
+        # The status is part of the revision, so a match cannot be UNSUPPORTED;
+        # this is here so that stops being true loudly rather than silently.
+        if current.status == VerificationStatus.UNSUPPORTED:
+            return self._view(current, self._record(user_id=user_id, statement_id=statement_id))
+
+        record = self._record(user_id=user_id, statement_id=statement_id, lock=True)
+        if record is not None and record.verification_revision == current.revision:
+            return self._view(current, record)
+
+        prior = self.session.scalar(
+            select(StatementReviewRecord).where(
+                StatementReviewRecord.user_id == user_id,
+                StatementReviewRecord.statement_id != statement_id,
+                StatementReviewRecord.decision == ReviewDecision.APPROVED,
+                StatementReviewRecord.verification_revision == current.revision,
+            )
+        )
+        if prior is None:
+            return self._view(current, record)
+
+        if record is None:
+            record = StatementReviewRecord(
+                user_id=user_id,
+                statement_id=statement_id,
+                decision=ReviewDecision.APPROVED,
+                verification_revision=current.revision,
+                event_count=1,
+            )
+            self.session.add(record)
+            self.session.flush()
+        else:
+            record.decision = ReviewDecision.APPROVED
+            record.verification_revision = current.revision
+            record.event_count += 1
+
+        self.session.add(StatementReviewEventRecord(
+            review_id=record.id,
+            user_id=user_id,
+            decision=ReviewDecision.APPROVED,
+            verification_revision=current.revision,
+            carried_from_statement_id=prior.statement_id,
+            sequence=record.event_count,
+        ))
+        self.session.flush()
+        return self._view(current, record)
+
     def history(self, *, user_id: UUID, statement_id: UUID) -> tuple[ReviewHistoryItem, ...]:
         self._verified(user_id=user_id, statement_id=statement_id)
         record = self._record(user_id=user_id, statement_id=statement_id)
@@ -157,27 +224,57 @@ class StatementReviewService:
         ).all()
         return tuple(ReviewHistoryItem.model_validate(event) for event in events)
 
-    def list_approved_statements(self, *, user_id: UUID) -> tuple[ApprovedStatement, ...]:
-        """F09's implementation of the F11/F13 approved-statement provider.
+    def list_approved_statements(
+        self,
+        *,
+        user_id: UUID,
+        statement_ids: tuple[UUID, ...] | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> tuple[ApprovedStatement, ...]:
+        """Owner-scoped, bounded read of currently approved F08 claims.
 
-        This read ALWAYS re-resolves F08's current revisions. Old approvals
-        cannot survive a material edit or an evidence status change.
+        F13 must be able to authorize an older saved resume: internal calls
+        with no limit therefore return the complete current owner-scoped set.
+        The HTTP route ALWAYS supplies a 1–20 limit. A restored journey can
+        request explicit F08 IDs instead. All paths recompute F08 evidence
+        and revision state before returning a claim.
         """
+        if (limit is not None and not 1 <= limit <= 20) or not 0 <= offset <= 10_000:
+            raise ValueError("Approved statement window is out of bounds.")
+        if statement_ids is not None and len(statement_ids) > 20:
+            raise ValueError("At most 20 statement IDs may be requested.")
+
         live = self.verifier.list_current(user_id=user_id)
-        owned = self.session.scalars(
-            select(StatementReviewRecord)
-            .where(
-                StatementReviewRecord.user_id == user_id,
-                StatementReviewRecord.decision == ReviewDecision.APPROVED,
+        approved_query = select(StatementReviewRecord).where(
+            StatementReviewRecord.user_id == user_id,
+            StatementReviewRecord.decision == ReviewDecision.APPROVED,
+        )
+        if statement_ids is not None:
+            approved_query = approved_query.where(
+                StatementReviewRecord.statement_id.in_(statement_ids)
             )
-        ).all()
+        owned = self.session.scalars(approved_query).all()
         saved = {item.statement_id: item for item in owned}
+
+        if statement_ids is None:
+            # F08 lists the user's statements oldest first.
+            candidates = reversed(live)
+        else:
+            by_id = {item.statement_id: item for item in live if item.user_id == user_id}
+            candidates = (by_id[item_id] for item_id in dict.fromkeys(statement_ids)
+                          if item_id in by_id)
+
         result: list[ApprovedStatement] = []
-        for item in live:
+        matched = 0
+        for item in candidates:
             if item.user_id != user_id or item.status == VerificationStatus.UNSUPPORTED:
                 continue
             decision = saved.get(item.statement_id)
             if decision is None or decision.verification_revision != item.revision:
+                continue
+            if matched < offset:
+                matched += 1
                 continue
             result.append(
                 ApprovedStatement(
@@ -188,4 +285,6 @@ class StatementReviewService:
                     approval_status="APPROVED",
                 )
             )
+            if limit is not None and len(result) == limit:
+                break
         return tuple(result)

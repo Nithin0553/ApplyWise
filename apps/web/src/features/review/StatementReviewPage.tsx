@@ -1,3 +1,9 @@
+/**
+ * F09 review page for a single statement.
+ *
+ * Shows the evidence a claim was written from alongside the claim itself, so a
+ * decision is made against the source rather than on the wording alone.
+ */
 import { useEffect, useState } from "react";
 
 import {

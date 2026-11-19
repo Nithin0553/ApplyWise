@@ -1,3 +1,9 @@
+/**
+ * F13 application types and the allowed status transitions.
+ *
+ * The transition table mirrors the server rule so the interface offers only
+ * moves the API will accept, rather than failing after the user has chosen.
+ */
 export type ApplicationStatus =
   | "draft"
   | "applied"

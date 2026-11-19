@@ -48,8 +48,8 @@ describe("F15 interview prep is not offered where the route is not served", () =
 
     expect(screen.queryByRole("button", { name: "Interview prep" })).not.toBeInTheDocument();
     // The other three entries are unaffected.
-    expect(screen.getByRole("button", { name: "Verify claims" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Review claims" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check a line" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "My lines" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Peer review" })).toBeInTheDocument();
   });
 });

@@ -1,3 +1,4 @@
+/** F14 panel listing the comments a reviewer left on a version. */
 import { type FormEvent, useState } from "react";
 
 import "./sharing.css";

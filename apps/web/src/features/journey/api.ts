@@ -1,3 +1,4 @@
+/** HTTP client for the guided journey: evidence, applications and versions. */
 import type { CandidateStatement, GenerationResult } from "../tailoring/types";
 import type { ApprovedStatement } from "../interview/types";
 
@@ -82,7 +83,12 @@ export function generateCandidates(
   details: { role: string; company: string; description: string; requirements: string[] },
   approvedIds: string[],
 ): Promise<GenerationResult> {
-  return api<GenerationResult>(token, "/api/generation/preview?provider=demo", {
+  // No provider override. The server's AI_PROVIDER decides, exactly as it does
+  // for the job-context and requirement-match calls. Pinning this to the
+  // scripted "demo" provider meant statements were never written against the
+  // job's requirements, whatever AI_PROVIDER said -- set AI_PROVIDER=demo to
+  // get the scripted output and its deliberate ungrounded citations back.
+  return api<GenerationResult>(token, "/api/generation/preview", {
     method: "POST",
     body: JSON.stringify({
       job_context: {
@@ -216,33 +222,172 @@ export function estimateOverlap(requirements: string[], approved: JourneyEvidenc
   };
 }
 
-export function downloadReviewedText(
-  fullName: string,
-  details: { role: string; company: string },
-  statements: CandidateStatement[],
+/** F09's server-authoritative approved statements, which F15 rehearses.
+ *
+ * The shell fetches this rather than InterviewPrepPage, because the page is
+ * deliberately given its statements instead of choosing them for itself.
+ */
+export function getApprovedStatements(token: string, statementIds?: string[]) {
+  // If restoring a specific resume, ask only for its server-held F08 IDs.
+  // An unfiltered history request has a strict 20-item server default.
+  const params = new URLSearchParams();
+  for (const id of [...new Set(statementIds ?? [])].slice(0, 20)) {
+    params.append("statement_ids", id);
+  }
+  const query = params.toString();
+  return api<ApprovedStatement[]>(token,
+    `/api/statement-review/approved${query ? `?${query}` : ""}`);
+}
+
+export interface JobContextSuggestion {
+  role_title: string;
+  company_name: string;
+  /** What the posting asks of a candidate. Empty when the provider could not
+   *  read them, which the caller treats as "fall back to readRequirements". */
+  requirements: string[];
+}
+
+/** Ask the configured provider to read the role title and employer out of a posting.
+ *
+ * Unlike generated statements this is neither grounded nor verified: it only
+ * pre-fills two fields the user can edit, so a wrong answer costs a correction
+ * and reaches nothing else. Either field may come back empty when the posting
+ * does not state it.
+ */
+export function suggestJobContext(token: string, description: string) {
+  return api<JobContextSuggestion>(token, "/api/generation/job-context", {
+    method: "POST",
+    body: JSON.stringify({ description: description.slice(0, 6000) }),
+  });
+}
+
+export interface RequirementAssessment {
+  requirement: string;
+  coverage: "COVERED" | "PARTIAL" | "MISSING";
+  evidence_ids: string[];
+  note: string;
+}
+
+/** Ask which requirements the user's approved evidence can actually speak to.
+ *
+ * Advisory. It replaces a word count that called a requirement matched when a
+ * single four-letter word appeared anywhere in the evidence, but it still
+ * decides nothing about whether a written claim is supported -- that is F08's
+ * job and stays deterministic. Evidence is sent as ids so the server resolves
+ * the records itself.
+ */
+export function assessRequirements(
+  token: string, requirements: string[], evidenceIds: string[],
 ) {
-  const safeName = (fullName.trim() || "resume").replace(/[^a-z0-9_-]+/gi, "-");
-  const body = [
-    fullName.trim(), `Target role: ${details.role}`,
-    details.company ? `Company: ${details.company}` : "",
-    "", "RELEVANT EXPERIENCE", ...statements.map((item) => `• ${item.text}`),
-    "", "User-reviewed draft. Automated claim verification is not yet available.",
-  ].filter((line) => line !== undefined).join("\n");
-  const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" }));
+  return api<{ assessments: RequirementAssessment[] }>(token, "/api/generation/requirement-match", {
+    method: "POST",
+    body: JSON.stringify({
+      requirements: requirements.slice(0, 20).map((item) => item.slice(0, 300)),
+      evidence_ids: evidenceIds.slice(0, 20),
+    }),
+  });
+}
+
+/** Materialise an F13 trusted version from F09-approved statements.
+ *
+ * Only ids cross the boundary. The server re-checks ownership, that each
+ * statement is still approved at its current F08 revision, and that the cited
+ * evidence still stands, before it writes a version marked F09_APPROVED. That
+ * marking is what F10 requires: a historical draft is refused by design.
+ */
+export function finalizeResume(token: string, applicationId: string, statementIds: string[]) {
+  return api<{ id: string; version_number: number }>(
+    token, `/api/applications/${encodeURIComponent(applicationId)}/trusted-finalize`, {
+      method: "POST",
+      body: JSON.stringify({ statement_ids: statementIds.slice(0, 10) }),
+    });
+}
+
+/** Hand a rendered file to the browser. */
+export function saveBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${safeName}-reviewed-resume.txt`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 500);
 }
 
-/** F09's server-authoritative approved statements, which F15 rehearses.
+/** F11 cover-letter drafting.
  *
- * The shell fetches this rather than InterviewPrepPage, because the page is
- * deliberately given its statements instead of choosing them for itself.
+ * The route is served only outside production: it still takes approval state
+ * from the client, which proves the labels are well formed but not that F08
+ * verified and F09 approved the statements. Resolving ids server-side (as
+ * F13 already does through select_approved_statements) is what would make it
+ * safe to serve everywhere.
  */
-export function getApprovedStatements(token: string) {
-  return api<ApprovedStatement[]>(token, "/api/statement-review/approved");
+export interface CoverLetterParagraph {
+  paragraph_id: string;
+  text: string;
+  statement_ids: string[];
+  evidence_ids: string[];
+}
+
+export interface CoverLetterDraft {
+  draft_id: string;
+  provider: string;
+  generated_at: string;
+  tone: string;
+  paragraphs: CoverLetterParagraph[];
+  rejected: { text: string; reason: string }[];
+}
+
+export type CoverLetterTone = "professional" | "warm" | "direct";
+
+/** A PDF of the drafted letter.
+ *
+ * Deliberately not an F10 export: no trusted revalidation happens, the file
+ * says on its face that it is a draft, and the resume stays the only
+ * document this product stands behind.
+ */
+export async function downloadCoverLetterPdf(
+  token: string,
+  body: { company: string | null; paragraphs: string[] },
+): Promise<Blob> {
+  // Not api(): that parses JSON, and this route returns a file.
+  const headers = new Headers({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  });
+  const response = await fetch("/api/generation/cover-letter/pdf", {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return response.blob();
+}
+
+export function generateCoverLetter(
+  token: string,
+  body: {
+    job_context: {
+      job_title: string;
+      company: string | null;
+      description: string;
+      requirements: string[];
+    };
+    approved_statements: {
+      statement_id: string;
+      text: string;
+      evidence_ids: string[];
+      verification_status: "VERIFIED" | "INFERRED";
+    }[];
+    tone: CoverLetterTone;
+    max_paragraphs: number;
+  },
+) {
+  return api<CoverLetterDraft>(token, "/api/generation/cover-letter/preview", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }

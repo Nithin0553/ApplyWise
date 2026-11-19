@@ -70,17 +70,11 @@ describe("F10 ResumePage", () => {
       ),
     ).toBeTruthy();
 
-    expect(
-      (screen.getByRole("button", {
-        name: "Download PDF",
-      }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-
-    expect(
-      (screen.getByRole("button", {
-        name: "Download Word",
-      }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    // Nothing to export, so no download is offered: a disabled button beside
+    // a paragraph explaining it is disabled is worse than no button.
+    expect(screen.queryByRole("button", { name: "Download PDF" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Download Word" })).toBeNull();
+    expect(screen.getByText(/Select a saved resume version to export/)).toBeTruthy();
   });
 it("downloads the selected resume version using the compact template", async () => {
   vi.mocked(listResumeVersions).mockResolvedValue([
@@ -94,8 +88,27 @@ snapshot: {
   application_id: "application-123",
   resume_version_id: "resume-version-456",
   created_at: "2026-11-09T10:00:00Z",
-  evidence: [],
-  statements: [],
+  evidence: [
+    {
+      evidence_id: "evidence-1",
+      evidence_type: "work_experience",
+      title: "QA Engineer",
+      organization: "Example Company",
+      role: "QA Engineer",
+      description: null,
+      approved_at: "2026-11-09T10:00:00Z",
+    },
+  ],
+  statements: [
+    {
+      statement_id: "statement-1",
+      text: "Built automated regression suites.",
+      evidence_ids: ["evidence-1"],
+      verification_status: "VERIFIED",
+      approval_status: "APPROVED",
+      origin: "F09_APPROVED",
+    },
+  ],
 },
       created_at: "2026-11-09T10:00:00Z",
     },
@@ -168,8 +181,27 @@ snapshot: {
   application_id: "application-123",
   resume_version_id: "resume-version-456",
   created_at: "2026-11-09T10:00:00Z",
-  evidence: [],
-  statements: [],
+  evidence: [
+    {
+      evidence_id: "evidence-1",
+      evidence_type: "work_experience",
+      title: "QA Engineer",
+      organization: "Example Company",
+      role: "QA Engineer",
+      description: null,
+      approved_at: "2026-11-09T10:00:00Z",
+    },
+  ],
+  statements: [
+    {
+      statement_id: "statement-1",
+      text: "Built automated regression suites.",
+      evidence_ids: ["evidence-1"],
+      verification_status: "VERIFIED",
+      approval_status: "APPROVED",
+      origin: "F09_APPROVED",
+    },
+  ],
 },
       created_at: "2026-11-09T10:00:00Z",
     },

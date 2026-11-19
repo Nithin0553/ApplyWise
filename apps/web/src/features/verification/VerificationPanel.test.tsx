@@ -50,8 +50,8 @@ describe("claim verification", () => {
 
     render(<VerificationPanel token="t" evidenceIds={EVIDENCE} />);
 
-    expect(await screen.findByText("Backed by your evidence")).toBeInTheDocument();
-    expect(screen.getByText("Not supported by your evidence")).toBeInTheDocument();
+    expect(await screen.findByText("Matches your experience")).toBeInTheDocument();
+    expect(screen.getByText("Not in your experience")).toBeInTheDocument();
   });
 
   it("puts the blocked claims first", async () => {
@@ -59,11 +59,11 @@ describe("claim verification", () => {
 
     render(<VerificationPanel token="t" evidenceIds={EVIDENCE} />);
 
-    await screen.findByText("Not supported by your evidence");
+    await screen.findByText("Not in your experience");
     const verdicts = screen
-      .getAllByText(/Backed by your evidence|Not supported by your evidence/)
+      .getAllByText(/Matches your experience|Not in your experience/)
       .map((node) => node.textContent);
-    expect(verdicts[0]).toBe("Not supported by your evidence");
+    expect(verdicts[0]).toBe("Not in your experience");
   });
 
   it("always says why, quoting what triggered the verdict", async () => {
@@ -71,7 +71,7 @@ describe("claim verification", () => {
 
     render(<VerificationPanel token="t" evidenceIds={EVIDENCE} />);
 
-    expect(await screen.findByText("Figure is not in your evidence")).toBeInTheDocument();
+    expect(await screen.findByText("This number is not in your experience")).toBeInTheDocument();
     expect(screen.getByText("85%")).toBeInTheDocument();
   });
 
@@ -85,7 +85,7 @@ describe("claim verification", () => {
 
     const { container } = render(<VerificationPanel token="t" evidenceIds={EVIDENCE} />);
 
-    await screen.findByText("Backed by your evidence");
+    await screen.findByText("Matches your experience");
     for (const label of Object.values(STATUS_LABEL)) {
       expect(label).not.toMatch(/approv/i);
     }

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -50,12 +50,21 @@ def _handle(exc: Exception) -> HTTPException:
 
 @router.get("/approved", response_model=list[ApprovedStatement])
 def list_approved(
+    statement_ids: list[UUID] | None = Query(default=None, max_length=20),
+    limit: int = Query(default=20, ge=1, le=20),
+    offset: int = Query(default=0, ge=0, le=10_000),
     db: Session = Depends(get_db),
     current_user: User = Depends(_job_seeker),
     verifier: CurrentVerificationProvider = Depends(current_verification_provider),
 ) -> list[ApprovedStatement]:
+    """Bound the response and allow specific resume's F08 IDs to be requested."""
     try:
-        return list(_service(db, verifier).list_approved_statements(user_id=current_user.id))
+        return list(_service(db, verifier).list_approved_statements(
+            user_id=current_user.id,
+            statement_ids=tuple(statement_ids) if statement_ids is not None else None,
+            limit=limit,
+            offset=offset,
+        ))
     except VerificationUnavailableError as exc:
         raise _handle(exc) from exc
 
@@ -88,6 +97,38 @@ def get_history(
         ))
     except (VerificationUnavailableError, ReviewNotFoundError) as exc:
         raise _handle(exc) from exc
+
+
+@router.post("/{statement_id}/carry-forward", response_model=StatementReviewView)
+def carry_forward(
+    statement_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_job_seeker),
+    verifier: CurrentVerificationProvider = Depends(current_verification_provider),
+) -> StatementReviewView:
+    """Reuse this user's own approval of identical content.
+
+    Takes no payload on purpose: there is no decision to send. The server
+    looks for an approval this user already made at the same derived
+    revision, and the response says plainly whether the statement ended up
+    approved, so a caller cannot read success into silence.
+    """
+    try:
+        result = _service(db, verifier).carry_forward(
+            user_id=current_user.id,
+            statement_id=statement_id,
+        )
+        db.commit()
+        return result
+    except (VerificationUnavailableError, ReviewNotFoundError) as exc:
+        db.rollback()
+        raise _handle(exc) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Review was updated concurrently; reload and try again.",
+        ) from exc
 
 
 @router.post("/{statement_id}/decision", response_model=StatementReviewView)

@@ -1,3 +1,9 @@
+"""F14 request and response models for shares and peer feedback.
+
+The created-share model is the only place the share secret appears; every
+other view exposes the grant without it.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

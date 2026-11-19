@@ -1,3 +1,4 @@
+/** F13 public surface: the only module other features import from. */
 export { ApplicationForm } from "./ApplicationForm";
 export { ApplicationsPage } from "./ApplicationsPage";
 export { ApplicationTracker } from "./ApplicationTracker";

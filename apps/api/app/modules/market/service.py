@@ -1,3 +1,9 @@
+"""Market skill demand analysis across a collection of job postings.
+
+Counts skill frequency and compares it with approved evidence. The output
+informs the user; it is never an input to generation or verification.
+"""
+
 from __future__ import annotations
 
 from collections import Counter

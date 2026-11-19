@@ -106,7 +106,7 @@ describe("interview preparation", () => {
     render(<InterviewPrepPage token="test-token" statements={STATEMENTS} />);
 
     expect(
-      await screen.findByText("Figure is not in your evidence"),
+      await screen.findByText("This number is not in your experience"),
     ).toBeInTheDocument();
     expect(screen.getByText("85%")).toBeInTheDocument();
   });
