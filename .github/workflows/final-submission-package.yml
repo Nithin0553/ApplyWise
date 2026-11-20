@@ -53,7 +53,19 @@ jobs:
               if p.style.name in ("Heading 1","Heading 2","Heading 3"):
                   p.paragraph_format.keep_with_next=True
           for tbl in doc.tables:
-              tbl.style="Table Grid"
+              if "Table Grid" in doc.styles:
+                  tbl.style="Table Grid"
+              else:
+                  # Pandoc's reference.docx may omit a named Table Grid style.
+                  # Apply explicit borders instead of failing the build.
+                  tblPr=tbl._tbl.tblPr
+                  borders=OxmlElement("w:tblBorders")
+                  for edge in ("top","left","bottom","right","insideH","insideV"):
+                      el=OxmlElement("w:"+edge)
+                      el.set(qn("w:val"),"single")
+                      el.set(qn("w:sz"),"5")
+                      borders.append(el)
+                  tblPr.append(borders)
               for cell in tbl._cells:
                   for p in cell.paragraphs:
                       for run in p.runs:
