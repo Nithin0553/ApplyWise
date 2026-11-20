@@ -60,6 +60,8 @@ from app.modules.applications import models as _applications  # noqa: F401
 from app.modules.auth import models as _auth  # noqa: F401
 from app.modules.evidence import models as _evidence  # noqa: F401
 from app.modules.sharing import models as _sharing  # noqa: F401
+from app.modules.statement_review import models as _statement_review  # noqa: F401
+from app.modules.verification import models as _verification  # noqa: F401
 
 DEMO_EMAIL = "demo@example.edu"
 DEMO_PASSWORD = "demopass123"
