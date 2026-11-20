@@ -1,0 +1,130 @@
+name: Final Submission Package
+
+on:
+  push:
+    paths:
+      - ".github/workflows/final-submission-package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout complete tracked project
+        uses: actions/checkout@v4
+
+      - name: Install document tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pandoc libreoffice-writer >/dev/null
+          python3 -m pip install --quiet python-docx
+
+      - name: Generate Word manual matching the supplied academic template
+        run: |
+          mkdir -p dist
+          pandoc docs/FINAL_SOFTWARE_INSTALLATION_MANUAL.md -f gfm -t docx -o dist/ApplyWise_Software_Installation_Manual_Final.docx
+          python3 - <<'PY'
+          from docx import Document
+          from docx.shared import Inches, Pt
+          from docx.enum.text import WD_ALIGN_PARAGRAPH
+          from docx.oxml import OxmlElement
+          from docx.oxml.ns import qn
+          path="dist/ApplyWise_Software_Installation_Manual_Final.docx"
+          doc=Document(path)
+          sec=doc.sections[0]
+          sec.page_width=Inches(8.5); sec.page_height=Inches(11)
+          sec.top_margin=Inches(.68); sec.bottom_margin=Inches(.71)
+          sec.left_margin=Inches(.78); sec.right_margin=Inches(.75)
+          sec.footer_distance=Inches(.40)
+          for name,size,bold in [
+              ("Normal",10.5,False),("Heading 1",15,True),
+              ("Heading 2",15,True),("Heading 3",13,True),
+              ("Source Code",9,False)]:
+              if name in doc.styles:
+                  st=doc.styles[name]
+                  st.font.name="Courier New" if name=="Source Code" else "Times New Roman"
+                  st.font.size=Pt(size);st.font.bold=bold
+                  st.paragraph_format.space_after=Pt(7 if name=="Normal" else 8)
+          for i,p in enumerate(doc.paragraphs):
+              if i<5:p.alignment=WD_ALIGN_PARAGRAPH.CENTER
+              if p.style.name in ("Heading 1","Heading 2","Heading 3"):
+                  p.paragraph_format.keep_with_next=True
+          for tbl in doc.tables:
+              tbl.style="Table Grid"
+              for cell in tbl._cells:
+                  for p in cell.paragraphs:
+                      for run in p.runs:
+                          run.font.name="Times New Roman";run.font.size=Pt(9)
+          footer=sec.footer.paragraphs[0]
+          footer.alignment=WD_ALIGN_PARAGRAPH.CENTER
+          footer.add_run("Page ")
+          for fld in ("PAGE","NUMPAGES"):
+              if fld=="NUMPAGES":footer.add_run(" of ")
+              b=OxmlElement("w:fldChar");b.set(qn("w:fldCharType"),"begin")
+              x=OxmlElement("w:instrText");x.set(qn("xml:space"),"preserve");x.text=f" {fld} "
+              e=OxmlElement("w:fldChar");e.set(qn("w:fldCharType"),"end")
+              footer.add_run()._r.append(b)
+              footer.add_run()._r.append(x)
+              footer.add_run()._r.append(e)
+          doc.core_properties.author="Team Islanders"
+          doc.core_properties.title="ApplyWise Software Installation Manual"
+          doc.save(path)
+          PY
+          libreoffice -env:UserInstallation=file:///tmp/lo_applywise_manual --headless --convert-to pdf --outdir dist dist/ApplyWise_Software_Installation_Manual_Final.docx
+          test -s dist/ApplyWise_Software_Installation_Manual_Final.pdf
+          test -s dist/ApplyWise_Software_Installation_Manual_Final.docx
+
+      - name: Assemble submission ZIP from tracked files only
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess,zipfile
+          name="COSC6370_Team_Islanders_Team_Project_Source_Code.zip"
+          files=subprocess.check_output(["git","ls-files","-z"]).split(b"\0")
+          excluded={".git",".env",".venv","node_modules","local.db"}
+          dest=Path("dist")/name
+          with zipfile.ZipFile(dest,"w",compression=zipfile.ZIP_DEFLATED,compresslevel=8) as z:
+              for entry in files:
+                  if not entry:continue
+                  path=Path(entry.decode("utf-8"))
+                  if any(part in excluded or part.endswith(".db") or part.endswith(".sqlite3") for part in path.parts):continue
+                  if path.is_file():z.write(path,path.as_posix())
+              for ext in ("docx","pdf"):
+                  p=Path("dist")/f"ApplyWise_Software_Installation_Manual_Final.{ext}"
+                  z.write(p,p.name)
+          with zipfile.ZipFile(dest) as z:
+              names=set(z.namelist())
+              required={"README.md","apps/api/local_setup.py","apps/api/.env.example",
+                "apps/web/package.json","ApplyWise_Software_Installation_Manual_Final.docx",
+                "ApplyWise_Software_Installation_Manual_Final.pdf"}
+              assert required.issubset(names),f"Missing required files: {required-names}"
+              assert not any("/.env" in n and not n.endswith(".env.example") for n in names)
+              assert not any("node_modules/" in n or ".venv/" in n or n.endswith("/local.db") for n in names)
+              assert z.testzip() is None
+              print(f"Final archive: {dest}, {len(names)} files, {dest.stat().st_size} bytes")
+          PY
+
+      - name: Upload final ZIP as GitHub Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: COSC6370_Team_Islanders_Team_Project_Source_Code
+          path: dist/COSC6370_Team_Islanders_Team_Project_Source_Code.zip
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Attach submission ZIP to draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="cosc6370-final-submission-2026"
+          ASSET="dist/COSC6370_Team_Islanders_Team_Project_Source_Code.zip"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --clobber
+          else
+            gh release create "$TAG" "$ASSET" --draft --target "$GITHUB_SHA" \
+              --title "ApplyWise - COSC 6370 Final Submission" \
+              --notes "Final tracked source and SQLite installation manual (Word and PDF). Demo credentials are for local evaluation only."
+          fi
