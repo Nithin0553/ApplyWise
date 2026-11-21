@@ -424,7 +424,7 @@ export function GuidedJourney({ user, token, logout }: Props) {
           description: job || "No description supplied.",
           requirements: requirements.slice(0, 20),
         },
-        approved_statements: approvedStatements,
+        statement_ids: approvedStatements.map((item) => item.statement_id),
         tone: coverTone,
         max_paragraphs: 3,
       }));

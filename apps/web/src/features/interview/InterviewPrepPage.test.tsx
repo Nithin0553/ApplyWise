@@ -64,11 +64,11 @@ const PREP: InterviewPrep = {
 };
 
 function mockFetch(body: unknown, ok = true, status = 200) {
-  const fetchMock = vi.fn(async () => ({
-    ok,
-    status,
-    json: async () => body,
-  }));
+  const fetchMock = vi.fn(async (path: string, options?: RequestInit) => {
+    expect(path).toBe("/api/interview/preparation");
+    expect(options?.method).toBe("POST");
+    return { ok, status, json: async () => body };
+  });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
@@ -86,6 +86,9 @@ describe("interview preparation", () => {
       "/api/interview/preparation",
       expect.objectContaining({ method: "POST" }),
     );
+    const sent = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(sent).toEqual({ statement_ids: [STATEMENTS[0].statement_id] });
+    expect(JSON.stringify(sent)).not.toContain("verification_status");
   });
 
   it("puts the hardest statements first, whatever order the API returned", async () => {

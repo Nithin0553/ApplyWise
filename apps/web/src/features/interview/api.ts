@@ -55,7 +55,7 @@ export async function prepareInterview(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ approved_statements: approvedStatements }),
+    body: JSON.stringify({ statement_ids: approvedStatements.map((item) => item.statement_id) }),
   });
 
   if (!response.ok) {

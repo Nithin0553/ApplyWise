@@ -116,3 +116,26 @@ class CoverLetterDraft(BaseModel):
     tone: str
     paragraphs: tuple[CoverLetterParagraph, ...]
     rejected: tuple[RejectedParagraph, ...] = ()
+
+
+
+class CoverLetterSelectionRequest(BaseModel):
+    """Public F11 request: the caller selects F08 IDs, never approval labels.
+
+    The server resolves these through current F09 decisions and F02 evidence.
+    The separate CoverLetterRequest carries resolved statements to the
+    internal generation service only, not through the public HTTP boundary.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    job_context: JobContext
+    statement_ids: tuple[UUID, ...] = Field(min_length=1, max_length=10)
+    tone: Literal["professional", "warm", "direct"] = "professional"
+    max_paragraphs: int = Field(default=3, ge=2, le=5)
+
+    @model_validator(mode="after")
+    def ids_are_unique(self) -> Self:
+        if len(set(self.statement_ids)) != len(self.statement_ids):
+            raise ValueError("statement_ids contains duplicate values")
+        return self

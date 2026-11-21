@@ -376,12 +376,7 @@ export function generateCoverLetter(
       description: string;
       requirements: string[];
     };
-    approved_statements: {
-      statement_id: string;
-      text: string;
-      evidence_ids: string[];
-      verification_status: "VERIFIED" | "INFERRED";
-    }[];
+    statement_ids: string[];
     tone: CoverLetterTone;
     max_paragraphs: number;
   },

@@ -6,8 +6,8 @@ lives, so it is enforced and covered before F09's persistence exists rather
 than after. ``select_approved_statements`` is what the route will call once
 there is a store; ``FakeStatementStore`` stands in for that store here.
 
-The last test covers the interim measure: while the route still accepts
-statements from the client, it must not be served in production at all.
+The last tests assert production denies unknown F08 IDs even though
+the server now safely exposes F11 preview after F09 approval resolution.
 """
 
 from __future__ import annotations
@@ -149,33 +149,25 @@ def test_a_duplicated_selection_is_refused() -> None:
 # --- interim measure: not served in production -----------------------------
 
 
-def test_cover_letter_route_is_not_served_in_production(
+def test_cover_letter_route_rejects_unknown_ids_in_production(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """While the route trusts client-supplied statements, production must not serve it."""
+    """Production exposes the endpoint but never trusts client approval labels."""
     token, _ = _register(client, "prod-gate@example.edu")
     monkeypatch.setattr(settings, "app_env", "production")
 
-    response = client.post(
+    result = client.post(
         "/api/generation/cover-letter/preview",
         json=COVER_LETTER_PAYLOAD,
         headers=_auth(token),
     )
-
-    assert response.status_code == 404
+    assert result.status_code == 404
 
 
 def test_statement_generation_is_still_served_in_production(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The gate is specific to F11.
-
-    F07's route is safe in production because it resolves evidence server-side:
-    the caller supplies ids, never content. F11's does not yet, which is the
-    whole reason it is gated. This test pins the distinction down, so removing
-    F11's gate without first moving its selection server-side would no longer
-    look symmetrical with F07.
-    """
+    """F07 still resolves approved evidence server-side in production."""
     token, _, evidence_ids = _seeded_user(client, "prod-f07@example.edu")
     monkeypatch.setattr(settings, "app_env", "production")
 

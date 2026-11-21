@@ -13,12 +13,9 @@ is persisted, owned by that user and APPROVED. An id that does not resolve is
 refused before anything reaches the AI provider, so the approved-evidence
 guarantee is enforced rather than merely contractual.
 
-F11's cover-letter route still has that gap one step further along: it accepts
-approved statements from the client rather than resolving them against what F09
-persisted, because no such store exists yet. Until it does, the route is
-prototype-only and is not served in production — see
-``require_prototype_environment`` below, and ``cover_letter_contracts`` for the
-selection logic that will close it the same way F07's is closed here.
+F11 and F15 now accept statement IDs only and resolve them through current,
+owner-scoped F08 verification and persisted F09 approval. New cover-letter
+paragraphs remain unapproved drafts, never F10 final documents.
 """
 
 from __future__ import annotations
@@ -32,6 +29,12 @@ from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
 from app.modules.evidence.service import EvidenceService
+from app.modules.statement_review.contract import (
+    CurrentVerificationProvider,
+    VerificationUnavailableError,
+)
+from app.modules.statement_review.dependencies import current_verification_provider
+from app.modules.statement_review.service import StatementReviewService
 from app.services.ai.factory import UnknownAIProviderError, get_ai_provider
 from app.services.ai.provider import (
     AIProviderError,
@@ -40,11 +43,13 @@ from app.services.ai.provider import (
     RequirementMatchRequest,
 )
 
+from .cover_letter_contracts import StatementNotApprovedError, select_approved_statements
 from .cover_letter_pdf import render_cover_letter_pdf
 from .cover_letter_schemas import (
     CoverLetterDraft,
     CoverLetterPdfRequest,
     CoverLetterRequest,
+    CoverLetterSelectionRequest,
 )
 from .cover_letter_service import CoverLetterService
 from .errors import GenerationUnavailableError, MalformedProviderResponseError
@@ -64,21 +69,6 @@ router = APIRouter(prefix="/api/generation", tags=["generation"])
 # Built once at import time: ruff flags calling a dependency factory inside an
 # argument default (B008), and a single instance is cheaper per request.
 require_job_seeker = require_role(UserRole.JOB_SEEKER)
-
-
-def require_prototype_environment() -> None:
-    """Refuse F11's endpoint outside development.
-
-    The cover-letter route still accepts approved statements from the client,
-    which proves their labels are well formed but not that F08 verified and F09
-    approved them. Until there is a server-side store to resolve ids against
-    (see ``cover_letter_contracts.select_approved_statements``), serving this
-    route in production would mean treating client-supplied approval state as
-    authoritative. So it does not exist there: the response is a plain 404,
-    which leaks nothing about why.
-    """
-    if settings.app_env == "production":
-        raise HTTPException(status_code=404, detail="Not Found")
 
 
 @router.post("/preview", response_model=GenerationResult)
@@ -132,27 +122,47 @@ def preview_generation(
         ) from exc
 
 
-@router.post(
-    "/cover-letter/preview",
-    response_model=CoverLetterDraft,
-    dependencies=[Depends(require_prototype_environment)],
-)
+@router.post("/cover-letter/preview", response_model=CoverLetterDraft)
 def preview_cover_letter(
-    request: CoverLetterRequest,
+    request: CoverLetterSelectionRequest,
     current_user: User = Depends(require_job_seeker),
+    db: Session = Depends(get_db),
+    verifier: CurrentVerificationProvider = Depends(current_verification_provider),
     provider: str | None = Query(
         default=None,
         description="Override the configured AI provider for this call (e.g. stub, demo).",
     ),
 ) -> CoverLetterDraft:
-    """Draft cover letter paragraphs for the signed-in job seeker."""
+    """Draft candidate paragraphs from current, server-owned F08/F09 approvals."""
+    try:
+        approved = select_approved_statements(
+            StatementReviewService(db, verifier),
+            user_id=current_user.id,
+            statement_ids=request.statement_ids,
+        )
+    except StatementNotApprovedError as exc:
+        # Foreign, missing, withdrawn and unapproved IDs look identical.
+        raise HTTPException(
+            status_code=404, detail="Selected statements are not currently approved."
+        ) from exc
+    except VerificationUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="Verification is unavailable.") from exc
+
     try:
         ai_provider = get_ai_provider(provider or settings.ai_provider)
     except UnknownAIProviderError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    # The internal service receives only server-resolved statements, never
+    # browser claims of VERIFIED or APPROVED. Generated paragraphs remain drafts.
+    resolved = CoverLetterRequest(
+        job_context=request.job_context,
+        approved_statements=approved,
+        tone=request.tone,
+        max_paragraphs=request.max_paragraphs,
+    )
     try:
-        return CoverLetterService(ai_provider).generate(request, user_id=current_user.id)
+        return CoverLetterService(ai_provider).generate(resolved, user_id=current_user.id)
     except GenerationUnavailableError as exc:
         raise HTTPException(
             status_code=503, detail="AI provider is unavailable. Try again."
@@ -163,10 +173,7 @@ def preview_cover_letter(
         ) from exc
 
 
-@router.post(
-    "/cover-letter/pdf",
-    dependencies=[Depends(require_prototype_environment)],
-)
+@router.post("/cover-letter/pdf")
 def download_cover_letter(
     request: CoverLetterPdfRequest,
     current_user: User = Depends(require_job_seeker),

@@ -28,11 +28,22 @@ from app.db.session import get_db
 from app.modules.auth.dependencies import require_role
 from app.modules.auth.models import User, UserRole
 from app.modules.evidence.service import EvidenceService
+from app.modules.statement_review.contract import (
+    CurrentVerificationProvider,
+    VerificationUnavailableError,
+)
+from app.modules.statement_review.dependencies import current_verification_provider
+from app.modules.statement_review.service import StatementReviewService
 
-from .interview_schemas import InterviewPrep, InterviewPrepRequest
+from .cover_letter_contracts import StatementNotApprovedError, select_approved_statements
+from .interview_schemas import (
+    MAX_CITED_EVIDENCE_PER_REQUEST,
+    InterviewPrep,
+    InterviewPrepRequest,
+    InterviewSelectionRequest,
+)
 from .interview_service import InterviewPreparationService
 from .resolution import EvidenceNotApprovedError, resolve_approved_evidence
-from .router import require_prototype_environment
 from .schemas import GenerationEvidence
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
@@ -40,43 +51,46 @@ router = APIRouter(prefix="/api/interview", tags=["interview"])
 require_job_seeker = require_role(UserRole.JOB_SEEKER)
 
 
-@router.post(
-    "/preparation",
-    response_model=InterviewPrep,
-    dependencies=[Depends(require_prototype_environment)],
-)
+@router.post("/preparation", response_model=InterviewPrep)
 def prepare_for_interview(
-    request: InterviewPrepRequest,
+    request: InterviewSelectionRequest,
     current_user: User = Depends(require_job_seeker),
     db: Session = Depends(get_db),
+    verifier: CurrentVerificationProvider = Depends(current_verification_provider),
 ) -> InterviewPrep:
-    """Return interview questions and defensibility advice for the signed-in user.
-
-    The response is advice. It carries no verification or approval state and
-    cannot change whether anything is exportable.
-    """
-    cited_ids: tuple[UUID, ...] = tuple(
-        dict.fromkeys(
-            evidence_id
-            for statement in request.approved_statements
-            for evidence_id in statement.evidence_ids
+    """Advisory-only preparation from owned, currently approved F08/F09 claims."""
+    try:
+        approved = select_approved_statements(
+            StatementReviewService(db, verifier),
+            user_id=current_user.id,
+            statement_ids=request.statement_ids,
         )
-    )
+    except StatementNotApprovedError as exc:
+        raise HTTPException(
+            status_code=404, detail="Selected statements are not currently approved."
+        ) from exc
+    except VerificationUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="Verification is unavailable.") from exc
+
+    cited_ids: tuple[UUID, ...] = tuple(dict.fromkeys(
+        evidence_id
+        for statement in approved
+        for evidence_id in statement.evidence_ids
+    ))
+    if len(cited_ids) > MAX_CITED_EVIDENCE_PER_REQUEST:
+        raise HTTPException(status_code=422, detail="Too many cited evidence records.")
 
     try:
         resolved = resolve_approved_evidence(
-            EvidenceService(db),
-            user_id=current_user.id,
-            evidence_ids=cited_ids,
+            EvidenceService(db), user_id=current_user.id, evidence_ids=cited_ids
         )
     except EvidenceNotApprovedError as exc:
-        # 404 rather than 403, for the same reason as F07: the response must
-        # not reveal whether an evidence id exists for some other user.
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     evidence_by_id: dict[UUID, GenerationEvidence] = {
         item.evidence_id: item for item in resolved
     }
+    trusted_request = InterviewPrepRequest(approved_statements=approved)
     return InterviewPreparationService().prepare(
-        request, user_id=current_user.id, evidence_by_id=evidence_by_id
+        trusted_request, user_id=current_user.id, evidence_by_id=evidence_by_id
     )
